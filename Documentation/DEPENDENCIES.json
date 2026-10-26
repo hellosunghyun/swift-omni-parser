@@ -1,0 +1,247 @@
+{
+  "direct_dependencies": [
+    {
+      "name": "SwiftSoup",
+      "version": "2.14.3",
+      "revision": "e7f85f4d3dd91ca9a1e94d3328aa1ed5120a8c0f",
+      "license": "MIT",
+      "repository": "https://github.com/scinfu/SwiftSoup",
+      "license_sha256": "6d9f121428f5571c4e20362fa91186c552f82648c0161dacc12e239b1544d49d",
+      "upstream_license_verified": true
+    },
+    {
+      "name": "OLEKit",
+      "version": "0.3.1",
+      "revision": "2cc7a98b4ac4e9ce022336258a3bc4ff6bfc285b",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/CoreOffice/OLEKit",
+      "license_sha256": "4bf8a52e23570b5cb595d1688e87e8f2f99b747589f33d01af524ff590a1eeed",
+      "upstream_license_verified": true
+    },
+    {
+      "name": "OpenDocument.core",
+      "version": "7.5.2",
+      "revision": "77e2a0a6e4b33c33a5aee64551fcd0d7493c9101",
+      "license": "MPL-2.0",
+      "repository": "https://github.com/opendocument-app/OpenDocument.core",
+      "license_sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+      "upstream_license_verified": true
+    },
+    {
+      "name": "hwp-swift",
+      "version": "0.19.0",
+      "revision": "eebe90d160b3d437b97d0bb1ea7a5752f419f225",
+      "license": "LGPL-2.1",
+      "repository": "https://github.com/sboh1214/hwp-swift",
+      "license_sha256": "20c17d8b8c48a600800dfd14f95d5cb9ff47066a9641ddeab48dc54aec96e331",
+      "upstream_license_verified": true
+    }
+  ],
+  "native_dependency": {
+    "name": "office_oxide",
+    "version": "0.1.15",
+    "revision": "5d183f4de990de254f32976bf952e548bcd25972",
+    "license_selection": "MIT",
+    "transitive_notices": "ThirdParty/OfficeOxide/THIRD_PARTY_LICENSES.txt",
+    "upstream_license_verified": true,
+    "notice_entries": [
+      {
+        "component": "atoi_simd 0.18.1",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "bumpalo 3.20.3",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "cfg-if 1.0.5",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "crc32fast 1.5.2",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "debug_unsafe 0.1.4",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "encoding_rs 0.8.42",
+        "license_expression": "(Apache-2.0 OR MIT) AND BSD-3-Clause"
+      },
+      {
+        "component": "equivalent 1.0.3",
+        "license_expression": "Apache-2.0 OR MIT"
+      },
+      {
+        "component": "fast-float2 0.2.4",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "flate2 1.1.10",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "hashbrown 0.17.1",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "indexmap 2.14.2",
+        "license_expression": "Apache-2.0 OR MIT"
+      },
+      {
+        "component": "itoa 1.0.18",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "log 0.4.34",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "memchr 2.8.3",
+        "license_expression": "Unlicense OR MIT"
+      },
+      {
+        "component": "multiversion_no_op 1.0.0",
+        "license_expression": "Apache-2.0 OR MIT"
+      },
+      {
+        "component": "office_oxide 0.1.15",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "proc-macro2 1.0.107",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "quick-xml 0.42.0",
+        "license_expression": "MIT"
+      },
+      {
+        "component": "quote 1.0.47",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "rustversion 1.0.23",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "scopeguard 1.2.0",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "serde 1.0.229",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "serde_core 1.0.229",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "serde_derive 1.0.229",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "serde_json 1.0.154",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "simd-adler32 0.3.10",
+        "license_expression": "MIT"
+      },
+      {
+        "component": "simdutf8 0.1.5",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "syn 3.0.9",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "thiserror 2.0.21",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "thiserror-impl 2.0.21",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "typed-path 0.12.3",
+        "license_expression": "MIT OR Apache-2.0"
+      },
+      {
+        "component": "unicode-ident 1.0.27",
+        "license_expression": "(MIT OR Apache-2.0) AND Unicode-3.0"
+      },
+      {
+        "component": "zip 9.0.3",
+        "license_expression": "MIT"
+      },
+      {
+        "component": "zlib-rs 0.6.8",
+        "license_expression": "Zlib"
+      },
+      {
+        "component": "zmij 1.0.23",
+        "license_expression": "MIT"
+      },
+      {
+        "component": "zopfli 0.8.4",
+        "license_expression": "Apache-2.0"
+      }
+    ]
+  },
+  "opendocument_native_manifest_dependencies": [
+    {
+      "name": "pugixml",
+      "version": "1.15",
+      "conan_recipe_license": "MIT"
+    },
+    {
+      "name": "cryptopp",
+      "version": "8.9.0",
+      "conan_recipe_license": "BSL-1.0"
+    },
+    {
+      "name": "fmt",
+      "version": "11.2.0",
+      "conan_recipe_license": "MIT"
+    },
+    {
+      "name": "md4c",
+      "version": "0.5.2",
+      "conan_recipe_license": "MIT"
+    },
+    {
+      "name": "miniz",
+      "version": "3.1.1",
+      "conan_recipe_license": "MIT"
+    },
+    {
+      "name": "nlohmann_json",
+      "version": "3.12.0",
+      "conan_recipe_license": "MIT"
+    },
+    {
+      "name": "openjpeg",
+      "version": "2.5.4",
+      "conan_recipe_license": "BSD-2-Clause"
+    },
+    {
+      "name": "uchardet",
+      "version": "0.0.8",
+      "conan_recipe_license": "MPL-1.1"
+    },
+    {
+      "name": "utfcpp",
+      "version": "4.0.9",
+      "conan_recipe_license": "BSL-1.0"
+    },
+    {
+      "name": "cpp-httplib",
+      "version": "0.47.0",
+      "conan_recipe_license": "MIT"
+    }
+  ],
+  "native_audit_limit": "Manifest and distributed notice review; not a complete independently verified binary SBOM."
+}

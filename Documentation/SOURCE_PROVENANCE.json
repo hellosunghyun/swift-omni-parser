@@ -1,0 +1,10 @@
+{
+  "source_repository": "https://github.com/DeveloperAcademy-POSTECH/2026-C6-M09-Labcord",
+  "source_commit": "683f612c45bbf624bde91c23fd79f12a8daa13b3",
+  "scope": "Researchers/Services/DocumentParsing plus OfficeOxide distribution files",
+  "source_authors": [
+    "Sunghyun Kim"
+  ],
+  "note": "Application code and deleted tests/fixtures are not included.",
+  "swift_files_copied_unchanged": 42
+}
