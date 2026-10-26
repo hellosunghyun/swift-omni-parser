@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Traversal.docx",
+    "sha256": "3aa45d94fb508b17ea6c7f376ba27f8d111ff92236c1762cc44a85db6e592d17",
+    "origin": "기존 로컬 실험에서 자체 생성한 경로 탈출/크기 불일치 ZIP; 실제 문서 아님"
+  },
+  {
+    "name": "LyingSize.docx",
+    "sha256": "9d6a4ffe63edb96873613c2f83258807c2cba8336b9dbf30d85d0c53d23588df",
+    "origin": "기존 로컬 실험에서 자체 생성한 경로 탈출/크기 불일치 ZIP; 실제 문서 아님"
+  }
+]

@@ -1,0 +1,778 @@
+[
+  {
+    "name": "RealWorld/csv/real-csv-01-test-columnar.csv",
+    "sha256": "37a7bb0f1306ccbf1a974f26855474ac986066db5f10bac9ff1894ab88d5d3b0",
+    "anchors": [
+      "Record Number",
+      "Square of the Record Number"
+    ],
+    "originID": "real-csv-01",
+    "format": "csv",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/csv/real-csv-02-poi-integration-exceptions.csv",
+    "sha256": "dda474221217313f8b3d03b141bb1a86ef5e84961be56446a060a74ab8c0cff8",
+    "anchors": [
+      "HSSF",
+      "Handler"
+    ],
+    "originID": "real-csv-02",
+    "format": "csv",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/csv/real-csv-03-poi-integration-handlers.csv",
+    "sha256": "5d9a167e9806cd3aca268d583d880e07aea35e35fa112e207dff9d6c0879595d",
+    "anchors": [
+      "Handler NoScratchpad",
+      "XSSF"
+    ],
+    "originID": "real-csv-03",
+    "format": "csv",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/doc/real-doc-01-SampleDoc.doc",
+    "sha256": "717585c0a88f20862c86220163dd03da87cd743970354c6b29add32725f2e833",
+    "anchors": [
+      "I am a test document"
+    ],
+    "originID": "real-doc-01",
+    "format": "doc",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/doc/real-doc-02-simple-table.doc",
+    "sha256": "67d7fe8e0555c16516354498a5935f24eeef90beb5efbf526f93a1d6c734da43",
+    "anchors": [
+      "This text is below the table"
+    ],
+    "originID": "real-doc-02",
+    "format": "doc",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/doc/real-doc-03-pictures_escher.doc",
+    "sha256": "84a68678fc525e763beabab7e79240e2bbf4cd6b7766eed3364681d38fed2457",
+    "anchors": [],
+    "originID": "real-doc-03",
+    "format": "doc",
+    "minimumTextLength": 0,
+    "minimumTableCells": 0,
+    "minimumImages": 1
+  },
+  {
+    "name": "RealWorld/docx/real-docx-01-SampleDoc.docx",
+    "sha256": "ea2c517bd7be4628887eb97f630334b93b894f4522d2c0adae263e602d76df92",
+    "anchors": [
+      "I am a test document"
+    ],
+    "originID": "real-docx-01",
+    "format": "docx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/docx/real-docx-02-table_footnotes.docx",
+    "sha256": "69666500a7dd00600da64cc7676f8939c84df8804967ec2fc75567fad41f21a9",
+    "anchors": [
+      "Pole",
+      "slove"
+    ],
+    "originID": "real-docx-02",
+    "format": "docx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/docx/real-docx-03-VariousPictures.docx",
+    "sha256": "c1eecbca7de9f99e21c677e1d5b045eaa1d5a442eff4c82f0cbe9af93726a070",
+    "anchors": [
+      "Sheet with various pictures"
+    ],
+    "originID": "real-docx-03",
+    "format": "docx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 1
+  },
+  {
+    "name": "RealWorld/heic/real-heic-01-IMG_1034.heic",
+    "sha256": "f40b97f76a281c56e90b502762ef66ff9d34ea61696c8350257b5dc6a8797e0d",
+    "anchors": [],
+    "originID": "real-heic-01",
+    "format": "heic",
+    "minimumTextLength": 0,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/heic/real-heic-02-example.heic",
+    "sha256": "7f8b363e4936c0666a25f64f3a92fda10bd8e5453be4592530b65a55dd98f3f2",
+    "anchors": [],
+    "originID": "real-heic-02",
+    "format": "heic",
+    "minimumTextLength": 0,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/heic/real-heic-03-testHEIF.heic",
+    "sha256": "4e5f21ca074c4c981c0f9d94786263fc374dd8412a643355a01bed62fad43d80",
+    "anchors": [],
+    "originID": "real-heic-03",
+    "format": "heic",
+    "minimumTextLength": 0,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/html/real-html-01-about.html",
+    "sha256": "6729aeeceac7417319c6da00525c7863ff90794a60b300fbf6c74df028b98743",
+    "anchors": [
+      "Apache Tika"
+    ],
+    "originID": "real-html-01",
+    "format": "html",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/html/real-html-02-testHTML_embedded_img.html",
+    "sha256": "c97a3dd5de2f42255d8d36e156060c732941bb0aa36b7cff2dd3ac2a5492c703",
+    "anchors": [
+      "some content",
+      "some other content"
+    ],
+    "originID": "real-html-02",
+    "format": "html",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/html/real-html-03-testHTML_charset_utf8.html",
+    "sha256": "eaa04e14c52095a821391f0d5e2dd7f18d37961fb0b15c5a6973c5fcb12f0bf5",
+    "anchors": [
+      "This is a sample text"
+    ],
+    "originID": "real-html-03",
+    "format": "html",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/hwp/real-hwp-01-noori.hwp",
+    "sha256": "d4b9f0d59bafa4b550db142ef3b50f570ffee7cdcbd9a290eac26779172f262a",
+    "anchors": [
+      "누리",
+      "보도일시",
+      "담당부서",
+      "거대공공연구정책과",
+      "과학기술정보통신부"
+    ],
+    "originID": "hwp-01-noori",
+    "format": "hwp",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/hwp/real-hwp-02-space-width.hwp",
+    "sha256": "cd95d67cb1751d0d404e149d21c9cf985ac0700afb78559aba2a42e7e4cca8c9",
+    "anchors": [
+      "#249 space-width",
+      "가나 ab cd 12 #1",
+      "ab cd 가나 다라 #2",
+      "가나 ab cd #5"
+    ],
+    "originID": "hwp-02-space-width",
+    "format": "hwp",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/hwp/real-hwp-03-gonggongnuri.hwp",
+    "sha256": "464eb24cc987bf3b268bed2bef475d5a6fa26b16f2761c48a886ee50b3961e8d",
+    "anchors": [
+      "공공누리"
+    ],
+    "originID": "hwp-03-gonggongnuri",
+    "format": "hwp",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/hwpx/real-hwpx-01-space-width.hwpx",
+    "sha256": "d4f41d455ba24641429625aae9fdadc83861346e34f205a93551537dd42288c5",
+    "anchors": [
+      "#249 space-width",
+      "가나 ab cd 12 #1",
+      "ab cd 가나 다라 #2",
+      "ab cd ef #7"
+    ],
+    "originID": "hwpx-01-space-width",
+    "format": "hwpx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/hwpx/real-hwpx-02-noori.hwpx",
+    "sha256": "b70f72cf0e33cc1ef582158e21f0c2bddc3400ad73029c1d31d0f8effaffb8c7",
+    "anchors": [
+      "누리",
+      "보도일시",
+      "거대공공연구정책과",
+      "과학기술정보통신부",
+      "조간"
+    ],
+    "originID": "hwpx-02-noori",
+    "format": "hwpx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/hwpx/real-hwpx-03-column.hwpx",
+    "sha256": "91e8cf2062e9f7b2401a046bbf64bba086db76f2e09dfdeed9f32251993a0957",
+    "anchors": [
+      "Lorem ipsum dolor sit amet",
+      "consectetur adipiscing elit",
+      "Ut enim ad minim veniam"
+    ],
+    "originID": "hwpx-03-column",
+    "format": "hwpx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/jpeg/real-jpeg-01-businessplan.jpg",
+    "sha256": "1724d82608851b23c69d099b157dab55ace62c0eb01088ca4ffc7cacb7056778",
+    "anchors": [
+      "Marketing"
+    ],
+    "originID": "real-jpeg-01",
+    "format": "jpeg",
+    "minimumTextLength": 20,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/jpeg/real-jpeg-02-timesheet.jpg",
+    "sha256": "184e23d02a5b77a512c590ce36fecde2be5855ff8d7dac716f046e6c81994d93",
+    "anchors": [
+      "Weekly Timesheet"
+    ],
+    "originID": "real-jpeg-02",
+    "format": "jpeg",
+    "minimumTextLength": 20,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/jpeg/real-jpeg-03-loancalc.jpg",
+    "sha256": "5c0ad9efa1dda1443dd4427f8e2460c53bd4f6c95a02406e1b947b953d1b3ef5",
+    "anchors": [
+      "Simple Loan Calculator"
+    ],
+    "originID": "real-jpeg-03",
+    "format": "jpeg",
+    "minimumTextLength": 20,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/json/real-json-01-config-template.json",
+    "sha256": "4f0e64c85c3c2c8507946201c57788b89f122e45e9d3a24b8c2f43ae21423428",
+    "anchors": [
+      "content-handler-factory",
+      "TEXT"
+    ],
+    "originID": "real-json-01",
+    "format": "json",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/json/real-json-02-metadata-migration-3x-4x.json",
+    "sha256": "d681713bf6240e110f5732673fdf667216f7b1667ade8135b60fbc90629431f0",
+    "anchors": [
+      "iso19115:access-constraints"
+    ],
+    "originID": "real-json-02",
+    "format": "json",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/json/real-json-03-file15_tags.json",
+    "sha256": "ef1f4586392763d55c32e95498ba48a4aefe28ef6339ce74dda5903d65b0ef66",
+    "anchors": [
+      "application/pdf"
+    ],
+    "originID": "real-json-03",
+    "format": "json",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/markdown/real-markdown-01-README.md",
+    "sha256": "47108268624320605d099cba85eab2a0a6e3b92ec188bbd8ec47815dc417a802",
+    "anchors": [
+      "Welcome to Apache Tika"
+    ],
+    "originID": "real-markdown-01",
+    "format": "markdown",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/markdown/real-markdown-02-README.md",
+    "sha256": "7a88ad6f72b8db97ce99d0831ba0344340b852750132ba765c9c2685d2b91195",
+    "anchors": [
+      "tika-metadata-schema"
+    ],
+    "originID": "real-markdown-02",
+    "format": "markdown",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/markdown/real-markdown-03-README.md",
+    "sha256": "389e4533ca8c9d20aad28615312c5ae69124f496d83487f08583ab8a5b2554b6",
+    "anchors": [
+      "Apache Tika Server"
+    ],
+    "originID": "real-markdown-03",
+    "format": "markdown",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/pdf/real-pdf-01-testPDF.pdf",
+    "sha256": "8035bc3f748d8b97b8a9978bd812197bf40cf2b294a7e9b30e39d7167ddc720e",
+    "anchors": [
+      "Apache Tika",
+      "Content Analysis Toolkit"
+    ],
+    "originID": "real-pdf-01",
+    "format": "pdf",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/pdf/real-pdf-02-testOCR.pdf",
+    "sha256": "ca4e1851095ea410a7c5dbbfa064fef7c4b36da3ef0d49bddf29619e88b301de",
+    "anchors": [
+      "Happy New Year",
+      "2003"
+    ],
+    "originID": "real-pdf-02",
+    "format": "pdf",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/pdf/real-pdf-03-testPDFTwoTextBoxes.pdf",
+    "sha256": "b61a9f3ebbd959518c1b07e27ff89f8530f4671824ac2b6071d051d0d2a300d5",
+    "anchors": [
+      "Left column line 1",
+      "Right column line 2"
+    ],
+    "originID": "real-pdf-03",
+    "format": "pdf",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/png/real-png-01-ss-features.png",
+    "sha256": "c0a18e27f3213057ff050ed453577a8291c6a030af1a2b66d8f6ed4c82fd9afe",
+    "anchors": [
+      "Memory",
+      "Read Files"
+    ],
+    "originID": "real-png-01",
+    "format": "png",
+    "minimumTextLength": 20,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/png/real-png-02-baseball.png",
+    "sha256": "c32ebd117ffafa9ff7465632df139b549a7d70f7f7649b055b6938e8489aad02",
+    "anchors": [],
+    "originID": "real-png-02",
+    "format": "png",
+    "minimumTextLength": 0,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/png/real-png-03-testRotated+10.png",
+    "sha256": "b8ef9dee62e853432869f6960ed628e21a2f4a8126d5ca5aa4745de05823e7e3",
+    "anchors": [
+      "Attachment apartments"
+    ],
+    "originID": "real-png-03",
+    "format": "png",
+    "minimumTextLength": 20,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/ppt/real-ppt-01-SampleShow.ppt",
+    "sha256": "64275a6685b8f267827178037dcc59de927475e56385725916f4c6039c7ce7f6",
+    "anchors": [
+      "Title of the first slide"
+    ],
+    "originID": "real-ppt-01",
+    "format": "ppt",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/ppt/real-ppt-02-pictures.ppt",
+    "sha256": "5318e8486f47c7d9e838eaa4edfe385ba27d7d0ce145364792df53488430e98c",
+    "anchors": [],
+    "originID": "real-ppt-02",
+    "format": "ppt",
+    "minimumTextLength": 0,
+    "minimumTableCells": 0,
+    "minimumImages": 1
+  },
+  {
+    "name": "RealWorld/ppt/real-ppt-03-WithMaster.ppt",
+    "sha256": "307cb62b279b1b1014058f26866d905e1f80ac649ecedeb63604371d807233dd",
+    "anchors": [
+      "First page title"
+    ],
+    "originID": "real-ppt-03",
+    "format": "ppt",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/pptx/real-pptx-01-SampleShow.pptx",
+    "sha256": "bfb4b2f07c9233afd2f32aa5781d849d0c7d225bf03721a10becf487b481d828",
+    "anchors": [
+      "Title of the first slide"
+    ],
+    "originID": "real-pptx-01",
+    "format": "pptx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/pptx/real-pptx-02-table-with-different-font-colors.pptx",
+    "sha256": "fb0245f28e32e5137da6f9c2a9c35c5a8694a71c35d675ab671a595c1b93d72d",
+    "anchors": [
+      "Text 1",
+      "Text 16"
+    ],
+    "originID": "real-pptx-02",
+    "format": "pptx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/pptx/real-pptx-03-WithMaster.pptx",
+    "sha256": "54ae7677fd2813a815160cc72bd8960a4e482690dfc369b392868521c9b61549",
+    "anchors": [
+      "First page title"
+    ],
+    "originID": "real-pptx-03",
+    "format": "pptx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/rtf/real-rtf-01-testRTFListMicrosoftWord.rtf",
+    "sha256": "e57b9bfba4d11d1b8b15dd347ed514beab04ccb54146a882e9398ca843afb43d",
+    "anchors": [
+      "A short ordered list",
+      "A short unordered list"
+    ],
+    "originID": "real-rtf-01",
+    "format": "rtf",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/rtf/real-rtf-02-testRTFJapanese.rtf",
+    "sha256": "99dc05c1bcbddf00e3421b04fabd6014c62194ea4fe82b67b25045667a90669b",
+    "anchors": [
+      "ゾルゲと尾崎",
+      "古書店で処刑記録見つかる"
+    ],
+    "originID": "real-rtf-02",
+    "format": "rtf",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/rtf/real-rtf-03-testRTFRegularImages.rtf",
+    "sha256": "72e21862e0d72073f6c0678edb7af8a9b82d4b1e785705a3f6ba589fb1961152",
+    "anchors": [
+      "Duck: cat:"
+    ],
+    "originID": "real-rtf-03",
+    "format": "rtf",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/tiff/real-tiff-01-testTIFF.tif",
+    "sha256": "04c72da5af0ec9e3f2e96d70cf674f0c42255aeacd3fd23243010a7c208d11bc",
+    "anchors": [],
+    "originID": "real-tiff-01",
+    "format": "tiff",
+    "minimumTextLength": 0,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/tiff/real-tiff-02-testTIFF_multipage.tif",
+    "sha256": "3e425e4682be75c2a0ebb2f4168f9782df3da1580e7e72b00140b228110fdd90",
+    "anchors": [
+      "Multipage",
+      "TIFF",
+      "Example",
+      "Page 1",
+      "Page 2"
+    ],
+    "originID": "real-tiff-02",
+    "format": "tiff",
+    "minimumTextLength": 40,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/tiff/real-tiff-03-testtiff.tif",
+    "sha256": "9006e4b5615beb93d5ff99a79ed62551a523ec8b0e2f881b074589d28c47b119",
+    "anchors": [],
+    "originID": "real-tiff-03",
+    "format": "tiff",
+    "minimumTextLength": 0,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/txt/real-txt-01-CHANGES.txt",
+    "sha256": "63938ca12a4b47454ce9b522d6e83377f51d62bf8fb938a6aefc1a7e7b1dd691",
+    "anchors": [
+      "Release 4.2.0"
+    ],
+    "originID": "real-txt-01",
+    "format": "txt",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/txt/real-txt-02-multi-language.txt",
+    "sha256": "3f2326fbaae834a9237b7763781e22fa6437f57b56dd11d0b2fa0e41f9ac50c6",
+    "anchors": [
+      "English: ABC Category",
+      "não contabilize"
+    ],
+    "originID": "real-txt-02",
+    "format": "txt",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/txt/real-txt-03-comparison-report.txt",
+    "sha256": "349699a667344b31dbbffba14bd7b9226cfb012786e3e1502699a495623e414b",
+    "anchors": [
+      "Language Detection Comparison Report"
+    ],
+    "originID": "real-txt-03",
+    "format": "txt",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/xls/real-xls-01-mortgage-calculation.xls",
+    "sha256": "271c06d988bfe033afdc69733c5ba09e95658ebff571bfca189b567e678631dc",
+    "anchors": [
+      "Principal",
+      "Rate",
+      "Term"
+    ],
+    "originID": "real-xls-01",
+    "format": "xls",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/xls/real-xls-02-sumifs.xls",
+    "sha256": "ed34698a6c9bd269acb80874e820edd8cdbd246a3f939544a44ebeb3d2cb888c",
+    "anchors": [
+      "Bedrooms"
+    ],
+    "originID": "real-xls-02",
+    "format": "xls",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/xls/real-xls-03-testEXCEL-charts.xls",
+    "sha256": "33f08ed32503437615af7ca8d5413ffa22df33ceb6765c51e200039f71452f6a",
+    "anchors": [],
+    "originID": "real-xls-03",
+    "format": "xls",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/xlsx/real-xlsx-01-DataTableCities.xlsx",
+    "sha256": "3b17486d4015b124423d38966a0aa88757b2177087941a905704b634204aed4e",
+    "anchors": [
+      "Tokyo, Japan",
+      "Population"
+    ],
+    "originID": "real-xlsx-01",
+    "format": "xlsx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/xlsx/real-xlsx-02-AverageTaxRates.xlsx",
+    "sha256": "094b2facaf85870a3230a3b097b82b4bedd7659583e34977d196d04be3211367",
+    "anchors": [
+      "FULL RATE PRSI"
+    ],
+    "originID": "real-xlsx-02",
+    "format": "xlsx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/xlsx/real-xlsx-03-ExcelPivotTableSample.xlsx",
+    "sha256": "f0ef1d61c9f3d8b27b18a876b8e24676314c6450ed64a725a7bfaa603fdd67e3",
+    "anchors": [
+      "Field1"
+    ],
+    "originID": "real-xlsx-03",
+    "format": "xlsx",
+    "minimumTextLength": 1,
+    "minimumTableCells": 1,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/xml/real-xml-01-pom.xml",
+    "sha256": "52a489f3d60c8400503c3edbcabf6a46c7dfbcb535a7309369bd4053cfd0eb51",
+    "anchors": [
+      "org.apache.tika"
+    ],
+    "originID": "real-xml-01",
+    "format": "xml",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/xml/real-xml-02-pom.xml",
+    "sha256": "05099f8fb8daf4e1a6538528bd7192c51300196d8d153dd6b668f654a7f4a95a",
+    "anchors": [
+      "tika-core"
+    ],
+    "originID": "real-xml-02",
+    "format": "xml",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "RealWorld/xml/real-xml-03-custom-mimetypes.xml",
+    "sha256": "54df44e623cfc9423f7907da9ebeb8777f6c68e07bbcd5b866329c8e3fd4cdcb",
+    "anchors": [],
+    "originID": "real-xml-03",
+    "format": "xml",
+    "minimumTextLength": 1,
+    "minimumTableCells": 0,
+    "minimumImages": 0
+  },
+  {
+    "name": "LegacySample.doc",
+    "sha256": "2b069901ca3dc54a499c5a2f3067d88660900a6367d1bfa03e8165d3df4bd747",
+    "anchors": [
+      "Legacy body marker",
+      "Legacy cell marker"
+    ],
+    "origin": "기존 앱의 자체 생성 fixture; 앱 저장소 8c565d8에서 내용 변경 없이 이관"
+  },
+  {
+    "name": "LegacySample.xls",
+    "sha256": "be3eddd8b58cd2784bc2145d637d4a2d99338395d8db9c1e5581e261e6825e95",
+    "anchors": [
+      "Legacy body marker",
+      "Legacy cell marker"
+    ],
+    "origin": "기존 앱의 자체 생성 fixture; 앱 저장소 8c565d8에서 내용 변경 없이 이관"
+  },
+  {
+    "name": "LegacySample.ppt",
+    "sha256": "fcff02696fc357b4068fe73f3b25e12f42b4cd75d24158114c5cbd15592e2200",
+    "anchors": [
+      "Legacy body marker",
+      "Legacy cell marker"
+    ],
+    "origin": "기존 앱의 자체 생성 fixture; 앱 저장소 8c565d8에서 내용 변경 없이 이관"
+  },
+  {
+    "name": "BinarySample.hwp",
+    "sha256": "e07a8342885d391bb0e7c7607e86bdf5e6ae03e7988d2013e259e6ce4bb8826a",
+    "anchors": [],
+    "origin": "기존 앱의 자체 생성 fixture; 앱 저장소 8c565d8에서 내용 변경 없이 이관"
+  },
+  {
+    "name": "BinaryCompressed.hwp",
+    "sha256": "863394d708c8cc5769df9ee81f31d187976e60e86102751f388a666642b2d576",
+    "anchors": [],
+    "origin": "기존 앱의 자체 생성 fixture; 앱 저장소 8c565d8에서 내용 변경 없이 이관"
+  }
+]

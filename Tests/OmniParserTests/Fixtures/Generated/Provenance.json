@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Generated/MergedCells.ppt",
+    "sha256": "280cdc8e9b6539dc6d1fbc01300a942d75709a1cc2699e5b3a1415c466f47ced",
+    "origin": "자체 작성한 셀·텍스트·그림을 Ream 테스트 빌더로 생성; 실제 사용자 문서 아님",
+    "generatorRevision": "253cb67f1f7f8d3f7493f4f2ba09a8855fe16d24 + 기존 실험용 fixture builder 옵션 패치"
+  },
+  {
+    "name": "Generated/EmptyCells.ppt",
+    "sha256": "4b29168f8795c9261e9e27fd75ffc00579b291ca537fca307db1b31ff18f9128",
+    "origin": "자체 작성한 셀·텍스트·그림을 Ream 테스트 빌더로 생성; 실제 사용자 문서 아님",
+    "generatorRevision": "253cb67f1f7f8d3f7493f4f2ba09a8855fe16d24 + 기존 실험용 fixture builder 옵션 패치"
+  },
+  {
+    "name": "Generated/TablePicture.ppt",
+    "sha256": "dbf5fea5f89dbc1d858fde5f29d82ba75d42864e1d08d5d69eeea5643846bdbe",
+    "origin": "자체 작성한 셀·텍스트·그림을 Ream 테스트 빌더로 생성; 실제 사용자 문서 아님",
+    "generatorRevision": "253cb67f1f7f8d3f7493f4f2ba09a8855fe16d24 + 기존 실험용 fixture builder 옵션 패치"
+  },
+  {
+    "name": "Generated/Formatting.xlsx",
+    "sha256": "3b2a3afaddcee42e6855abb923cfb7e0bb1e8adaa9292fee2ece9bbf9a29dd9a",
+    "origin": "자체 작성한 셀·텍스트·그림을 Ream 테스트 빌더로 생성; 실제 사용자 문서 아님",
+    "generatorRevision": "253cb67f1f7f8d3f7493f4f2ba09a8855fe16d24 + 기존 실험용 fixture builder 옵션 패치"
+  }
+]

@@ -38,3 +38,9 @@ Conan 레시피에서 확인한 조건은 MIT·BSL-1.0·BSD-2-Clause와 uchardet
 ## Apple 프레임워크
 
 Foundation, CoreGraphics, ImageIO, PDFKit, UIKit, Vision, Synchronization 등은 Apple SDK가 제공하는 프레임워크입니다. 이 저장소가 해당 프레임워크를 MIT로 배포하는 것은 아닙니다. 실제 사용·배포에는 Apple SDK의 조건이 적용됩니다.
+
+## 테스트 자산
+
+`Tests/OmniParserTests/Fixtures/`의 외부 문서는 런타임 의존성과 별도로 원래 자산의 라이선스·출처를 따릅니다. [자산 안내](Tests/OmniParserTests/Fixtures/README.md), 파일별 [원본 manifest](Tests/OmniParserTests/Fixtures/RealWorld/RealWorldManifest.json), [LICENSE·NOTICE 사본](Tests/OmniParserTests/Fixtures/Licenses/README.md)을 함께 보존합니다. 해당 fixture에 이 저장소의 MIT를 일괄 적용하지 않습니다.
+
+자체 생성 Office fixture에 사용한 Ream 테스트 빌더의 [MIT 고지](Tests/OmniParserTests/Fixtures/Licenses/Ream-builder-MIT.txt)도 보존했습니다. Ream은 운영 패키지 의존성이 아니며 생성 JS 번들을 배포 리소스로 포함하지 않았습니다.

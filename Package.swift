@@ -15,6 +15,11 @@ let package = Package(
     .package(url: "https://github.com/CoreOffice/OLEKit.git", exact: "0.3.1")
   ],
   targets: [
+    .testTarget(
+      name: "OmniParserTests",
+      dependencies: ["OmniParser"],
+      resources: [.copy("Fixtures")]
+    ),
     .binaryTarget(
       name: "OfficeOxide",
       path: "ThirdParty/OfficeOxide/OfficeOxide.xcframework"
