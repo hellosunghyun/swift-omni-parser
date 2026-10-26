@@ -1,5 +1,7 @@
 # OmniParser
 
+> **Draft — 개발·검토 중인 저장소입니다.** API·의존성·패키지 구성이 바뀔 수 있습니다. 현재 자동 CI·회귀 테스트·안정 버전 릴리스가 없으며, 실서비스 도입 전 기능 검증과 배포 라이선스 검토가 필요합니다.
+
 로컬 문서의 본문·표·삽입 이미지와 OCR 결과를 추출하는 iOS용 Swift Package입니다.
 
 - 저장소: `hellosunghyun/swift-omni-parser`
@@ -27,7 +29,7 @@ import OmniParser
 
 // 기본값: 네이티브 본문·표만 추출합니다.
 let result = try await DocumentParser.parse(.url(fileURL))
-print(result.fullText)
+let text = result.fullText // 실제 문서 본문은 진단 로그에 기록하지 않는 것을 권장합니다.
 
 // 스캔 문서·이미지의 텍스트가 필요할 때 OCR을 켭니다.
 let recognized = try await DocumentParser.parse(
@@ -52,7 +54,8 @@ let outcomes = try await DocumentParser.parseBatch(
 | 형식 | 구현 경로 |
 | --- | --- |
 | TXT·CSV·JSON·XML | Foundation 및 형식별 구조 추출 |
-| HTML·Markdown·RTF | SwiftSoup·형식별 해석·Apple 프레임워크 |
+| HTML·Markdown | SwiftSoup·형식별 구조 추출·내장/로컬 참조 이미지 처리 |
+| RTF | Foundation 본문 문자열 추출. 표·삽입 이미지·이미지 OCR은 구현하지 않음 |
 | JPEG·PNG·HEIC·TIFF·CGImage | ImageIO·Vision, 다중 프레임과 방향 처리 |
 | PDF | PDFKit·페이지 좌표·표 추정·삽입 이미지·선택적 OCR |
 | DOC·PPT | OfficeOxide, OfficeArt 그림 보완 |
@@ -87,6 +90,12 @@ swiftlint lint --strict
 | hwp-swift / CoreHwp | 0.19.0 | LGPL-2.1 |
 | OfficeOxide | 0.1.15, 고정 커밋 | MIT 선택, 전이 의존성의 별도 조건 |
 
-소스 패키지를 사용하는 앱의 바이너리를 배포할 때에는 MPL·LGPL 등 해당 조건을 별도로 이행해야 합니다. 특히 LGPL의 재링크·소스 제공 조건은 앱의 배포 방식까지 고려해야 합니다. 상세 범위와 확인하지 못한 부분은 [라이선스 검토](Documentation/LICENSE_REVIEW.md), 고지·소스 취득 경로는 [서드파티 고지](THIRD_PARTY_NOTICES.md)를 확인하세요.
+현재 단일 제품은 CoreHwp·OdrCore·OfficeOxide를 필수 의존성으로 연결합니다. PDF만 사용하는 런타임 옵션으로 HWP·Office 의존성을 제외할 수는 없습니다.
+
+소스 패키지를 사용하는 앱의 바이너리를 배포할 때에는 MPL·LGPL 등 해당 조건을 별도로 이행해야 합니다. 특히 LGPL의 재링크·소스 제공 조건은 앱의 배포 방식까지 고려해야 합니다. 직접 의존성의 라이선스 대조는 완료했지만 네이티브 바이너리 전체의 재현 빌드·전이 고지 대조는 미완료입니다. 상세 범위와 확인하지 못한 부분은 [라이선스 검토](Documentation/LICENSE_REVIEW.md), 고지·소스 취득 경로는 [서드파티 고지](THIRD_PARTY_NOTICES.md)를 확인하세요.
 
 OfficeOxide의 iOS·Simulator 정적 XCFramework는 `ThirdParty/OfficeOxide`에 포함됩니다. 약 84MiB로 초기 저장소 크기가 크며, Git LFS나 GitHub Release를 통한 배포로 전환하지 않은 초기 구성입니다. 변경한 소스의 재현 경로·호환 패치·아카이브 해시와 원래 고지를 함께 보존했습니다.
+
+## 공개 초안 검토
+
+오픈소스 도입 관점의 확인된 문제와 개선 순서는 [검토 보고서](Documentation/OPEN_SOURCE_REVIEW.md)에 정리했습니다.
