@@ -1,0 +1,82 @@
+diff --git a/src/excel/xls/biff-reader.ts b/src/excel/xls/biff-reader.ts
+index 5a58b00..7c6c5be 100644
+--- a/src/excel/xls/biff-reader.ts
++++ b/src/excel/xls/biff-reader.ts
+@@ -293,6 +293,17 @@ function parseBoundSheet(data: Uint8Array): { name: string; offset: number; type
+   return { name, offset, type };
+ }
+ 
++// Keep worksheet records separate from nested chart caches ([MS-XLS] 2.4.21).
++function worksheetRecords(records: ReadonlyArray<BiffRecord>): Array<BiffRecord> {
++  let depth = 0;
++  return records.filter(record => {
++    if (record.type === REC.BOF) depth++;
++    const belongsToSheet = depth === 1;
++    if (record.type === REC.EOF) depth--;
++    return belongsToSheet;
++  });
++}
++
+ // A worksheet substream → its grid + any embedded pictures. Only value-bearing
+ // records are read; the column/row count come from the actual cells. Pictures
+ // come from the sheet's MSODrawing (Escher) referencing the workbook BLIP store.
+@@ -314,7 +325,8 @@ function readSheet(
+   hyperlinks: Array<SheetHyperlink>;
+   comments: Array<SheetComment>;
+ } {
+-  const records = readSubstream(wb, view, start);
++  const substreams = readSubstream(wb, view, start);
++  const records = worksheetRecords(substreams);
+   const cells: Array<WorksheetCell> = [];
+   const merges: Array<MergedRange> = [];
+   const columns: Array<ColumnWidth> = [];
+@@ -481,15 +493,15 @@ function readSheet(
+   // Embedded charts: a nested chart substream (BOF dt=0x20 … EOF) is plotted from
+   // the sheet's own cells (XLS-6).
+   const charts: Array<SheetChartRef> = [];
+-  for (let i = 0; i < records.length; i++) {
+-    if (records[i]!.type !== REC.BOF || readU16(records[i]!.data, 2) !== 0x0020) continue;
++  for (let i = 0; i < substreams.length; i++) {
++    if (substreams[i]!.type !== REC.BOF || readU16(substreams[i]!.data, 2) !== 0x0020) continue;
+     let depth = 0;
+     const sub: Array<BiffRecord> = [];
+     let j = i;
+-    for (; j < records.length; j++) {
+-      sub.push(records[j]!);
+-      if (records[j]!.type === REC.BOF) depth++;
+-      else if (records[j]!.type === REC.EOF && --depth <= 0) break;
++    for (; j < substreams.length; j++) {
++      sub.push(substreams[j]!);
++      if (substreams[j]!.type === REC.BOF) depth++;
++      else if (substreams[j]!.type === REC.EOF && --depth <= 0) break;
+     }
+     i = j;
+     const chart = parseBiffChart(sub, cells, sharedStrings);
+diff --git a/tests/xls-chart.test.ts b/tests/xls-chart.test.ts
+index b41522a..bbcc9a7 100644
+--- a/tests/xls-chart.test.ts
++++ b/tests/xls-chart.test.ts
+@@ -40,6 +40,23 @@ const chartXls = (kind?: 'bar' | 'line' | 'pie'): Uint8Array =>
+   });
+ 
+ describe('xls embedded charts (XLS-6)', () => {
++  it('keeps chart caches out of worksheet cells without losing later cells or charts', () => {
++    const chart = chartRecords({ kind: 'bar', values: { r0: 0, r1: 0, c0: 0, c1: 0 } });
++    chart.splice(chart.length - 1, 0, numberRec(0, 0, 999), labelSstRec(0, 1, 1));
++    const doc = readXlsToSheetDoc(buildXls({
++      sst: ['actual', 'cached'],
++      sheets: [{ name: 'S', records: [
++        numberRec(0, 0, 10), labelSstRec(0, 1, 0), ...chart, numberRec(9, 9, 99),
++      ] }],
++    }));
++    const sheet = doc.sheets[0]!;
++    expect(sheet.grid.cells.map(c => [c.row, c.column, c.rawValue])).toEqual([
++      [0, 0, '10'], [0, 1, '0'], [9, 9, '99'],
++    ]);
++    expect(sheet.charts).toHaveLength(1);
++    expect(doc.chartData?.get(sheet.charts![0]!.chartPartPath)?.series[0]?.values).toEqual([10]);
++  });
++
+   it('plots a chart from the worksheet cells its AI records reference', () => {
+     const doc = readXlsToSheetDoc(chartXls());
+     const ref = doc.sheets[0]?.charts?.[0];
