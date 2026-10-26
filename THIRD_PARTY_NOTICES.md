@@ -21,6 +21,12 @@ SwiftPM으로 가져오는 의존성의 소스와 원래 라이선스는 해당 
 - 정적으로 포함될 수 있는 Rust 표준 라이브러리의 [저작권 고지](ThirdParty/OfficeOxide/RustStandardLibrary/COPYRIGHT), [라이브러리 상세 고지](ThirdParty/OfficeOxide/RustStandardLibrary/COPYRIGHT-library.html), MIT·Apache 라이선스와 메타데이터를 별도 보존했습니다. 바이너리 제작에 기록된 Rust 1.97.1 설치본에서 가져온 고지입니다.
 - [재빌드 스크립트](ThirdParty/OfficeOxide/build.sh), [호환 패치](ThirdParty/OfficeOxide/compat.patch), [SHA-256](ThirdParty/OfficeOxide/SHA256SUMS)를 포함합니다. 재빌드에는 Rust iOS 타깃과 Xcode가 필요하며 패키지 소비 시에는 Rust를 실행하지 않습니다.
 
+## Rust 표준 라이브러리 고지 보충
+
+기존 HTML의 외부 크레이트 목록이 비어 있어, 기기용 정적 아카이브에서 관찰한 구성요소 이름을 기준으로 Rust 1.97.1 설치 소스의 고지를 [추가 보존](ThirdParty/OfficeOxide/RustStandardLibrary/AdditionalNotices)했습니다. 여기에는 compiler-builtins의 LLVM 예외·NCSA 문구와 libc·gimli·miniz_oxide 등 관련 크레이트의 원래 고지가 포함됩니다.
+
+파일별 원래 경로·SHA-256과 확인 범위는 [보충 출처 기록](ThirdParty/OfficeOxide/RustStandardLibrary/ADDITIONAL_NOTICE_PROVENANCE.json)에 있습니다. 구성요소 이름 관찰만으로 모든 버전과 링크 구성을 확정한 것은 아니며, 고지의 완전성 판정에는 재현 빌드가 남아 있습니다.
+
 ## OpenDocument.core 네이티브 구성요소
 
 이 저장소는 OpenDocument.core의 XCFramework를 복제하지 않고, 해당 패키지가 선언한 업스트림 배포 자산을 사용합니다. 따라서 라이브러리의 소스 취득 경로와 고지는 위 고정 리비전을 기준으로 확인해야 합니다.
