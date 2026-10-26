@@ -1,6 +1,6 @@
 # OmniParser
 
-> **Draft — 개발·검토 중인 저장소입니다.** API·의존성·패키지 구성이 바뀔 수 있습니다. 현재 자동 CI·회귀 테스트·안정 버전 릴리스가 없으며, 실서비스 도입 전 기능 검증과 배포 라이선스 검토가 필요합니다.
+> **Draft — 개발·검토 중인 저장소입니다.** API·의존성·패키지 구성이 바뀔 수 있습니다. 현재 자동 CI·안정 버전 릴리스가 없으며, 실서비스 도입 전 기능 검증과 배포 라이선스 검토가 필요합니다.
 
 로컬 문서의 본문·표·삽입 이미지와 OCR 결과를 추출하는 iOS용 Swift Package입니다.
 
@@ -76,7 +76,16 @@ xcodebuild build -scheme OmniParser \
 swiftlint lint --strict
 ```
 
-이 분리본에는 테스트 타깃·샘플을 포함하지 않았습니다. 분리 직전 소스에서 제외된 상태를 유지했으며, 이번 공개 준비에서는 테스트를 추가하거나 실행하지 않았습니다. 빌드 통과는 형식별 추출 결과나 실기기 동작 검증을 대신하지 않습니다.
+XCTest 타깃 `OmniParserTests`와 출처·고지가 포함된 회귀 샘플을 추가했습니다.
+
+```bash
+xcodebuild test -scheme OmniParser \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -skipMacroValidation -parallel-testing-enabled NO -collect-test-diagnostics never \
+  CODE_SIGNING_ALLOWED=NO
+```
+
+현재 **16개 테스트 중 15개 통과, 1개는 기존 OdrCore의 XLS 차트 캐시 결함으로 실패**합니다. 해당 샘플은 차트 데이터가 실제 셀 값을 덮습니다. 실패를 숨기지 않았으므로 위 명령은 현재 exit 65로 끝납니다. 별도 수정 XCFramework 소비 구성에서는 16개 모두 통과했으며 운영 의존성 전환은 하지 않았습니다. 수정 경로와 한계는 [회귀 검증 상태](Documentation/REGRESSION_TESTS.md)에 기록했습니다. 빌드 통과나 샘플 검증은 모든 형식의 완전한 복원·실기기 검증을 대신하지 않습니다.
 
 ## 의존성과 라이선스
 

@@ -1,0 +1,31 @@
+diff --git a/.github/config/conan/profiles/apple.jinja b/.github/config/conan/profiles/apple.jinja
+index 89e7fd3b..f2deee8a 100644
+--- a/.github/config/conan/profiles/apple.jinja
++++ b/.github/config/conan/profiles/apple.jinja
+@@ -18,11 +18,11 @@ os.version={{os_version}}
+ {% endif %}arch={{arch}}
+ build_type=Release
+ compiler=apple-clang
+-compiler.version=17
++compiler.version=21
+ compiler.cppstd=23
+ compiler.libcxx=libc++
+ 
+ [conf]
+ {# `objcpp` is the one the bindings themselves are compiled with. #}
+ tools.build:compiler_executables={'c': 'clang', 'cpp': 'clang++', 'objc': 'clang', 'objcpp': 'clang++'}
+-tools.cmake.cmaketoolchain:extra_variables={'CMAKE_CXX_COMPILER_LAUNCHER': 'ccache', 'CMAKE_C_COMPILER_LAUNCHER': 'ccache', 'CMAKE_OBJCXX_COMPILER_LAUNCHER': 'ccache'}
++tools.build:jobs=4
+diff --git a/apple/build_xcframework.py b/apple/build_xcframework.py
+index c19cc13a..e708e51c 100755
+--- a/apple/build_xcframework.py
++++ b/apple/build_xcframework.py
+@@ -112,7 +112,7 @@ def build(profile: str, conan: str, build_profile: str) -> None:
+          "-DODR_PYTHON=OFF",
+          "-DODR_WITH_HTTP_SERVER=ON"])
+     run(["cmake", "--build", cmake_dir, "--target", "odr_apple",
+-         "--parallel", str(os.cpu_count() or 1)])
++         "--parallel", str(min(4, os.cpu_count() or 1))])
+ 
+     framework = framework_dir(build_dir)
+     binary = binary_in(framework)

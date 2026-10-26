@@ -1,0 +1,84 @@
+{
+  "AvailableLibraries": [
+    {
+      "BinaryPath": "OdrCoreObjC.framework/OdrCoreObjC",
+      "DebugSymbolsPath": "dSYMs",
+      "LibraryIdentifier": "ios-arm64",
+      "LibraryPath": "OdrCoreObjC.framework",
+      "SupportedArchitectures": [
+        "arm64"
+      ],
+      "SupportedPlatform": "ios",
+      "binarySHA256": "7c948c0d01c2e186f0795d53096fd00695020b55f62a7cabd9443c96969a675b",
+      "buildVersion": "${OMNI_RESEARCH_ROOT}/OdrNativeRebuild/OdrCoreObjC.xcframework/ios-arm64/OdrCoreObjC.framework/OdrCoreObjC:\nLoad command 10\n      cmd LC_BUILD_VERSION\n  cmdsize 32\n platform IOS\n    minos 15.0\n      sdk 27.1\n   ntools 1\n     tool LD\n  version 27037.1\n",
+      "bundleMetadata": {
+        "CFBundleIdentifier": "app.opendocument.OdrCoreObjC",
+        "CFBundleVersion": "0.0.0",
+        "CFBundleShortVersionString": "0.0.0",
+        "MinimumOSVersion": "15.0",
+        "CFBundleSupportedPlatforms": [
+          "iPhoneOS"
+        ]
+      }
+    },
+    {
+      "BinaryPath": "OdrCoreObjC.framework/OdrCoreObjC",
+      "DebugSymbolsPath": "dSYMs",
+      "LibraryIdentifier": "ios-arm64_x86_64-simulator",
+      "LibraryPath": "OdrCoreObjC.framework",
+      "SupportedArchitectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "SupportedPlatform": "ios",
+      "SupportedPlatformVariant": "simulator",
+      "binarySHA256": "0545d8309022dfb9bab33d32411f4905638b879389f414515756d513d6de4b07",
+      "buildVersion": "${OMNI_RESEARCH_ROOT}/OdrNativeRebuild/OdrCoreObjC.xcframework/ios-arm64_x86_64-simulator/OdrCoreObjC.framework/OdrCoreObjC (architecture x86_64):\nLoad command 10\n      cmd LC_BUILD_VERSION\n  cmdsize 32\n platform IOSSIMULATOR\n    minos 15.0\n      sdk 27.1\n   ntools 1\n     tool LD\n  version 27037.1\n${OMNI_RESEARCH_ROOT}/OdrNativeRebuild/OdrCoreObjC.xcframework/ios-arm64_x86_64-simulator/OdrCoreObjC.framework/OdrCoreObjC (architecture arm64):\nLoad command 10\n      cmd LC_BUILD_VERSION\n  cmdsize 32\n platform IOSSIMULATOR\n    minos 15.0\n      sdk 27.1\n   ntools 1\n     tool LD\n  version 27037.1\n",
+      "bundleMetadata": {
+        "CFBundleIdentifier": "app.opendocument.OdrCoreObjC",
+        "CFBundleVersion": "0.0.0",
+        "CFBundleShortVersionString": "0.0.0",
+        "MinimumOSVersion": "15.0",
+        "CFBundleSupportedPlatforms": [
+          "iPhoneSimulator"
+        ]
+      }
+    }
+  ],
+  "CFBundlePackageType": "XFWK",
+  "XCFrameworkFormatVersion": "1.0",
+  "sourceRevision": "77e2a0a6e4b33c33a5aee64551fcd0d7493c9101",
+  "enginePatchSHA256": "2c898bfe00b33fdb16f9c86fa9c5666ef3c14d160bcde81c245a04f7fd563f8d",
+  "archiveSHA256": "ce8d528523dcb4c475d4d55035782c49eda1a3c2d8258fc024f693d731eed566",
+  "archiveBytes": 9003328,
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+  "tooling": {
+    "Conan": "2.33.0",
+    "CMake": "4.3.3",
+    "Python": "3.12.13",
+    "Xcode": "27.1",
+    "AppleClang": "21.0.0",
+    "nativeMinimumIOS": "15.0",
+    "consumerMinimumIOS": "27.0",
+    "consumerSwiftLanguageMode": "5.0",
+    "consumerSwiftTools": "6.2"
+  },
+  "buildToolsPatchSHA256": "c45465dd8c4d34a3a5068e2674918ab3d718098a54aff66465689882ee1d35b9",
+  "distributionStatus": "Local verification artifact; not published or referenced by the production manifest.",
+  "validation": {
+    "simulatorTests": {
+      "total": 16,
+      "passed": 16,
+      "failed": 0,
+      "device": "iPhone 17 Simulator iOS 27.0"
+    },
+    "genericDeviceBuild": "PASS (unsigned; not physical device execution)",
+    "genericSimulatorBuild": "PASS (arm64 and x86_64)",
+    "productionDefaultTests": {
+      "total": 16,
+      "passed": 15,
+      "failed": 1,
+      "knownFailure": "upstream 7.5.2 XLS nested chart cache"
+    }
+  }
+}
