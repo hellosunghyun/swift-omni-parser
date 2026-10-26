@@ -14,7 +14,7 @@ nonisolated public enum DocumentParser {
   ///   - options: 문서별 입력 크기·그림·페이지 작업 한도.
   ///   - progress: 선택적 진행 콜백. MainActor에서 실행된다고 가정하면 안 된다.
   /// - Returns: 본문·블록·그림·복구 가능한 실패 경고를 포함한 결과.
-  /// - Throws: 열기·형식·암호화 오류. 취소는 DocumentParsingError.cancelled로 정규화한다.
+  /// - Throws: DocumentParsingError. 외부 백엔드 오류는 malformedDocument, 취소는 cancelled다.
   @concurrent public static func parse(
     _ input: DocumentInput,
     options: DocumentParserOptions = DocumentParserOptions(),
@@ -85,10 +85,14 @@ nonisolated public enum DocumentParser {
       let result = try await parseInput(input, index: index, options: options, progress: progress)
       return (index, .success(result))
     } catch {
-      let failure = error as? DocumentParsingError
-        ?? (error is CancellationError ? .cancelled : .malformedDocument)
-      return (index, .failure(failure))
+      return (index, .failure(parsingError(error)))
     }
+  }
+
+  /// 외부 백엔드 오류도 단일·배치 호출에서 같은 공개 오류로 반환한다.
+  private static func parsingError(_ error: Error) -> DocumentParsingError {
+    error as? DocumentParsingError
+      ?? (error is CancellationError ? .cancelled : .malformedDocument)
   }
 
   /// 모든 형식의 성공 외 종료 경로를 모아 실패·취소 진행 이벤트를 일관되게 보낸다.
@@ -101,15 +105,14 @@ nonisolated public enum DocumentParser {
     do {
       return try await parseDocument(input, index: index, options: options, progress: progress)
     } catch {
-      let cancelled = error is CancellationError || (error as? DocumentParsingError) == .cancelled
+      let failure = parsingError(error)
       progress?(
         DocumentProgress(
           inputIndex: index,
-          phase: cancelled ? .cancelled : .failed,
+          phase: failure == .cancelled ? .cancelled : .failed,
           fractionCompleted: 1
         ))
-      if cancelled { throw DocumentParsingError.cancelled }
-      throw error
+      throw failure
     }
   }
 

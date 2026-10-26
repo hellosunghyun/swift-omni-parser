@@ -19,6 +19,16 @@ enum TestFixtures {
     SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
   }
 
+  /// CFB는 유지하고 BIFF 버전만 손상시켜 백엔드의 실제 열기 실패를 유도한다.
+  static func malformedWorkbook() throws -> DocumentInput {
+    var bytes = try Data(contentsOf: url("LegacySample.xls"))
+    let signature = Data([0x09, 0x08, 0x10, 0x00, 0x00, 0x06, 0x05, 0x00])
+    let record = try XCTUnwrap(bytes.range(of: signature))
+    bytes[record.lowerBound + 4] = 0xFF
+    bytes[record.lowerBound + 5] = 0xFF
+    return .data(bytes, fileName: "broken.xls")
+  }
+
   static func assertTextConsistency(_ result: DocumentParseResult, file: StaticString = #filePath,
                                     line: UInt = #line) {
     XCTAssertEqual(result.blocks.map(\.readingOrder), Array(result.blocks.indices),

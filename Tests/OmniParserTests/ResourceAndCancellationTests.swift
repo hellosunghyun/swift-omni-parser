@@ -55,17 +55,11 @@ final class ResourceAndCancellationTests: XCTestCase {
     let before = try directories()
     _ = try await DocumentParser.parse(
       TestFixtures.input("RealWorld/xlsx/real-xlsx-01-DataTableCities.xlsx"))
-    // 유효한 CFB를 유지하고 BIFF 버전만 손상시켜 임시 파일 생성 이후 실패하게 한다.
-    var damaged = try Data(contentsOf: TestFixtures.url("LegacySample.xls"))
-    let signature = Data([0x09, 0x08, 0x10, 0x00, 0x00, 0x06, 0x05, 0x00])
-    let record = try XCTUnwrap(damaged.range(of: signature))
-    damaged[record.lowerBound + 4] = 0xFF
-    damaged[record.lowerBound + 5] = 0xFF
     do {
-      _ = try await DocumentParser.parse(.data(damaged, fileName: "broken.xls"))
+      _ = try await DocumentParser.parse(TestFixtures.malformedWorkbook())
       XCTFail("잘못된 BIFF 버전을 허용했습니다.")
     } catch {
-      // 오류의 종류와 관계없이 생성된 임시 파일은 회수되어야 한다.
+      XCTAssertEqual(error as? DocumentParsingError, .malformedDocument)
     }
     XCTAssertEqual(try directories(), before)
   }

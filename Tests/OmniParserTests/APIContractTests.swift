@@ -3,6 +3,39 @@ import OmniParser
 import XCTest
 
 final class APIContractTests: XCTestCase {
+  func testBackendErrorsUseSamePublicCategoryInSingleAndBatch() async throws {
+    let input = try TestFixtures.malformedWorkbook()
+    let progress = TestProgress()
+    do {
+      _ = try await DocumentParser.parse(input) { progress.append($0) }
+      XCTFail("손상된 백엔드 입력을 허용했습니다.")
+    } catch { XCTAssertEqual(error as? DocumentParsingError, .malformedDocument) }
+    XCTAssertEqual(progress.values.last?.phase, .failed)
+    XCTAssertEqual(progress.values.filter { $0.phase == .failed }.count, 1)
+    let batch = try await DocumentParser.parseBatch([
+      input, .data(Data("kept".utf8), fileName: "kept.txt")
+    ])
+    guard case .failure(let error) = batch[0], case .success(let kept) = batch[1] else {
+      return XCTFail("개별 실패 뒤의 결과를 보존하지 못했습니다.")
+    }
+    XCTAssertEqual(error, .malformedDocument)
+    XCTAssertTrue(kept.fullText == "kept")
+  }
+
+  func testExistingPublicErrorCategoriesArePreserved() async {
+    let missing = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let cases: [(DocumentInput, DocumentParsingError)] = [
+      (.url(missing), .unreadableInput),
+      (.data(Data([0, 1, 2]), fileName: "unknown.bin"), .unsupportedFormat)
+    ]
+    for (input, expected) in cases {
+      do {
+        _ = try await DocumentParser.parse(input)
+        XCTFail("오류 입력을 허용했습니다.")
+      } catch { XCTAssertEqual(error as? DocumentParsingError, expected) }
+    }
+  }
+
   func testImageAndOCROptionsAreIndependent() async throws {
     for images in [false, true] {
       for ocr in [false, true] {

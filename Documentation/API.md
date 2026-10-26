@@ -47,3 +47,9 @@ let outcomes = try await DocumentParser.parseBatch(
 - DOC·PPT 본문과 표는 OfficeOxide 0.1.15로 읽는다. 단일 행·열 및 병합 PPT 표의 기존 판정 기준은 고정된 호환 패치로 유지한다.
 - DOCX·PPTX는 OpenDocument.core를 사용한다. 구형 OfficeArt 내장 그림 복구는 기존 구현을 유지한다.
 - 라이브러리 소스·라이선스·재빌드와 바이너리 해시는 저장소의 `ThirdParty/OfficeOxide/`에 있다. 앱·CI 빌드에서 Rust를 설치하거나 문서를 외부로 전송하지 않는다.
+
+## 오류 반환
+
+단일 `parse`는 외부 백엔드 오류를 포함해 `DocumentParsingError`로 정규화한다. 이미 분류된 열기·형식·크기·암호화 오류는 유지하고, 분류되지 않은 백엔드 오류는 `malformedDocument`, 취소는 `cancelled`로 반환한다. 원문을 포함할 수 있는 외부 오류 메시지를 그대로 노출하지 않는다.
+
+`parseBatch`의 개별 failure도 같은 분류를 사용한다. 배치 전체 취소는 `CancellationError`를 던질 수도 있다. 실패·취소 진행 이벤트는 해당 문서의 최종 상태로 한 번 전달하며, 다른 문서의 결과는 입력 순서대로 보존한다.
