@@ -55,7 +55,7 @@ let outcomes = try await DocumentParser.parseBatch(
 | --- | --- |
 | TXT·CSV·JSON·XML | Foundation 및 형식별 구조 추출 |
 | HTML·Markdown | SwiftSoup·형식별 구조 추출·내장/로컬 참조 이미지 처리 |
-| RTF | Foundation 본문 문자열 추출. 표·삽입 이미지·이미지 OCR은 구현하지 않음 |
+| RTF | Foundation 문단·표·병합 셀 + 내장 래스터 그림 추출·선택적 OCR |
 | JPEG·PNG·HEIC·TIFF·CGImage | ImageIO·Vision, 다중 프레임과 방향 처리 |
 | PDF | PDFKit·페이지 좌표·표 추정·삽입 이미지·선택적 OCR |
 | DOC·PPT | OfficeOxide, OfficeArt 그림 보완 |
@@ -85,7 +85,11 @@ xcodebuild test -scheme OmniParser \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-현재 **16개 테스트 중 15개 통과, 1개는 기존 OdrCore의 XLS 차트 캐시 결함으로 실패**합니다. 해당 샘플은 차트 데이터가 실제 셀 값을 덮습니다. 실패를 숨기지 않았으므로 위 명령은 현재 exit 65로 끝납니다. 별도 수정 XCFramework 소비 구성에서는 16개 모두 통과했으며 운영 의존성 전환은 하지 않았습니다. 수정 경로와 한계는 [회귀 검증 상태](Documentation/REGRESSION_TESTS.md)에 기록했습니다. 빌드 통과나 샘플 검증은 모든 형식의 완전한 복원·실기기 검증을 대신하지 않습니다.
+기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `v7.5.2-omni.1`의 고정 커밋입니다. 공개 Release ZIP을 새 캐시에서 받아 **iPhone 17 Simulator와 iPhone 17 실기기 모두 16개 테스트가 통과**했습니다. 테스트 skip이나 기대값 변경 없이 기존 XLS 원본 정답 검사도 통과합니다.
+
+RTF 표·그림, 손상 입력 복구와 XML 엔티티 차단을 추가했습니다. 최신 코드의 검증 상태와 남은 제약은 [RTF 후속 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)에 구분했습니다. 위 16개 결과는 XLS 전환 당시의 기록입니다.
+
+SwiftPM 기본 테스트 명령은 Simulator용입니다. 실기기는 저장소 밖의 임시 호스트 앱에 같은 테스트를 연결해 검증했습니다. 원인·고정 리비전·실행 명령·남은 한계는 [XLS 수정·전환 결과](Documentation/XLS_CHART_FIX.md)를 확인하세요. 기존 upstream 7.5.2에서 발생한 15/16 실패는 전환 전 기록으로 구분합니다.
 
 ## 의존성과 라이선스
 
@@ -95,7 +99,7 @@ xcodebuild test -scheme OmniParser \
 | --- | --- | --- |
 | SwiftSoup | 2.14.3 | MIT |
 | OLEKit | 0.3.1 | Apache-2.0 |
-| OpenDocument.core | 7.5.2 | MPL-2.0, 네이티브 전이 의존성의 별도 조건 |
+| OpenDocument.core 포크 | v7.5.2-omni.1 / b302cc85 | MPL-2.0, 네이티브 전이 의존성의 별도 조건 |
 | hwp-swift / CoreHwp | 0.19.0 | LGPL-2.1 |
 | OfficeOxide | 0.1.15, 고정 커밋 | MIT 선택, 전이 의존성의 별도 조건 |
 

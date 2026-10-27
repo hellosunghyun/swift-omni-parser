@@ -48,6 +48,16 @@ let outcomes = try await DocumentParser.parseBatch(
 - DOCX·PPTX는 OpenDocument.core를 사용한다. 구형 OfficeArt 내장 그림 복구는 기존 구현을 유지한다.
 - 라이브러리 소스·라이선스·재빌드와 바이너리 해시는 저장소의 `ThirdParty/OfficeOxide/`에 있다. 앱·CI 빌드에서 Rust를 설치하거나 문서를 외부로 전송하지 않는다.
 
+## RTF 구조와 부분 복구
+
+- 시스템 RTF importer의 문단·표 속성을 사용한다. `tableCell`은 1부터 시작하는 행·열과 제공 가능한 병합 범위를 담으며, 같은 셀의 여러 문단은 하나의 셀 텍스트로 합친다.
+- 내장 PNG·JPEG 등의 그림은 원본 바이트 위치를 `part`에 남기고, 옵션에 따라 PNG·OCR을 반환한다. Word의 인접한 기본 그림과 호환용 그림은 중복 추출하지 않는다.
+- 셀 안의 OCR은 셀 좌표를 유지하지만 셀 텍스트를 합치는 과정에서 정확한 교차 순서를 보장할 수 없어 `uncertainReadingOrder`를 반환한다. 페이지 좌표를 복원하는 기능은 아니다.
+- 손상된 그림·미지원 WMF/EMF/DIB 등은 위치가 포함된 경고로 남기며 다른 본문·표·그림을 보존한다. 모든 RTF 그림 인코딩을 지원하는 것은 아니다.
+- 그림 개수·픽셀·보관 PNG 크기 제한과 취소를 적용한다. 손상된 `bin` 길이는 importer에 넘기기 전에 거부한다.
+
+JSON·XML·RTF의 구조 해석이 실패해 원문 텍스트로 복구하면 `malformedContent` 경고를 반환한다. XML 외부 엔티티를 해석하지 않으며 내부 엔티티 선언도 확장을 시작하기 전에 중단하고 경고와 원문 텍스트를 반환한다. Office 그림의 OCR이 실패하더라도 이미 추출한 PNG는 보존한다.
+
 ## 오류 반환
 
 단일 `parse`는 외부 백엔드 오류를 포함해 `DocumentParsingError`로 정규화한다. 이미 분류된 열기·형식·크기·암호화 오류는 유지하고, 분류되지 않은 백엔드 오류는 `malformedDocument`, 취소는 `cancelled`로 반환한다. 원문을 포함할 수 있는 외부 오류 메시지를 그대로 노출하지 않는다.
