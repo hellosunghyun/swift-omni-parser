@@ -20,7 +20,7 @@
 | 맥북 / iPhone 17 실기기 iOS 27.0.1 / 경계 수정 전 | 기존 후속 **27/27 PASS**, 5.819초 |
 | 맥미니 generic iOS Simulator 빌드 | **PASS**, arm64·x86_64 |
 | 맥미니 / iPhone 17 실기기 iOS 27.2 / 마지막 경계 수정 포함 | 전체 **28/28 PASS**, skip 0, 테스트 본문 합계 5.425초. RTF 9개 0.401초 |
-| 맥미니 SwiftLint strict | 미실행. 실행 파일이 없어 외부 설치 없이 진행할 수 없음 |
+| 맥미니 SwiftLint strict | **PASS**, SwiftLint 0.65.1, 53파일·위반 0건, exit 0 |
 | 맥북 최종 이관 lint 기록 | 53파일, 위반 0건. 맥미니 재실행 결과와 구분 |
 
 시간은 기능 테스트의 본문 합계이며 앱의 문서당 성능이나 개선율이 아니다. Simulator 실행 중 기존 Vision/CoreML의 파일·CVPixelBuffer 경고와 OCR 세션 풀의 QoS 경고가 남았다. 통과 결과로 이 경고의 해결까지 주장하지 않는다.
@@ -51,6 +51,10 @@ xcodebuild build -scheme OmniParser \
 
 로컬 증거는 위 검증 폴더의 `macmini-tests-retry.log`·동명 xcresult, `macmini-build.log`, `completed-lint.log`, `final-physical.log`·동명 xcresult에 있다. 실제 실행에는 결과 번들 경로도 지정했다. 다른 Mac에서는 해당 Mac의 Simulator ID를 사용한다.
 
+## 맥미니 SwiftLint
+
+사용자 요청으로 Homebrew의 SwiftLint 0.65.1을 설치했다. 자동 Homebrew 업데이트와 설치 후 cleanup은 끄고 진행했다. 저장소 루트에서 기존 `.swiftlint.yml`을 사용한 `swiftlint lint --strict`가 53파일·위반 0건, exit 0으로 통과해 코드·린트 규칙 수정은 필요하지 않았다. 로그는 검증 폴더의 `macmini-swiftlint.log`에 보존했다. 도구 설치는 개발 환경에만 적용하며 제품 의존성에는 추가하지 않았다.
+
 ## 맥미니 실기기 서명·실행
 
 사용자 승인 후 Xcode 자동 프로비저닝으로 iPhone 17을 포함하는 검증 앱용 프로파일을 발급하고 서명했다. 개발 팀은 실행 명령에만 적용했으며 패키지 저장소 설정에 넣지 않았다. 발급된 개발용 프로파일 만료는 2026-11-03 UTC다.
@@ -77,4 +81,4 @@ xcodebuild test -project OmniParserVerification.xcodeproj -scheme VerificationHo
 
 ## 남은 제약
 
-RTF의 독립 WMF/EMF/DIB 등 ImageIO가 읽지 못하는 내장 그림은 위치가 있는 경고로 반환한다. 모든 RTF 요소·벡터 그림·페이지 좌표의 완전 복원은 아니다. 셀 안의 본문과 OCR 교차 순서는 경고와 셀 위치로 표시한다. 최신 28개 테스트는 실기기에서도 확인했으며 맥미니 lint는 남아 있다. 대용량 최대 메모리·모든 native 압축 입력의 안전성·배포 라이선스 전체 감사·자동 CI는 이번 결과로 입증하지 않는다. 새 의존성이나 바이너리는 추가하지 않았다.
+RTF의 독립 WMF/EMF/DIB 등 ImageIO가 읽지 못하는 내장 그림은 위치가 있는 경고로 반환한다. 모든 RTF 요소·벡터 그림·페이지 좌표의 완전 복원은 아니다. 셀 안의 본문과 OCR 교차 순서는 경고와 셀 위치로 표시한다. 최신 28개 테스트는 실기기에서도 확인했고 맥미니 SwiftLint strict도 통과했다. 대용량 최대 메모리·모든 native 압축 입력의 안전성·배포 라이선스 전체 감사·자동 CI는 이번 결과로 입증하지 않는다. 새 의존성이나 바이너리는 추가하지 않았다.
