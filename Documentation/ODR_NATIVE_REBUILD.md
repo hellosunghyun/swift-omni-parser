@@ -1,5 +1,7 @@
 # OdrCore 패치 XCFramework 전체 재빌드
 
+후속 검증: 2026-10-27 같은 수정 XCFramework를 사용하는 전체 16개 테스트가 [iPhone 17 실기기에서 통과](ODR_PHYSICAL_VERIFICATION.md)했다. 아래는 2026-10-26 재빌드 당시의 기록이다. 이후 공개 포크 Release로 [기본 의존성 전환](XLS_CHART_FIX.md)을 완료했다.
+
 2026-10-26. 이전 host probe/오브젝트 컴파일에서 더 진행해 **실제 OdrCore·전이 라이브러리·Objective-C framework를 빌드하고 iOS Swift 소비를 검증**했다. 외부 UTF 변환을 바꾼 작은 host probe가 아니라 전체 native 빌드다. 바이너리는 Git에 추가하거나 외부 게시하지 않았다.
 
 ## 소스와 환경
