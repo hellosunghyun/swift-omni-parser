@@ -1,6 +1,6 @@
 # OmniParser
 
-> **Draft — 개발·검토 중인 저장소입니다.** API·의존성·패키지 구성이 바뀔 수 있습니다. 현재 자동 CI·안정 버전 릴리스가 없으며, 실서비스 도입 전 기능 검증과 배포 라이선스 검토가 필요합니다.
+> **Draft — 개발·검토 중인 저장소입니다.** API·의존성·패키지 구성이 바뀔 수 있습니다. 현재 프리릴리즈 단계이며, 실서비스 도입 전 기능 검증과 배포 라이선스 검토가 필요합니다.
 
 로컬 문서의 본문·표·삽입 이미지와 OCR 결과를 추출하는 iOS용 Swift Package입니다.
 
@@ -88,11 +88,11 @@ xcodebuild test -scheme OmniParser \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `v7.5.2-omni.1`의 고정 커밋입니다. 기존 XLS 원본 셀 정답 검사도 포함해 **32개 테스트가 iPhone 17 Simulator와 실기기에서 모두 통과**했습니다. SwiftLint strict도 53파일·위반 0건입니다.
+기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 최신 회귀 **48개가 iPhone 17 Simulator에서 통과**했고, SwiftLint strict는 53파일·위반 0건입니다. 새 버전 소비 프로젝트의 빌드와 재빌드 Office 엔진의 같은 48개 회귀도 확인했습니다.
 
-실기기는 저장소 밖 호스트 앱에 같은 테스트를 연결했습니다. 자체 생성 한영 대용량 스캔·혼합 배치의 시간/메모리와 남은 QoS 경고는 [최종 로컬 검증](Documentation/LOCAL_REVIEW_2026-10-27.md)에 기록했습니다. 이 수치는 Debug·샘플링 측정이며 일반 문서 전체의 성능 보증은 아닙니다. 원래 XLS 결함과 전환 이력은 [XLS 수정·전환 결과](Documentation/XLS_CHART_FIX.md), RTF 구현 검증은 [RTF 후속 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)을 확인하세요.
+실기기 32개 통과와 대용량 기록은 이전 동기 OCR 코드의 결과입니다. 최신 비동기 OCR·ZIP 검사 이후 실기기·Release 검증은 아직 하지 않았습니다. 현재 수정·65문서 전후 대조·속도와 메모리의 비용은 [오픈소스 후속 검증](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md)을 확인하세요. 과거 [대용량 기록](Documentation/LOCAL_REVIEW_2026-10-27.md), [RTF 검증](Documentation/RTF_COMPLETION_VERIFICATION.md), [XLS 전환](Documentation/XLS_CHART_FIX.md)은 당시 결과로 보존합니다.
 
-행 정렬 보완과 어려운 스캔 회귀를 추가한 후속 코드는 Simulator 35개가 통과했으며, 잠금으로 실기기 재검증·동일 발열 3회 반복은 대기 중입니다. 위 32개 실기기 결과와 구분합니다. 같은 Simulator의 65문서 전후 비교도 기록했습니다. 원인 조사·비동기 변경안·로컬 재현 키트는 [OCR 후속 기록](Documentation/OCR_QOS_FOLLOWUP_2026-10-27.md)을 확인하세요.
+PR·main 푸시의 자동 검사에는 `.github/workflows/verification.yml`을 사용합니다. 실제 GitHub 실행은 다음 푸시 이후 확인해야 합니다. [기여 안내](CONTRIBUTING.md)와 [보안 제보](SECURITY.md)에 검증·샘플 제출 기준을 적었습니다.
 
 ## 의존성과 라이선스
 
@@ -114,4 +114,4 @@ OfficeOxide의 iOS·Simulator 정적 XCFramework는 `ThirdParty/OfficeOxide`에 
 
 ## 공개 초안 검토
 
-오픈소스 도입 관점의 확인된 문제와 개선 순서는 [검토 보고서](Documentation/OPEN_SOURCE_REVIEW.md)에 정리했습니다.
+최신 상태는 [후속 수정·검증](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md), 최초 검토 이력은 [공개 초안 검토](Documentation/OPEN_SOURCE_REVIEW.md)에 정리했습니다.

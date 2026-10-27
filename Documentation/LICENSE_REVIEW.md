@@ -78,3 +78,7 @@ SPM 해석 결과의 외부 소스 패키지는 SwiftSoup, OLEKit, OpenDocument.
 ## 2026-10-27 XLS 수정 포크 전환
 
 OpenDocument.core 의존성을 `hellosunghyun/OpenDocument.core`의 `b302cc85311490676986a2b731971473ad21efac`으로 고정했다. 변경한 native 소스는 MPL-2.0을 유지한다. [Release](https://github.com/hellosunghyun/OpenDocument.core/releases/tag/v7.5.2-omni.1)에 고정 Conan 요구사항의 원문 고지, recipe/package 리비전, uchardet 0.0.8 대응 소스를 보존했다. 원문 고지는 Git에서도 줄바꿈 바이트를 유지한다. 이는 앱 배포 방식까지 포함한 모든 라이선스 의무를 이행했다는 판정은 아니다.
+
+### 감사 가능한 재빌드와 바이트 재현의 구분
+
+고정 입력의 출처·고지·해시를 함께 생성하는 절차가 있다는 사실과 다른 루트에서 바이너리 바이트가 같다는 보장은 구분합니다. 두 로컬 번들의 유효 feature·profile과 소스는 같았지만 실행 루트·레시피 명시값이 달라 엄격한 동일 입력 통제 반복이 아니었습니다. 같은 절대 경로·같은 compiler invocation의 독립 clean 반복은 미실시입니다. device arm64의 직접 IR 차이는 의미가 같은 PHI incoming 순서 한 곳과 파생 module hash로 좁혔으나, 경로 메타데이터 또는 compiler 비결정성 중 무엇이 근본 원인인지 확정하지 않았습니다. 이 결과를 라이선스 준수·기존 배포물의 바이트 재현 보증으로 확대하지 않습니다.

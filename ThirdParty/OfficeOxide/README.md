@@ -45,3 +45,9 @@ bash ThirdParty/OfficeOxide/build.sh \
 - 기존 `SHA256SUMS` 검사는 계속 통과하며 Git의 XCFramework·원래 고지는 변경하지 않았다. 새 검토 번들은 저장소 밖에만 있다.
 
 첫 실행에서는 fat Simulator 아카이브를 `ar -t`에 직접 넘기는 후처리 오류를 발견했다. 아키텍처별 slice로 검사하도록 고친 뒤 새 출력 경로에서 최종 레시피 전체가 종료 코드 0으로 끝났다. 첫 실행은 성능 측정과의 CPU 경합을 피하기 위해 199.53초 일시정지했으므로 위 제작 시간으로 사용하지 않았다. 완전한 링크 SBOM·기존 배포물의 바이트 재현·실기기 검증은 별도다.
+
+### 바이트 재현의 보장 범위
+
+이 레시피는 입력·도구·설정과 출처·고지·해시를 함께 남기는 **감사 가능한 재빌드 절차**다. 서로 다른 루트에서 바이트가 같다는 보장은 하지 않는다. 같은 절대 경로·같은 compiler invocation을 독립 clean 상태에서 반복하는 통제 검증도 아직 수행하지 않았다.
+
+Candidate/Verified의 소스 374개와 유효 feature·profile은 같았지만 실행 루트와 레시피 명시값은 달라 엄격한 동일 입력 반복이 아니었다. 변경은 root object의 LLVM bitcode에 집중되었다. device arm64 IR에서는 의미가 같은 PHI incoming 쌍의 순서 한 곳과 파생 module hash만 달랐고, 실제 기계어·일반 상수/데이터·relocation은 같았다. x86_64의 bitcode 크기와 unwind 인코딩은 달라 모든 런타임 바이트가 같다고 표현하지 않는다. 경로가 간접 원인인지 compiler의 비결정성인지는 확인하지 않았으며 소스 매핑·임의 `-Cmetadata` 변경으로 차이를 숨기지 않았다.
