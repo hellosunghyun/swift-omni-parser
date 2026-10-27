@@ -50,12 +50,10 @@ nonisolated enum DocumentTextParser {
     else { return [] }
     let references = DocumentReferencedImageParser.references(in: text, format: output.format)
     guard !references.isEmpty else { return [] }
-    var warnings = [
-      DocumentWarning(
-        code: .uncertainReadingOrder,
-        message: "Referenced image OCR blocks follow text blocks; inline order may differ."
-      )
-    ]
+    var warnings = [DocumentWarning(
+      code: .uncertainReadingOrder,
+      message: "Referenced image OCR blocks follow text blocks; inline order may differ.",
+      location: DocumentLocation(part: output.format.rawValue))]
     var imageBytes = 0
     for (index, reference) in references.enumerated() {
       try Task.checkCancellation()

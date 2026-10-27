@@ -3,6 +3,36 @@ import Foundation
 import XCTest
 
 final class ResourceAndCancellationTests: XCTestCase {
+  func testSkippedRemoteHTMLImageKeepsBodyAndLocatedWarnings() async throws {
+    let html = "<html><body><p>Kept</p><img src='https://example.invalid/image.png'></body></html>"
+    let result = try await DocumentParser.parse(.data(Data(html.utf8), fileName: "remote.html"),
+      options: .init(performOCR: true))
+    XCTAssertEqual(result.fullText, "Kept")
+    XCTAssertTrue(result.images.isEmpty)
+    XCTAssertTrue(result.warnings.contains { $0.code == .externalImageSkipped })
+    XCTAssertTrue(result.warnings.allSatisfy { $0.location != nil })
+    TestFixtures.assertTextConsistency(result)
+  }
+
+  func testConcurrentOCRPreservesResultsAtUserInitiatedPriority() async throws {
+    let input = TestFixtures.input("LegacyImage.png")
+    let task = Task(priority: .userInitiated) {
+      try await DocumentParser.parseBatch([input, input, input],
+        options: .init(performOCR: true, maximumConcurrentDocuments: 2))
+    }
+    let results = try await task.value
+    XCTAssertEqual(results.count, 3)
+    var texts: [String] = []
+    for outcome in results {
+      guard case .success(let result) = outcome else { return XCTFail("병렬 OCR이 실패했습니다.") }
+      XCTAssertTrue(result.fullText.contains("IMAGE OCR MARKER"))
+      XCTAssertTrue(result.images.isEmpty)
+      TestFixtures.assertTextConsistency(result)
+      texts.append(result.fullText)
+    }
+    XCTAssertEqual(Set(texts).count, 1)
+  }
+
   func testArchiveTraversalIsRejected() async {
     do {
       _ = try await DocumentParser.parse(TestFixtures.input("Generated/Traversal.docx"))

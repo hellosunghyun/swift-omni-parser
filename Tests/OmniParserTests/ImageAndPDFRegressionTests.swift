@@ -7,6 +7,25 @@ import UniformTypeIdentifiers
 import XCTest
 
 final class ImageAndPDFRegressionTests: XCTestCase {
+  func testRepeatedPDFImagePlacementsHaveUniqueIdentifiers() async throws {
+    let bytes = NSMutableData()
+    let consumer = try XCTUnwrap(CGDataConsumer(data: bytes))
+    var box = CGRect(x: 0, y: 0, width: 600, height: 300)
+    let context = try XCTUnwrap(CGContext(consumer: consumer, mediaBox: &box, nil))
+    let image = try markerImage()
+    context.beginPDFPage(nil)
+    context.draw(image, in: CGRect(x: 10, y: 50, width: 260, height: 100))
+    context.draw(image, in: CGRect(x: 320, y: 50, width: 260, height: 100))
+    context.endPDFPage()
+    context.closePDF()
+    let result = try await DocumentParser.parse(.data(bytes as Data, fileName: "repeated.pdf"),
+      options: .init(extractImages: true))
+    XCTAssertEqual(result.images.count, 2)
+    XCTAssertEqual(Set(result.images.map(\.id)).count, 2)
+    XCTAssertNotEqual(result.images.first?.location.bounds, result.images.last?.location.bounds)
+    TestFixtures.assertTextConsistency(result)
+  }
+
   func testDirectImageInputAndTIFFFrameOrientation() async throws {
     let image = try markerImage()
     let direct = try await DocumentParser.parse(.image(image, orientation: .up),
