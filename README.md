@@ -88,9 +88,9 @@ xcodebuild test -scheme OmniParser \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 최신 회귀 **48개가 iPhone 17 Simulator에서 통과**했고, SwiftLint strict는 53파일·위반 0건입니다. 새 버전 소비 프로젝트의 빌드와 재빌드 Office 엔진의 같은 48개 회귀도 확인했습니다.
+기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 최신 회귀 **56개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, SwiftLint strict는 55파일·위반 0건입니다. 이전 48개 회귀로 새 버전 소비 프로젝트의 빌드와 재빌드 Office 엔진도 확인했습니다.
 
-실기기 32개 통과와 대용량 기록은 이전 동기 OCR 코드의 결과입니다. 최신 비동기 OCR·ZIP 검사 이후 실기기·Release 검증은 아직 하지 않았습니다. 현재 수정·65문서 전후 대조·속도와 메모리의 비용은 [오픈소스 후속 검증](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md)을 확인하세요. 과거 [대용량 기록](Documentation/LOCAL_REVIEW_2026-10-27.md), [RTF 검증](Documentation/RTF_COMPLETION_VERIFICATION.md), [XLS 전환](Documentation/XLS_CHART_FIX.md)은 당시 결과로 보존합니다.
+실기기 32개 통과와 대용량 기록은 이전 동기 OCR 코드의 결과입니다. 최신 전체 파서의 실기기·Release 배치 검증은 아직 하지 않았습니다. [입력 Reader와 배치 메모리 검증](Documentation/BATCH_MEMORY_2026-10-28.md)에 최신 비교를, [오픈소스 후속 검증](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md)에 앞선 수정과 65문서 대조를 기록합니다. 과거 [대용량 기록](Documentation/LOCAL_REVIEW_2026-10-27.md), [RTF 검증](Documentation/RTF_COMPLETION_VERIFICATION.md), [XLS 전환](Documentation/XLS_CHART_FIX.md)은 당시 결과로 보존합니다.
 
 PR·main 푸시의 자동 검사에는 `.github/workflows/verification.yml`을 사용합니다. 실제 GitHub 실행은 다음 푸시 이후 확인해야 합니다. [기여 안내](CONTRIBUTING.md)와 [보안 제보](SECURITY.md)에 검증·샘플 제출 기준을 적었습니다.
 

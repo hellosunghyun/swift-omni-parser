@@ -182,15 +182,7 @@ nonisolated public enum DocumentParser {
         data: Data(), fileName: nil, baseDirectory: nil, image: (image, orientation))
     case .url(let url):
       do {
-        let values = try url.resourceValues(forKeys: [.fileSizeKey])
-        guard let size = values.fileSize, size >= 0 else {
-          throw DocumentParsingError.unreadableInput
-        }
-        guard size <= options.maximumInputBytes else { throw DocumentParsingError.inputTooLarge }
-        let data = try Data(contentsOf: url)
-        guard data.count <= options.maximumInputBytes else {
-          throw DocumentParsingError.inputTooLarge
-        }
+        let data = try DocumentInputReader.read(url, maximumBytes: options.maximumInputBytes)
         return PreparedInput(
           data: data,
           fileName: url.lastPathComponent,

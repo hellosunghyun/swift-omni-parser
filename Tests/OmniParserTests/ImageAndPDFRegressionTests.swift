@@ -128,6 +128,80 @@ final class ImageAndPDFRegressionTests: XCTestCase {
     }
   }
 
+  func testConstrainedPDFBatchPreservesSingleDocumentResults() async throws {
+    let documents: [DocumentInput] = try [[false, false], [true, true], [false, true, true]].map {
+      .data(try pdf($0), fileName: "pages.pdf")
+    }
+    let options = DocumentParserOptions(extractImages: true, performOCR: true,
+      maximumConcurrentDocuments: 2, maximumConcurrentPDFPages: 2)
+    var expected: [DocumentParseResult] = []
+    for input in documents {
+      expected.append(try await DocumentParser.parse(input, options: options))
+    }
+    XCTAssertFalse(expected[0].fullText.isEmpty)
+    XCTAssertEqual(expected[1].images.count, 2)
+    XCTAssertEqual(expected[2].images.count, 2)
+
+    var inputs = documents
+    inputs.insert(.data(Data([0, 1, 2]), fileName: "broken.pdf"), at: 1)
+    var constrained = options
+    // 작업 예산보다 큰 페이지도 한 장씩 처리하며 결과를 바꾸지 않는지 확인한다.
+    constrained.pdfWorkingMemoryTargetBytes = 1
+    let results = try await DocumentParser.parseBatch(inputs, options: constrained)
+    XCTAssertEqual(results.count, inputs.count)
+    for (index, outcome) in results.enumerated() {
+      if index == 1 {
+        guard case .failure(let error) = outcome else {
+          return XCTFail("손상 입력의 개별 실패가 보존되지 않았습니다.")
+        }
+        XCTAssertEqual(error, .unsupportedFormat)
+      } else {
+        guard case .success(let result) = outcome else {
+          return XCTFail("정상 PDF 결과가 보존되지 않았습니다.")
+        }
+        try assertPDFResult(result, matches: expected[index < 1 ? index : index - 1])
+      }
+    }
+  }
+
+  private func assertPDFResult(_ result: DocumentParseResult,
+                               matches expected: DocumentParseResult) throws {
+    XCTAssertEqual(result.format, expected.format)
+    XCTAssertTrue(result.fullText == expected.fullText)
+    XCTAssertEqual(result.blocks, expected.blocks)
+    XCTAssertEqual(result.warnings, expected.warnings)
+    XCTAssertEqual(result.images.count, expected.images.count)
+    for (image, reference) in zip(result.images, expected.images) {
+      XCTAssertEqual(image.id, reference.id)
+      XCTAssertEqual(image.location, reference.location)
+      XCTAssertEqual(image.orientation, reference.orientation)
+      XCTAssertEqual(image.sourceDescription, reference.sourceDescription)
+      // PNG 컨테이너 바이트 대신 생성한 8비트 그림의 크기·sRGB 픽셀을 대조한다.
+      XCTAssertEqual(try rasterFingerprint(image.pngData),
+                     try rasterFingerprint(reference.pngData))
+    }
+    TestFixtures.assertTextConsistency(result)
+  }
+
+  private func rasterFingerprint(_ data: Data) throws -> String {
+    let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
+    let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+    let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+    var pixels = Data(count: image.width * image.height * 4)
+    try pixels.withUnsafeMutableBytes { storage in
+      let context = try XCTUnwrap(CGContext(data: storage.baseAddress,
+        width: image.width, height: image.height, bitsPerComponent: 8,
+        bytesPerRow: image.width * 4, space: space,
+        bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue
+          | CGImageAlphaInfo.premultipliedLast.rawValue))
+      context.interpolationQuality = .none
+      context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+    }
+    var fingerprint = Data("\(image.width)x\(image.height):".utf8)
+    fingerprint.append(pixels)
+    return TestFixtures.hash(fingerprint)
+  }
+
   private func markerImage() throws -> CGImage {
     let source = try XCTUnwrap(CGImageSourceCreateWithURL(
       TestFixtures.url("LegacyImage.png") as CFURL, nil))
