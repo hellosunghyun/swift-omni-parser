@@ -36,6 +36,7 @@ let package = Package(
         .product(name: "OLEKit", package: "OLEKit"),
         "OfficeOxide"
       ],
+      resources: [.process("PrivacyInfo.xcprivacy")],
       linkerSettings: [.linkedLibrary("z"), .linkedLibrary("c++")]
     )
   ],

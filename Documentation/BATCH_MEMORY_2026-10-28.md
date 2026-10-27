@@ -57,12 +57,15 @@ Mac mini M4, 16GiB, Xcode 27.1 / Swift 컴파일러 6.4, Swift 언어 모드 5, 
 
 | 검사 | 최종 결과 |
 | --- | --- |
-| 패키지 XCTest | 56개 통과, 실패·skip 0, 테스트 본문 55.010초 |
+| 패키지 XCTest | 리소스 보완 후 재실행도 56개 통과, 실패·skip 0, 테스트 본문 61.525초 |
 | generic Simulator build | 통과, exit 0 |
 | SwiftLint 0.65.1 strict | 55파일, 위반 0 |
 | 65문서 corpus | 2개 검사 통과, 테스트 본문 25.711초 |
+| SwiftPM 소비자 앱 | public API 호출 코드 빌드·앱 내 OmniParser manifest 포함 및 값·해시 일치 |
 | 의존성·원래 바이너리·라이선스·OS·언어 모드 | 변경 없음 |
 | 실기기·전체 파서 Release | 이번 작업에서 미실행 |
+
+메모리 계측 뒤 새 `fstat`·`lstat` 사용에 필요한 privacy manifest를 SDK 리소스로 추가했다. 파일 조회 사유와 범위는 [API 문서](API.md)에 적었다. `Package.swift`의 리소스 등록과 manifest를 제외한 파서·회귀 Swift 소스는 성능 계측 시점과 정확히 같음을 해시로 확인했다. 소비자 앱의 `OmniParser_OmniParser.bundle/PrivacyInfo.xcprivacy`를 직접 읽어 원본과 값·SHA-256 일치를 확인했다. 이는 앱 번들 포함 검사이며 App Store 심사·다른 SDK의 선언 검증을 대신하지 않는다.
 
 ## 재실행과 근거
 
@@ -83,8 +86,10 @@ swiftlint lint --strict
 
 - 원인: `VMMapSeries-ANALYSIS.md/.json`, `BaselineVMMapSeries/`, `InputSnapshotPrototype/`.
 - 추가 스택 진단: `MallocStackLogging64d-20261027T183812Z-8e6b5/`. snapshot 시각과 테스트 처리 구간의 차이를 보존했다.
-- 최종 소스·호스트 대응: `snapshot-v4-host-preparation-check.json`, `final-source-provenance.json`, 각 호스트의 `SourceSnapshot.json`.
+- 성능 계측 시 소스·호스트 대응: `snapshot-v4-host-preparation-check.json`, `final-source-provenance.json`, 각 호스트의 `SourceSnapshot.json`.
 - 첫 성능 비교: `snapshot-final-executed-commands.json`, `snapshot-final-performance-summary.json`, `SnapshotEngineKit/BatchMemorySingleEngineTests.swift`. 각 log·xcresult의 원본 명령과 표본을 함께 보존했다.
 - 추가 대용량: `v5-png80-stable-commands.json`, `v5-png80-stable-run.py`, `snapshot-v5-png80-performance-summary.json`, 같은 이름의 environment·interference JSONL 및 원시 log·xcresult·metadata.
 - corpus: `SNAPSHOT_V4_CORPUS_COMPARISON.md`, `snapshot-v4-corpus-comparison.json`.
 - 기본 검사: `snapshot-regression-56-v2` log·exit·xcresult·command JSON, `snapshot-build-simulator` log·exit·command JSON, `snapshot-lint-encoded-nul.log`.
+- 리소스 보완 후 검사: `snapshot-privacy-regression-56` log·exit·xcresult·command·summary JSON, `snapshot-privacy-build-simulator` log·exit·command JSON, `snapshot-privacy-lint.log`.
+- 소비자 앱: `privacy-consumer-command.json`, `privacy-consumer-build` log·exit, `privacy-plist-validation.json`, `privacy-consumer-resource-validation.json`.
