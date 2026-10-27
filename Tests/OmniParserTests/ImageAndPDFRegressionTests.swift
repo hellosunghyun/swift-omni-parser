@@ -2,11 +2,48 @@ import CoreGraphics
 import CoreText
 import Foundation
 import ImageIO
-import OmniParser
+@testable import OmniParser
 import UniformTypeIdentifiers
 import XCTest
 
 final class ImageAndPDFRegressionTests: XCTestCase {
+  func testCancellationDuringVisionRequestDiscardsSession() async throws {
+    let context = try XCTUnwrap(CGContext(data: nil, width: 2048, height: 4096,
+      bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    context.setFillColor(CGColor(gray: 1, alpha: 1))
+    context.fill(CGRect(x: 0, y: 0, width: 2048, height: 4096))
+    for line in 0..<60 {
+      let text = NSAttributedString(string: "연구 자료 취소 검증 Research cancellation 2026 \(line)",
+        attributes: [NSAttributedString.Key(kCTFontAttributeName as String):
+          CTFontCreateWithName("AppleSDGothicNeo-Regular" as CFString, 30, nil)])
+      context.textPosition = CGPoint(x: 60, y: 4000 - line * 64)
+      CTLineDraw(CTLineCreateWithAttributedString(text), context)
+    }
+    let image = try XCTUnwrap(context.makeImage())
+    let pool = DocumentOCRSessionPool()
+    let progress = TestProgress()
+    let task = Task {
+      progress.append(.init(inputIndex: 0, phase: .recognizingText, fractionCompleted: 0))
+      defer { progress.append(.init(inputIndex: 0, phase: .completed, fractionCompleted: 1)) }
+      return try await pool.perform(image: image, orientation: .up) { _ in [] }
+    }
+    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+    while progress.values.isEmpty, ContinuousClock.now < deadline { await Task.yield() }
+    try await Task.sleep(for: .milliseconds(30))
+    // 너무 빠른 환경에서 이미 끝난 요청을 진행 중 취소 성공으로 세지 않는다.
+    guard progress.values.last?.phase == .recognizingText else {
+      _ = try await task.value
+      throw XCTSkip("Vision 요청이 취소 시점 전에 끝나 진행 중 취소를 검증하지 못했습니다.")
+    }
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("진행 중 Vision 요청의 취소를 무시했습니다.")
+    } catch is CancellationError { }
+    XCTAssertEqual(pool.cachedSessionCount, 0)
+  }
+
   func testDifficultGeneratedKoreanScans() async throws {
     for name in ["skew-seven-degrees", "low-resolution", "complex-table"] {
       let sample = try GeneratedOCRScan.make(name)

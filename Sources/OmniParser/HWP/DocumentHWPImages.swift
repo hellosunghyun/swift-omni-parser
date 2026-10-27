@@ -9,7 +9,7 @@ extension DocumentHWPParseContext {
   nonisolated mutating func appendPictures(
     _ components: [HwpShapeComponent], property: HwpCommonCtrlProperty?,
     location: DocumentLocation
-  ) throws {
+  ) async throws {
     guard options.extractImages || options.performOCR else { return }
     for component in components {
       for picture in component.pictureArray {
@@ -23,7 +23,7 @@ extension DocumentHWPParseContext {
         }
         let description = property.flatMap { descriptions[$0.instanceId] }
           ?? property?.objectDescription
-        try appendImage(item, location: location, description: description)
+        try await appendImage(item, location: location, description: description)
         // 논리적 문단·셀 앵커는 알지만 부동 개체의 페이지 조판 순서를 확정하지 않는다.
         warnings.append(DocumentWarning(
           code: .uncertainReadingOrder,
@@ -34,12 +34,12 @@ extension DocumentHWPParseContext {
   }
 
   /// 문단·셀 순회에서 참조되지 않은 BinData도 마지막에 처리해 읽을 수 있는 그림을 버리지 않는다.
-  nonisolated mutating func appendEmbeddedImages(_ items: [HwpBinaryData]) throws {
+  nonisolated mutating func appendEmbeddedImages(_ items: [HwpBinaryData]) async throws {
     guard options.extractImages || options.performOCR else { return }
     for item in items where !visitedImages.contains(item.name) {
       try Task.checkCancellation()
       let location = DocumentLocation(part: item.name)
-      try appendImage(item, location: location, description: nil)
+      try await appendImage(item, location: location, description: nil)
       warnings.append(DocumentWarning(
         code: .uncertainReadingOrder, message: "HWP binary has no resolved picture anchor.",
         location: location))
@@ -48,7 +48,7 @@ extension DocumentHWPParseContext {
 
   nonisolated mutating func appendImage(
     _ item: HwpBinaryData, location: DocumentLocation, description: String?
-  ) throws {
+  ) async throws {
     try Task.checkCancellation()
     guard let suffix = item.extensionName?.lowercased(),
       ["jpg", "jpeg", "png", "gif", "bmp", "tif", "tiff"].contains(suffix)
@@ -76,7 +76,7 @@ extension DocumentHWPParseContext {
         retainImage(decoded.image, orientation: decoded.orientation,
                     item: item, location: location, description: description)
       }
-      let recognized = try options.performOCR ? DocumentOCR.recognize(
+      let recognized = try await options.performOCR ? DocumentOCR.recognize(
         image: decoded.image, orientation: decoded.orientation, location: location) : []
       blocks.appendInReadingOrder(recognized)
     } catch is CancellationError {

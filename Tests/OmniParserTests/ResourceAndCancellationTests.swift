@@ -117,10 +117,10 @@ final class ResourceAndCancellationTests: XCTestCase {
     }
   }
 
-  func testSharedImagePathPreservesPNGWhenOCRFails() throws {
+  func testSharedImagePathPreservesPNGWhenOCRFails() async throws {
     let data = try Data(contentsOf: TestFixtures.url("LegacyImage.png"))
     let decoded = try DocumentImageDecoder.decode(data, maximumPixels: 40_000_000)
-    let result = try DocumentRasterParser.parseImage(
+    let result = try await DocumentRasterParser.parseImage(
       decoded.image, orientation: decoded.orientation, format: .image,
       location: .init(part: "test-image"), options: .init(extractImages: true, performOCR: true)
     ) { _, _, _ in throw DocumentParsingError.malformedDocument }
@@ -184,6 +184,25 @@ final class ResourceAndCancellationTests: XCTestCase {
 }
 
 extension ResourceAndCancellationTests {
+  func testCancellationTakesPrecedenceOverConcurrentReadFailure() async {
+    let progress = TestProgress()
+    let task = Task {
+      try await DocumentParser.parse(.data(Data("oversized".utf8), fileName: "note.txt"),
+        options: .init(maximumInputBytes: 1)) { event in
+        progress.append(event)
+        // 읽기가 다른 오류를 던져도 이미 요청한 취소가 최종 상태여야 한다.
+        if event.phase == .identifying { withUnsafeCurrentTask { $0?.cancel() } }
+      }
+    }
+    do {
+      _ = try await task.value
+      XCTFail("읽기 오류와 겹친 취소를 무시했습니다.")
+    } catch { XCTAssertEqual(error as? DocumentParsingError, .cancelled) }
+    XCTAssertEqual(progress.values.filter { $0.phase == .cancelled }.count, 1)
+    XCTAssertEqual(progress.values.last?.phase, .cancelled)
+    XCTAssertFalse(progress.values.contains { $0.phase == .failed || $0.phase == .completed })
+  }
+
   func testNativeZIPInputsValidateActualInflationBeforeOpening() async throws {
     let lying = try Data(contentsOf: TestFixtures.url("Generated/LyingSize.docx"))
     let directory = try DocumentArchiveGuard.readDirectory(lying)
@@ -257,6 +276,33 @@ extension ResourceAndCancellationTests {
     XCTAssertEqual(final.activePages, 0)
     XCTAssertEqual(final.waitingRequests, 0)
     XCTAssertEqual(final.reservedBytes, 0)
+  }
+
+  func testOCRSessionReturnsOnlyAfterSuccessfulConversion() async throws {
+    let data = try Data(contentsOf: TestFixtures.url("LegacyImage.png"))
+    let image = try DocumentImageDecoder.decode(data, maximumPixels: 40_000_000)
+    let pool = DocumentOCRSessionPool()
+    _ = try await pool.perform(image: image.image, orientation: image.orientation) { _ in [] }
+    XCTAssertEqual(pool.cachedSessionCount, 1)
+    do {
+      _ = try await pool.perform(image: image.image, orientation: image.orientation) { _ in
+        throw DocumentParsingError.malformedDocument
+      }
+      XCTFail("변환 실패를 무시했습니다.")
+    } catch { XCTAssertEqual(error as? DocumentParsingError, .malformedDocument) }
+    XCTAssertEqual(pool.cachedSessionCount, 0)
+    let cancelled = Task {
+      try await pool.perform(image: image.image, orientation: image.orientation) { _ in
+        withUnsafeCurrentTask { $0?.cancel() }
+        try Task.checkCancellation()
+        return []
+      }
+    }
+    do {
+      _ = try await cancelled.value
+      XCTFail("변환 중 취소를 무시했습니다.")
+    } catch is CancellationError { }
+    XCTAssertEqual(pool.cachedSessionCount, 0)
   }
 
   private func waitForQueuedWork(_ pool: DocumentPDFWorkPool) async throws {

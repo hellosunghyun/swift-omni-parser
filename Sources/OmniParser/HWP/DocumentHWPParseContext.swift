@@ -14,11 +14,11 @@ nonisolated struct DocumentHWPParseContext {
   var descriptions: [UInt32: String] = [:]
   var visitedImages: Set<String> = []
 
-  mutating func appendSections(_ sections: [HwpSection]) throws {
+  mutating func appendSections(_ sections: [HwpSection]) async throws {
     for (sectionIndex, section) in sections.enumerated() {
       for (paragraphIndex, paragraph) in section.paragraph.enumerated() {
         try Task.checkCancellation()
-        try append(
+        try await append(
           paragraph,
           location: DocumentLocation(
             part: "section[\(sectionIndex)]",
@@ -44,16 +44,16 @@ nonisolated struct DocumentHWPParseContext {
     }
   }
 
-  mutating func append(_ paragraph: HwpParagraph, location: DocumentLocation) throws {
+  mutating func append(_ paragraph: HwpParagraph, location: DocumentLocation) async throws {
     let text = paragraphText(paragraph)
     if !text.isEmpty {
       blocks.appendBlock(.paragraph, text: text, location: location)
     }
-    try appendControls(paragraph, location: location)
+    try await appendControls(paragraph, location: location)
   }
 
   /// 셀 주소·병합 범위를 보존하고 셀 안의 그림 컨트롤에는 같은 논리적 앵커를 넘긴다.
-  mutating func append(_ table: HwpTable, part: String?) throws {
+  mutating func append(_ table: HwpTable, part: String?) async throws {
     blocks.appendBlock(.table, location: DocumentLocation(part: part))
     for (index, cell) in table.cellArray.enumerated() {
       let value = cell.paragraphArray.map(paragraphText)
@@ -71,12 +71,14 @@ nonisolated struct DocumentHWPParseContext {
       for (paragraphIndex, paragraph) in cell.paragraphArray.enumerated() {
         var source = location
         source.paragraph = paragraphIndex + 1
-        try appendControls(paragraph, location: source)
+        try await appendControls(paragraph, location: source)
       }
     }
   }
 
-  mutating func appendControls(_ paragraph: HwpParagraph, location: DocumentLocation) throws {
+  mutating func appendControls(
+    _ paragraph: HwpParagraph, location: DocumentLocation
+  ) async throws {
     for (index, control) in (paragraph.ctrlHeaderArray ?? []).enumerated() {
       try Task.checkCancellation()
       var parent = location.part ?? "section"
@@ -90,12 +92,12 @@ nonisolated struct DocumentHWPParseContext {
       case .table(let table):
         let part = "\(parent)/paragraph[\(location.paragraph ?? 0)]"
           + "/table[\(index)]"
-        try append(table, part: part)
+        try await append(table, part: part)
       case .picture(let shape), .shape(let shape), .container(let shape):
-        try appendPictures(shape.shapeComponentArray,
+        try await appendPictures(shape.shapeComponentArray,
                            property: shape.commonCtrlProperty, location: anchor)
       case .genShapeObject(let shape):
-        try appendPictures(shape.shapeComponentArray,
+        try await appendPictures(shape.shapeComponentArray,
                            property: shape.commonCtrlProperty, location: anchor)
       default: break
       }

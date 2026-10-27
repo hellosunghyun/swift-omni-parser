@@ -13,45 +13,35 @@ nonisolated enum DocumentOCR {
     image: CGImage,
     orientation: CGImagePropertyOrientation,
     location: DocumentLocation = DocumentLocation()
-  ) throws -> [DocumentBlock] {
-    // 페이지 안의 다음 OCR 호출까지 Vision 임시 객체를 보유하지 않는다.
-    return try autoreleasepool {
-      try Task.checkCancellation()
-      if let sessions {
-        return try sessions.perform(image: image, orientation: orientation) {
-          try blocks($0, image: image, orientation: orientation, location: location)
-        }
-      }
-      let request = makeRequest()
-      let handler = VNImageRequestHandler(cgImage: image, orientation: orientation)
-      try handler.perform([request])
-      try Task.checkCancellation()
-      return try blocks(request.results ?? [], image: image, orientation: orientation,
-                        location: location)
+  ) async throws -> [DocumentBlock] {
+    try Task.checkCancellation()
+    let pool = sessions ?? DocumentOCRSessionPool()
+    return try await pool.perform(image: image, orientation: orientation) {
+      try await blocks($0, image: image, orientation: orientation, location: location)
     }
   }
 
-  /// 새 핸들러와 재사용 핸들러 모두 같은 한영·정확도·언어 보정 설정을 사용한다.
-  static func makeRequest() -> VNRecognizeTextRequest {
-    let request = VNRecognizeTextRequest()
+  /// 기존 Vision revision 3과 같은 한영·정확도·언어 보정 설정을 사용한다.
+  static func makeRequest() -> RecognizeTextRequest {
+    var request = RecognizeTextRequest(.revision3)
     request.recognitionLevel = .accurate
     request.usesLanguageCorrection = true
-    request.recognitionLanguages = ["ko-KR", "en-US"]
+    request.recognitionLanguages = [.init(identifier: "ko-KR"), .init(identifier: "en-US")]
     request.automaticallyDetectsLanguage = true
     return request
   }
 
   /// Vision의 좌하단 원점을 좌상단으로 뒤집는다. 부분 그림의 페이지 좌표 변환은 호출 측이 담당한다.
   private static func blocks(
-    _ source: [VNRecognizedTextObservation], image: CGImage,
+    _ source: [RecognizedTextObservation], image: CGImage,
     orientation: CGImagePropertyOrientation, location: DocumentLocation
-  ) throws -> [DocumentBlock] {
-    let enhanced = try DocumentNumericOCR.refine(
+  ) async throws -> [DocumentBlock] {
+    let enhanced = try await DocumentNumericOCR.refine(
       image: image, orientation: orientation, observations: source)
     var blocks: [DocumentBlock] = source.enumerated().compactMap { order, observation in
       guard let candidate = observation.topCandidates(1).first else { return nil }
       var located = location
-      let bounds = observation.boundingBox
+      let bounds = observation.boundingBox.cgRect
       located.bounds = CGRect(
         x: bounds.minX,
         y: 1 - bounds.maxY,

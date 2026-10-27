@@ -9,14 +9,14 @@ nonisolated enum DocumentReferencedImageParser {
     baseDirectory: URL?,
     options: DocumentParserOptions,
     remainingBytes: Int? = nil
-  ) throws -> DocumentParseResult? {
+  ) async throws -> DocumentParseResult? {
     guard options.extractImages || options.performOCR else { return nil }
     guard
       let data = try imageData(
         for: reference, baseDirectory: baseDirectory, options: options)
     else { return nil }
     let image = try DocumentImageDecoder.decode(data, maximumPixels: options.maximumImagePixels)
-    return try DocumentRasterParser.parseImage(
+    return try await DocumentRasterParser.parseImage(
       image.image, orientation: image.orientation, format: .image,
       location: DocumentLocation(part: reference), options: options,
       remainingBytes: remainingBytes)

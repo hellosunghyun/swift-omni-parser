@@ -9,7 +9,7 @@ nonisolated enum DocumentRasterParser {
     format: DocumentFormat,
     options: DocumentParserOptions,
     progress: DocumentParser.ProgressHandler?
-  ) throws -> DocumentParseResult {
+  ) async throws -> DocumentParseResult {
     guard let source = CGImageSourceCreateWithData(data as CFData, nil),
       CGImageSourceGetCount(source) > 0 else { throw DocumentParsingError.malformedDocument }
     guard options.extractImages || options.performOCR else {
@@ -27,7 +27,7 @@ nonisolated enum DocumentRasterParser {
       try Task.checkCancellation()
       let location = DocumentLocation(page: format == .tiff ? index + 1 : nil)
       do {
-        let frame = try parseFrame(
+        let frame = try await parseFrame(
           source, index: index, format: format, options: options,
           remainingBytes: max(0, options.maximumExpandedBytes - imageBytes))
         successfulFrames += 1
@@ -62,24 +62,24 @@ nonisolated enum DocumentRasterParser {
   private static func parseFrame(
     _ source: CGImageSource, index: Int, format: DocumentFormat,
     options: DocumentParserOptions, remainingBytes: Int
-  ) throws -> DocumentParseResult {
-    try autoreleasepool {
-      let decoded = try DocumentImageDecoder.decode(
+  ) async throws -> DocumentParseResult {
+    let decoded = try autoreleasepool {
+      try DocumentImageDecoder.decode(
         source, index: index, maximumPixels: options.maximumImagePixels)
-      return try parseImage(
-        decoded.image, orientation: decoded.orientation, format: format,
-        location: DocumentLocation(page: format == .tiff ? index + 1 : nil),
-        options: options, remainingBytes: remainingBytes)
     }
+    return try await parseImage(
+      decoded.image, orientation: decoded.orientation, format: format,
+      location: DocumentLocation(page: format == .tiff ? index + 1 : nil),
+      options: options, remainingBytes: remainingBytes)
   }
 
   /// 직접 입력·이미지 프레임·로컬 참조 그림이 같은 추출/OCR 설정을 사용한다.
   static func parseImage(
     _ image: CGImage, orientation: CGImagePropertyOrientation, format: DocumentFormat,
     location: DocumentLocation, options: DocumentParserOptions, remainingBytes: Int? = nil,
-    recognize: (CGImage, CGImagePropertyOrientation, DocumentLocation) throws -> [DocumentBlock]
-      = DocumentOCR.recognize
-  ) throws -> DocumentParseResult {
+    recognize: (CGImage, CGImagePropertyOrientation, DocumentLocation) async throws
+      -> [DocumentBlock] = DocumentOCR.recognize
+  ) async throws -> DocumentParseResult {
     try Task.checkCancellation()
     var blocks: [DocumentBlock] = []
     var images: [DocumentEmbeddedImage] = []
@@ -99,7 +99,7 @@ nonisolated enum DocumentRasterParser {
     }
     if options.performOCR {
       do {
-        blocks.append(contentsOf: try recognize(image, orientation, location))
+        blocks.append(contentsOf: try await recognize(image, orientation, location))
       } catch is CancellationError {
         throw CancellationError()
       } catch {

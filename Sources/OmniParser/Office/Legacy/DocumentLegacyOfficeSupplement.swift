@@ -7,14 +7,16 @@ nonisolated enum DocumentLegacyOfficeSupplement {
   static func extract(
     data: Data, format: DocumentFormat, base: DocumentParseResult, options: DocumentParserOptions,
     inspectedImages: Int
-  ) throws -> DocumentParseResult {
+  ) async throws -> DocumentParseResult {
+    // 본문 전용 호출에서는 그림을 찾기 위해 CFB 스트림을 다시 복사하지 않는다.
+    guard options.extractImages || options.performOCR else { return base }
     let streams = try DocumentCompoundFile.streams(data, options: options)
     var context = Context(blocks: base.blocks, images: base.images, warnings: base.warnings,
                           options: options, bytes: base.images.reduce(0) { $0 + $1.pngData.count })
     if options.extractImages || options.performOCR {
       let extracted = DocumentLegacyImageExtractor.extract(
         streams, limit: max(0, options.maximumEmbeddedImages - inspectedImages))
-      for image in extracted { try context.append(image) }
+      for image in extracted { try await context.append(image) }
     }
     if let location = context.images.first?.location
       ?? context.blocks.first(where: { $0.kind == .imageOCR })?.location {
@@ -35,7 +37,7 @@ nonisolated enum DocumentLegacyOfficeSupplement {
     let options: DocumentParserOptions
     var bytes: Int
 
-    mutating func append(_ image: DocumentLegacyImageExtractor.Image) throws {
+    mutating func append(_ image: DocumentLegacyImageExtractor.Image) async throws {
       try Task.checkCancellation()
       let location = DocumentLocation(part: image.part)
       guard images.count < options.maximumEmbeddedImages else {
@@ -49,7 +51,7 @@ nonisolated enum DocumentLegacyOfficeSupplement {
           image.data, maximumPixels: options.maximumImagePixels)
         if options.extractImages,
           let png = DocumentImageEncoder.png(decoded.image, orientation: decoded.orientation) {
-          if images.contains(where: { $0.pngData == png }) { return }
+          if images.contains(where: { $0.location == location && $0.pngData == png }) { return }
           if png.count <= options.maximumExpandedBytes - bytes {
             images.append(DocumentEmbeddedImage(
               id: image.part, pngData: png, location: location, orientation: decoded.orientation))
@@ -61,13 +63,13 @@ nonisolated enum DocumentLegacyOfficeSupplement {
               location: location))
           }
         }
-        let recognized = try options.performOCR ? DocumentOCR.recognize(
+        let recognized = try await options.performOCR ? DocumentOCR.recognize(
           image: decoded.image, orientation: decoded.orientation, location: location) : []
         if options.extractImages {
           blocks.appendBlock(.image, location: location)
         }
         for var block in recognized where !blocks.contains(where: {
-          $0.kind == .imageOCR && $0.text == block.text
+          $0.kind == .imageOCR && $0.location == block.location && $0.text == block.text
         }) {
           block.readingOrder = blocks.count
           blocks.append(block)

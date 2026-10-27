@@ -72,36 +72,34 @@ nonisolated enum DocumentPDFPageParser {
   @concurrent private static func performRecognition(
     _ prepared: DocumentPDFPreparedPage
   ) async throws -> DocumentPDFPreparedPage {
-    try autoreleasepool {
-      var page = prepared
-      let native = page.result.blocks
-      var recognizedFullPage = false
-      for job in page.imageJobs {
-        try Task.checkCancellation()
-        if page.extractImages {
-          page.result.blocks.append(DocumentBlock(
-            kind: .image, text: "", readingOrder: 0, location: job.location))
-        }
-        do {
-          let recognized = try DocumentPDFImageExtractor.recognize(
-            job.raster.image, location: job.location, bounds: job.location.bounds ?? .zero)
-          recognizedFullPage = recognizedFullPage || job.covers(page.raster)
-          page.result.blocks.append(contentsOf: recognized.filter { !duplicate($0, in: native) })
-        } catch is CancellationError {
-          throw CancellationError()
-        } catch {
-          page.result.warnings.append(DocumentWarning(
-            code: .imageOCRFailed, message: "PDF image OCR failed; raster region is preserved.",
-            location: job.location))
-        }
+    var page = prepared
+    let native = page.result.blocks
+    var recognizedFullPage = false
+    for job in page.imageJobs {
+      try Task.checkCancellation()
+      if page.extractImages {
+        page.result.blocks.append(DocumentBlock(
+          kind: .image, text: "", readingOrder: 0, location: job.location))
       }
-      if let raster = page.raster, !recognizedFullPage {
-        try appendPageOCR(raster.image, index: page.index, result: &page.result)
+      do {
+        let recognized = try await DocumentPDFImageExtractor.recognize(
+          job.raster.image, location: job.location, bounds: job.location.bounds ?? .zero)
+        recognizedFullPage = recognizedFullPage || job.covers(page.raster)
+        page.result.blocks.append(contentsOf: recognized.filter { !duplicate($0, in: native) })
+      } catch is CancellationError {
+        throw CancellationError()
+      } catch {
+        page.result.warnings.append(DocumentWarning(
+          code: .imageOCRFailed, message: "PDF image OCR failed; raster region is preserved.",
+          location: job.location))
       }
-      page.raster = nil
-      page.imageJobs = []
-      return page
     }
+    if let raster = page.raster, !recognizedFullPage {
+      try await appendPageOCR(raster.image, index: page.index, result: &page.result)
+    }
+    page.raster = nil
+    page.imageJobs = []
+    return page
   }
 
   private static func tables(
@@ -135,9 +133,9 @@ nonisolated enum DocumentPDFPageParser {
 
   private static func appendPageOCR(
     _ image: CGImage, index: Int, result: inout DocumentPDFImageExtractor.Result
-  ) throws {
+  ) async throws {
     do {
-      let recognized = try DocumentOCR.recognize(
+      let recognized = try await DocumentOCR.recognize(
         image: image, orientation: .up, location: DocumentLocation(page: index + 1))
       result.blocks.append(contentsOf: recognized.filter { !duplicate($0, in: result.blocks) })
     } catch is CancellationError {

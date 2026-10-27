@@ -65,8 +65,9 @@ nonisolated enum DocumentPDFImageExtractor {
   /// 잘라낸 그림 안의 OCR 좌표를 그림의 페이지 위치·크기에 맞춰 다시 변환한다.
   static func recognize(
     _ crop: CGImage, location: DocumentLocation, bounds: CGRect
-  ) throws -> [DocumentBlock] {
-    try DocumentOCR.recognize(image: crop, orientation: .up, location: location).map { block in
+  ) async throws -> [DocumentBlock] {
+    try await DocumentOCR.recognize(
+      image: crop, orientation: .up, location: location).map { block in
       var located = block
       if let local = block.location.bounds {
         located.location.bounds = CGRect(
