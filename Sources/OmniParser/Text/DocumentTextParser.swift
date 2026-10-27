@@ -24,7 +24,7 @@ nonisolated enum DocumentTextParser {
       DocumentStructuredTextParser.parseXML(
         data, fallbackText: text, warnings: &structureWarnings)
     case .html:
-      try DocumentHTMLParser.parseHTML(text)
+      try DocumentHTMLParser.parseHTML(text, warnings: &structureWarnings)
     case .markdown:
       DocumentMarkdownParser.parseMarkdown(text)
     default:
