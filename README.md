@@ -92,6 +92,8 @@ xcodebuild test -scheme OmniParser \
 
 실기기는 저장소 밖 호스트 앱에 같은 테스트를 연결했습니다. 자체 생성 한영 대용량 스캔·혼합 배치의 시간/메모리와 남은 QoS 경고는 [최종 로컬 검증](Documentation/LOCAL_REVIEW_2026-10-27.md)에 기록했습니다. 이 수치는 Debug·샘플링 측정이며 일반 문서 전체의 성능 보증은 아닙니다. 원래 XLS 결함과 전환 이력은 [XLS 수정·전환 결과](Documentation/XLS_CHART_FIX.md), RTF 구현 검증은 [RTF 후속 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)을 확인하세요.
 
+행 정렬 보완과 어려운 스캔 회귀를 추가한 후속 코드는 Simulator 34개가 통과했으며, 잠금으로 실기기 재검증·동일 발열 3회 반복은 대기 중입니다. 위 32개 실기기 결과와 구분합니다. 원인 조사·비동기 변경안·로컬 재현 키트는 [OCR 후속 기록](Documentation/OCR_QOS_FOLLOWUP_2026-10-27.md)을 확인하세요.
+
 ## 의존성과 라이선스
 
 **OmniParser 자체 Swift 코드와 자체 문서는 MIT입니다. 외부 의존성·바이너리·고지 파일은 각각의 원래 라이선스를 따릅니다.** 모든 구성요소를 MIT로 재라이선스한 패키지가 아닙니다.
