@@ -3,6 +3,31 @@ import Foundation
 import XCTest
 
 final class ResourceAndCancellationTests: XCTestCase {
+  func testGeometricRowsDoNotChainAndPreserveMetadata() {
+    let samples = [
+      DocumentBlock(kind: .imageOCR, text: "a", readingOrder: 0,
+        location: .init(part: "sample", bounds: .init(x: 0.6, y: 0.1, width: 0.1, height: 0.04)),
+        ocrConfidence: 0.8, ocrOriginalText: "original-a"),
+      DocumentBlock(kind: .imageOCR, text: "b", readingOrder: 0,
+        location: .init(part: "sample", bounds: .init(x: 0.1, y: 0.115, width: 0.1, height: 0.04)),
+        ocrConfidence: 0.9),
+      DocumentBlock(kind: .imageOCR, text: "c", readingOrder: 0,
+        location: .init(part: "sample", bounds: .init(x: 0.4, y: 0.13, width: 0.1, height: 0.04)))
+    ]
+    // 이웃끼리의 y 차이만 따라가면 다음 행까지 연결될 수 있어 첫 요소를 기준으로 묶는다.
+    for order in [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]] {
+      var blocks = order.map { samples[$0] }
+      blocks.sortInGeometricReadingOrder()
+      XCTAssertEqual(blocks.map(\.text), ["b", "a", "c"])
+      XCTAssertEqual(blocks[1].location, samples[0].location)
+      XCTAssertEqual(blocks[1].ocrConfidence, samples[0].ocrConfidence)
+      XCTAssertEqual(blocks[1].ocrOriginalText, samples[0].ocrOriginalText)
+      let once = blocks
+      blocks.sortInGeometricReadingOrder()
+      XCTAssertEqual(blocks, once)
+    }
+  }
+
   func testGeometricReadingOrderPreservesRowsPagesAndStructure() {
     let samples: [(String, CGRect)] = [
       ("right-1", CGRect(x: 0.5, y: 0.095, width: 0.2, height: 0.05)),
