@@ -3,6 +3,20 @@ import OmniParser
 import XCTest
 
 final class FormatRegressionTests: XCTestCase {
+  func testVerticalKoreanTextInHWPImageIsPreserved() async throws {
+    for name in ["RealWorld/hwp/real-hwp-01-noori.hwp",
+                 "RealWorld/hwpx/real-hwpx-02-noori.hwpx"] {
+      let result = try await DocumentParser.parse(TestFixtures.input(name),
+        options: .init(performOCR: true))
+      // 표 셀의 로켓 그림에 실제 인쇄된 세로 글자다. native 본문과 구분해 확인한다.
+      XCTAssertTrue(result.blocks.contains {
+        $0.kind == .imageOCR && $0.location.row == 2 && $0.location.column == 2
+          && $0.text.filter { !$0.isWhitespace }.contains("대한민국")
+      })
+      TestFixtures.assertTextConsistency(result)
+    }
+  }
+
   struct Entry: Decodable {
     let name: String
     let sha256: String

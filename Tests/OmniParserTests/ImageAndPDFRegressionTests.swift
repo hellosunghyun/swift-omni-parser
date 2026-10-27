@@ -4,9 +4,16 @@ import Foundation
 import ImageIO
 @testable import OmniParser
 import UniformTypeIdentifiers
+import Vision
 import XCTest
 
 final class ImageAndPDFRegressionTests: XCTestCase {
+  func testAsyncVisionPreservesLegacySmallTextThreshold() {
+    // 두 API의 SDK 기본값이 다르므로 기존 요청이 읽던 작은 글자를 계속 검사한다.
+    XCTAssertEqual(DocumentOCR.makeRequest().minimumTextHeightFraction,
+                   VNRecognizeTextRequest().minimumTextHeight)
+  }
+
   func testCancellationDuringVisionRequestDiscardsSession() async throws {
     let context = try XCTUnwrap(CGContext(data: nil, width: 2048, height: 4096,
       bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),

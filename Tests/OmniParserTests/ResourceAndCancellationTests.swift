@@ -213,7 +213,7 @@ extension ResourceAndCancellationTests {
     let names = ["word/document.xml", "xl/workbook.xml", "ppt/presentation.xml",
                  "Contents/section0.xml"]
     for name in names {
-      let data = zip(name: name, packed: packed, method: 8, size: 1, checksum: entry.checksum)
+      let data = makeZIP(name: name, packed: packed, method: 8, size: 1, checksum: entry.checksum)
       do {
         _ = try await DocumentParser.parse(.data(data, fileName: nil),
           options: .init(maximumExpandedBytes: 64))
@@ -231,11 +231,11 @@ extension ResourceAndCancellationTests {
       XCTFail("누적 해제량 제한을 무시했습니다.")
     } catch { XCTAssertEqual(error as? DocumentParsingError, .inputTooLarge) }
     // 컨테이너 검사는 정상 CRC의 이미지 내용까지 해석하지 않는다. 디코딩 복구는 파서 책임이다.
-    let opaque = zip(name: "image.bin", packed: Data([1, 2, 3]), method: 0,
+    let opaque = makeZIP(name: "image.bin", packed: Data([1, 2, 3]), method: 0,
                      size: 3, checksum: 0x55BC_801D)
     XCTAssertNoThrow(try DocumentArchiveGuard.validate(opaque, options: .init()))
     // XML이 아닌 항목도 버리기 전에 검증한다. 모든 출력 Data를 보관할 필요는 없다.
-    let corrupted = zip(name: "image.bin", packed: Data([1, 2, 3]), method: 0,
+    let corrupted = makeZIP(name: "image.bin", packed: Data([1, 2, 3]), method: 0,
                         size: 3, checksum: 0)
     XCTAssertThrowsError(try DocumentArchiveGuard.validate(corrupted, options: .init())) {
       XCTAssertEqual($0 as? DocumentParsingError, .malformedDocument)
@@ -315,7 +315,7 @@ extension ResourceAndCancellationTests {
   }
 
   /// ZIP 검증용 바이트를 메모리에서 만든다. 외부 샘플이나 영구 바이너리 자산은 추가하지 않는다.
-  private func zip(name: String, packed: Data, method: Int, size: Int, checksum: Int) -> Data {
+  private func makeZIP(name: String, packed: Data, method: Int, size: Int, checksum: Int) -> Data {
     let nameBytes = Data(name.utf8)
     func number(_ value: Int, _ count: Int = 4) -> Data {
       Data((0..<count).map { UInt8(truncatingIfNeeded: value >> ($0 * 8)) })
