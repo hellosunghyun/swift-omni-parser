@@ -10,9 +10,11 @@
 
 ## CI와 릴리즈 확인
 
-`.github/workflows/verification.yml`은 `main`에서 수동 실행하며 외부 PR 코드를 자동 실행하지 않습니다. `self-hosted`, `macOS`, `ARM64`, `omni-parser-ios27` 라벨이 붙은 신뢰 runner를 운영자가 별도로 준비해야 합니다. 격리된 작업 공간에 Xcode 27 SDK·iOS 27 iPhone 17 runtime·SwiftLint 0.65.1을 설치합니다. 서명·개인 문서·개발 팀·쓰기 토큰은 필요하지 않습니다. runner를 등록하거나 비용이 드는 서비스를 자동 생성하지 않습니다.
+`.github/workflows/verification.yml`은 공개 저장소의 PR·main 푸시·수동 실행에서 일회용 GitHub-hosted `xcode-27` runner를 사용합니다. 별도 self-hosted runner 등록·서명·개발 팀·쓰기 토큰은 필요하지 않습니다. 비공개 저장소에서는 job을 실행하지 않으며 larger runner는 사용하지 않습니다.
 
-workflow는 strict lint, Simulator 회귀·일반 빌드, 버전 기반 새 소비자 빌드, 아카이브 해시를 검사합니다. 도구가 없으면 명시적으로 실패하며 검사를 건너뛰거나 OS 설정을 낮추지 않습니다. 아직 게시·실행하지 않은 workflow의 문법/명령 검토를 실제 CI 통과와 구분합니다. GitHub 호스트의 Xcode 27 지원이 확인되면 별도 변경으로 자동 PR 검증을 검토할 수 있습니다.
+GitHub의 [표준 runner 안내](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)와 [Xcode 27 이미지](https://github.com/actions/runner-images/blob/main/images/macos/xcode-27-arm64-Readme.md)를 2026-10-27에 확인했습니다. Xcode 27.1·SDK 27.1·iOS 27.0 iPhone 17 runtime을 선택하고 SwiftLint 0.65.1 공식 portable 자산은 고정 SHA-256을 확인한 뒤 실행합니다. checkout action도 Node 24 기반 v7.0.1의 커밋 SHA로 고정하며 자격 증명을 남기지 않습니다.
+
+workflow는 strict lint, Simulator 회귀·일반 빌드, 버전 기반 새 소비자 빌드, 아카이브 해시를 검사합니다. 도구가 없으면 명확히 실패하며 검사를 건너뛰거나 OS 설정을 낮추지 않습니다. 아직 게시·실행하지 않은 workflow의 문법·명령 검토는 실제 CI 통과와 구분합니다.
 
 ```bash
 # HEAD를 별도 로컬 mirror의 임시 SemVer로 소비한다. 커밋되지 않은 변경은 포함하지 않는다.
