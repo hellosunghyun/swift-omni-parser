@@ -6,9 +6,11 @@
 
 ## 원인 조사와 선택
 
-작은 PDF/JPEG/DOCX 배치의 vmmap 진단에서 큰 live malloc이 확인됐다. 한 snapshot의 현재 footprint는 193.6MiB였고, `Malloc Large` dirty 127.5MiB, `Malloc Small` dirty 55.8MiB였다. 같은 실행은 반환 이미지가 0개여서 반환 PNG 누적으로 이 증가를 설명할 수 없다. 해당 범주와 allocator zone은 중복되므로 합산하지 않는다. vmmap 수집은 2.4~5.9초 걸려 여러 작업 전환을 포함했으며 특정 Vision 모델·tensor·캐시의 정확한 소유량은 확정하지 못했다.
+작은 PDF/JPEG/DOCX 배치의 vmmap 진단에서 큰 live malloc이 확인됐다. 한 snapshot의 현재 footprint는 193.6MiB였고, `Malloc Large` dirty 127.5MiB, `Malloc Small` dirty 55.8MiB였다. 같은 실행은 반환 이미지가 0개여서 반환 PNG 누적으로 이 증가를 설명할 수 없다. 해당 범주와 allocator zone은 중복되므로 합산하지 않는다. vmmap 수집은 2.4~5.9초 걸려 여러 작업 전환을 포함했으며 이 자료만으로 특정 Vision 모델·tensor·캐시의 정확한 소유량은 확정하지 못했다.
 
 추가로 전용 Simulator 호스트를 시작할 때만 `MallocStackLogging=1`을 설정하고 live 스택 조회를 시도했다. 테스트 1개와 두 스택 조회는 성공했지만 조회가 각각 7.5·9.3초 걸렸고, 얻은 snapshot은 OCR 최대 할당을 포착하지 못했다. 초기 ICU·폰트 할당을 OCR peak의 원인으로 해석하지 않는다. 권한·보안 설정을 바꾸지 않았으며 이 진단의 시간·메모리는 아래 비교에 섞지 않았다.
+
+그다음 같은 호스트·바이너리의 새 실행을 `proc_pid_rusage`로 관찰했다. 첫 배치 시작 약 1.04초 뒤 footprint 178.6MiB에서 해당 진단 PID만 잠시 정지해 스택을 수집하고 재개했다. CoreML 모델 로드 → `MLNeuralNetworkEngine` → Espresso plan 준비 → `blob_cpu::resize` → `kern_alloc_uninitialized` 경로의 가장 큰 스택 그룹은 28개 할당·97.16MiB였다. 이 시점의 큰 live 할당에 모델 준비·CPU blob이 포함됨을 확인했다. 이는 실행 전체의 최고 시점이나 옛 동기 엔진 대비 증가량을 직접 측정한 결과가 아니며, allocator 집계와 footprint 기여량도 동일하지 않다. 조회 5.99초 후 재개했고 테스트는 정상 종료했다.
 
 PDF crop은 원본 raster를 보유하고 그 raster가 fallback에도 필요했다. 작은 숫자 OCR의 threshold 세 장은 순차 처리된다. 임시 객체 수명·executor·codec pool 후보는 유의미한 이득을 입증하지 못해 되돌렸다. PDF 예약량을 48→64MiB로 높이면 실제 병렬 페이지 창이 좁아지고 추가 OCR 비교에서 시간 중앙값이 26% 늘어 채택하지 않았다.
 
@@ -86,6 +88,7 @@ swiftlint lint --strict
 
 - 원인: `VMMapSeries-ANALYSIS.md/.json`, `BaselineVMMapSeries/`, `InputSnapshotPrototype/`.
 - 추가 스택 진단: `MallocStackLogging64d-20261027T183812Z-8e6b5/`. snapshot 시각과 테스트 처리 구간의 차이를 보존했다.
+- 높은 메모리 시점의 스택: 같은 폴더의 `FrozenPeak-184953-17f7/ANALYSIS.md/.json`. PID 경로 검증·관측값·정지·재개·watchdog·테스트 종료 기록을 함께 보존했다.
 - 성능 계측 시 소스·호스트 대응: `snapshot-v4-host-preparation-check.json`, `final-source-provenance.json`, 각 호스트의 `SourceSnapshot.json`.
 - 첫 성능 비교: `snapshot-final-executed-commands.json`, `snapshot-final-performance-summary.json`, `SnapshotEngineKit/BatchMemorySingleEngineTests.swift`. 각 log·xcresult의 원본 명령과 표본을 함께 보존했다.
 - 추가 대용량: `v5-png80-stable-commands.json`, `v5-png80-stable-run.py`, `snapshot-v5-png80-performance-summary.json`, 같은 이름의 environment·interference JSONL 및 원시 log·xcresult·metadata.
