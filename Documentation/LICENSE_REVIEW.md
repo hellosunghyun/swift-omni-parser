@@ -48,7 +48,11 @@ LGPL-2.1 제6조는 라이브러리를 사용하는 저작물과의 결합을 �
 
 ## 재현 빌드 관련 미완료 항목
 
-OfficeOxide README는 기존 바이너리가 Rust 1.97.1과 `RUSTC_BOOTSTRAP=1`, `-Z build-std=std,panic_abort`로 제작되었다고 기록합니다. 그러나 현재 `build.sh`는 Rust 도구 버전·해당 옵션을 고정하지 않고, 성공 후 `SHA256SUMS`·고지를 갱신하지도 않습니다. 따라서 이 스크립트를 배포된 바이너리와 동일한 산출물의 재현을 보장하는 절차로 표현하지 않습니다. 대응 소스·빌드 옵션·전이 의존성 고지를 함께 고정한 제작 경로가 후속으로 필요합니다.
+OfficeOxide의 기존 배포물이 Rust 1.97.1과 `RUSTC_BOOTSTRAP=1`, `-Z build-std=std,panic_abort`로 제작되었다는 기록을 유지합니다. 후속 보완한 `build.sh`는 도구 버전·컴파일러 커밋·Xcode/SDK·소스 커밋과 해당 빌드 옵션을 검사하고, offline 빌드의 별도 검토 번들에 체크섬·구성요소 그래프·컴파일 산출물·고지 원문·소스 해시를 함께 생성합니다. 기존 바이너리를 자동 교체하지 않습니다.
+
+2026-10-27에는 저장소 밖 고유 prefix에 공식 Rust 1.97.1을 준비해 세 iOS/Simulator 타깃의 실제 offline 재빌드와 고지 생성을 완료했습니다. 선언 패키지와 표준 라이브러리에서 실제 컴파일한 항목의 출처·고지 그룹 81개를 보존했고 타깃별 57·57·58개 compiler-artifact ID의 미대응 항목은 0개였습니다. Rust 원문 고지 72개와 공식 도구 체인의 고지 14개도 함께 보존했습니다. 이는 사용되지 않은 선언/빌드 항목까지 포함하므로 정확한 링크 SBOM의 개수로 쓰지 않습니다.
+
+기존과 새 바이너리는 바이트가 다릅니다. 기존 bitcode의 LLVM producer는 22.1.8, 새 공식 rustc의 LLVM은 22.1.6이며 경로 등 일부 제작 입력도 달랐습니다. 기존 배포물과의 바이트 일치와 실제 링크된 오브젝트 전체의 완전한 대응이 검증된 것은 아니므로 라이선스 검토가 모두 완료되었다고 표시하지 않습니다. 기존 바이너리·고지는 변경하지 않았습니다. 준비 조건·실행 결과·한계는 [OfficeOxide 제작 안내](../ThirdParty/OfficeOxide/README.md)를 참고하세요.
 
 ## 포함하지 않은 범위
 
@@ -64,7 +68,7 @@ SPM 해석 결과의 외부 소스 패키지는 SwiftSoup, OLEKit, OpenDocument.
 - [LGPL-2.1 원문 사본](../ThirdParty/hwp-swift/LICENSE), 특히 제5·6조
 - [SwiftSoup 고정 소스](https://github.com/scinfu/SwiftSoup/tree/e7f85f4d3dd91ca9a1e94d3328aa1ed5120a8c0f)
 - [OLEKit 고정 소스](https://github.com/CoreOffice/OLEKit/tree/2cc7a98b4ac4e9ce022336258a3bc4ff6bfc285b)
-- [OpenDocument.core 고정 소스](https://github.com/opendocument-app/OpenDocument.core/tree/77e2a0a6e4b33c33a5aee64551fcd0d7493c9101)
+- [OpenDocument.core 포크 고정 소스](https://github.com/hellosunghyun/OpenDocument.core/tree/b302cc85311490676986a2b731971473ad21efac)
 - [hwp-swift 고정 소스](https://github.com/sboh1214/hwp-swift/tree/eebe90d160b3d437b97d0bb1ea7a5752f419f225)
 - [OfficeOxide 고정 소스](https://github.com/yfedoseev/office_oxide/tree/5d183f4de990de254f32976bf952e548bcd25972)
 - [서드파티 고지와 소스 취득 경로](../THIRD_PARTY_NOTICES.md)
