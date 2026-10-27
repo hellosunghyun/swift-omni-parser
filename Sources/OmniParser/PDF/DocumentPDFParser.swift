@@ -26,16 +26,7 @@ nonisolated enum DocumentPDFParser {
         code: .resourceLimitReached, message: "Remaining PDF pages exceeded the configured limit.",
         location: DocumentLocation(page: count + 1)))
     }
-    blocks.sort {
-      if $0.location.page != $1.location.page {
-        return ($0.location.page ?? 0) < ($1.location.page ?? 0)
-      }
-      let left = $0.location.bounds ?? .zero
-      let right = $1.location.bounds ?? .zero
-      if left.minY != right.minY { return left.minY < right.minY }
-      return left.minX < right.minX
-    }
-    for index in blocks.indices { blocks[index].readingOrder = index }
+    blocks.sortInGeometricReadingOrder()
     return DocumentParseResult(
       format: .pdf, blocks: blocks, warnings: warnings, images: images)
   }

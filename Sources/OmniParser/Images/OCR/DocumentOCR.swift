@@ -48,13 +48,7 @@ nonisolated enum DocumentOCR {
   ) throws -> [DocumentBlock] {
     let enhanced = try DocumentNumericOCR.refine(
       image: image, orientation: orientation, observations: source)
-    let observations = source.sorted {
-      if $0.boundingBox.midY != $1.boundingBox.midY {
-        return $0.boundingBox.midY > $1.boundingBox.midY
-      }
-      return $0.boundingBox.minX < $1.boundingBox.minX
-    }
-    return observations.enumerated().compactMap { order, observation in
+    var blocks: [DocumentBlock] = source.enumerated().compactMap { order, observation in
       guard let candidate = observation.topCandidates(1).first else { return nil }
       var located = location
       let bounds = observation.boundingBox
@@ -73,5 +67,7 @@ nonisolated enum DocumentOCR {
         ocrOriginalText: enhanced[observation.uuid] == nil ? nil : candidate.string
       )
     }
+    blocks.sortInGeometricReadingOrder()
+    return blocks
   }
 }

@@ -187,8 +187,49 @@ nonisolated public struct DocumentParseResult: Sendable, Equatable {
   }
 }
 
-/// 파서가 추가한 순서대로 블록을 연결한다. 원본 위치와 OCR 메타데이터는 그대로 유지한다.
+/// 블록을 연결하거나 좌표로 순서를 정리한다. 원본 위치와 OCR 메타데이터는 유지한다.
 extension Array where Element == DocumentBlock {
+  /// 좌상단 좌표로 페이지를 정렬하고 글자 높이가 달라도 같은 행은 왼쪽부터 읽는다.
+  /// 허용 오차를 sort 비교 함수에 섞지 않고 행 기준을 고정해 비교의 추이성을 유지한다.
+  nonisolated mutating func sortInGeometricReadingOrder() {
+    sort {
+      if $0.location.page != $1.location.page {
+        return ($0.location.page ?? 0) < ($1.location.page ?? 0)
+      }
+      let left = $0.location.bounds ?? .zero, right = $1.location.bounds ?? .zero
+      return left.minY == right.minY ? left.minX < right.minX : left.minY < right.minY
+    }
+    var output: [DocumentBlock] = []
+    output.reserveCapacity(count)
+    var row: [DocumentBlock] = []
+    func flush() {
+      row.sort { ($0.location.bounds?.minX ?? 0) < ($1.location.bounds?.minX ?? 0) }
+      output.append(contentsOf: row)
+      row.removeAll(keepingCapacity: true)
+    }
+    for block in self {
+      // 그림·표 영역은 텍스트 행의 기준으로 사용하지 않는다.
+      guard block.kind != .image, block.kind != .table,
+        let bounds = block.location.bounds, !bounds.isEmpty else {
+        flush()
+        output.append(block)
+        continue
+      }
+      if let first = row.first, let anchor = first.location.bounds {
+        let height = Swift.min(anchor.height, bounds.height)
+        let overlap = Swift.min(anchor.maxY, bounds.maxY) - Swift.max(anchor.minY, bounds.minY)
+        if first.location.page != block.location.page
+          || overlap < height * 0.5 || abs(anchor.midY - bounds.midY) > height * 0.5 {
+          flush()
+        }
+      }
+      row.append(block)
+    }
+    flush()
+    self = output
+    for index in indices { self[index].readingOrder = index }
+  }
+
   nonisolated mutating func appendBlock(
     _ kind: DocumentBlockKind, text: String = "", location: DocumentLocation
   ) {

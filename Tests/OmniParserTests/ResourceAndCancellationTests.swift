@@ -3,6 +3,30 @@ import Foundation
 import XCTest
 
 final class ResourceAndCancellationTests: XCTestCase {
+  func testGeometricReadingOrderPreservesRowsPagesAndStructure() {
+    let samples: [(String, CGRect)] = [
+      ("right-1", CGRect(x: 0.5, y: 0.095, width: 0.2, height: 0.05)),
+      ("left-1", CGRect(x: 0.1, y: 0.1, width: 0.2, height: 0.04)),
+      ("right-2", CGRect(x: 0.5, y: 0.175, width: 0.2, height: 0.05)),
+      ("left-2", CGRect(x: 0.1, y: 0.18, width: 0.2, height: 0.04))
+    ]
+    var blocks = samples.reversed().map {
+      DocumentBlock(kind: .imageOCR, text: $0.0, readingOrder: 0,
+        location: .init(page: 1, bounds: $0.1))
+    }
+    blocks.appendBlock(.imageOCR, text: "page-2", location: .init(page: 2,
+      bounds: .init(x: 0.1, y: 0.01, width: 0.2, height: 0.04)))
+    blocks.appendBlock(.image, location: .init(page: 1, bounds: .init(x: 0, y: 0,
+      width: 1, height: 1)))
+    blocks.appendBlock(.table, location: .init(page: 1, bounds: .init(x: 0, y: 0.08,
+      width: 1, height: 0.3)))
+    blocks.sortInGeometricReadingOrder()
+    XCTAssertEqual(blocks.prefix(2).map(\.kind), [.image, .table])
+    XCTAssertEqual(blocks.filter { !$0.text.isEmpty }.map(\.text),
+      ["left-1", "right-1", "left-2", "right-2", "page-2"])
+    XCTAssertEqual(blocks.map(\.readingOrder), Array(blocks.indices))
+  }
+
   func testSkippedRemoteHTMLImageKeepsBodyAndLocatedWarnings() async throws {
     let html = "<html><body><p>Kept</p><img src='https://example.invalid/image.png'></body></html>"
     let result = try await DocumentParser.parse(.data(Data(html.utf8), fileName: "remote.html"),

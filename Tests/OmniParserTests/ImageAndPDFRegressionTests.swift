@@ -7,6 +7,26 @@ import UniformTypeIdentifiers
 import XCTest
 
 final class ImageAndPDFRegressionTests: XCTestCase {
+  func testDifficultGeneratedKoreanScans() async throws {
+    for name in ["skew-seven-degrees", "low-resolution", "complex-table"] {
+      let sample = try GeneratedOCRScan.make(name)
+      let result = try await DocumentParser.parse(.data(sample.data, fileName: name + ".pdf"),
+        options: .init(extractImages: true, performOCR: true))
+      XCTAssertTrue(GeneratedOCRScan.normalized(result.fullText)
+        .contains(GeneratedOCRScan.normalized(sample.marker)))
+      XCTAssertTrue(result.fullText.contains("연구") || result.fullText.contains("한영"))
+      // 표는 OCR 문자만 읽는다. 셀 복원이나 모든 문서의 같은 정확도를 보장하지 않는다.
+      let errorRate = GeneratedOCRScan.characterErrorRate(sample.expected, result.fullText)
+      XCTAssertLessThanOrEqual(errorRate, name == "complex-table" ? 0.15 : 0.08, name)
+      XCTAssertEqual(result.images.count, 1)
+      XCTAssertTrue(result.blocks.allSatisfy { $0.kind != .tableCell })
+      XCTAssertFalse(result.warnings.contains {
+        $0.code == .imageOCRFailed || $0.code == .extractionFailed
+      })
+      TestFixtures.assertTextConsistency(result)
+    }
+  }
+
   func testRepeatedPDFImagePlacementsHaveUniqueIdentifiers() async throws {
     let bytes = NSMutableData()
     let consumer = try XCTUnwrap(CGDataConsumer(data: bytes))
@@ -92,5 +112,119 @@ final class ImageAndPDFRegressionTests: XCTestCase {
     }
     context.closePDF()
     return bytes as Data
+  }
+}
+
+/// 외부 자산 없이 동일한 글꼴·문구로 기울기, 해상도, 표의 영향을 재현한다.
+private enum GeneratedOCRScan {
+  struct Sample {
+    let data: Data
+    let expected: String
+    let marker: String
+  }
+
+  static func make(_ name: String) throws -> Sample {
+    let low = name == "low-resolution"
+    let width = low ? 595 : 1654, height = low ? 842 : 2339
+    let context = try XCTUnwrap(CGContext(data: nil, width: width, height: height,
+      bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    context.setFillColor(CGColor(gray: 1, alpha: 1))
+    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    let scale = CGFloat(width) / 1654
+    context.scaleBy(x: scale, y: scale)
+    if name == "skew-seven-degrees" {
+      context.translateBy(x: 827, y: 1169.5)
+      context.rotate(by: 7 * .pi / 180)
+      context.translateBy(x: -827, y: -1169.5)
+    }
+    let table = name == "complex-table"
+    let marker = table ? "TABLE CHECK 2026" : low ? "LOW RESOLUTION 2026" : "SKEW CHECK 2026"
+    var canvas = Canvas(context: context)
+    canvas.draw(marker, x: 180, y: 2050, size: 52)
+    canvas.draw("한영 문서 분석 결과를 확인합니다. Research Report", x: 180, y: 1940)
+    if table { canvas.table() } else { canvas.body() }
+    return Sample(data: try pdf(XCTUnwrap(context.makeImage())),
+                  expected: canvas.lines.joined(separator: "\n"), marker: marker)
+  }
+
+  private struct Canvas {
+    let context: CGContext
+    var lines: [String] = []
+
+    mutating func draw(_ text: String, x horizontal: CGFloat, y vertical: CGFloat,
+                       size: CGFloat = 40) {
+      lines.append(text)
+      let value = NSAttributedString(string: text, attributes: [
+        NSAttributedString.Key(kCTFontAttributeName as String):
+          CTFontCreateWithName("AppleSDGothicNeo-Regular" as CFString, size, nil),
+        NSAttributedString.Key(kCTForegroundColorAttributeName as String):
+          CGColor(gray: 0, alpha: 1)
+      ])
+      context.textPosition = CGPoint(x: horizontal, y: vertical)
+      CTLineDraw(CTLineCreateWithAttributedString(value), context)
+    }
+
+    mutating func body() {
+      for row in 1...12 {
+        draw(String(format: "LINE%02d", row) + " 연구 자료와 측정값을 검토합니다. Document Study 42.",
+             x: 180, y: CGFloat(1780 - row * 105), size: 36)
+      }
+    }
+
+    mutating func table() {
+      let columns: [CGFloat] = [130, 520, 830, 1190, 1530]
+      context.setLineWidth(2)
+      context.setStrokeColor(CGColor(gray: 0.25, alpha: 1))
+      for row in 0...9 {
+        let vertical = CGFloat(1800 - row * 130)
+        context.move(to: CGPoint(x: columns[0], y: vertical))
+        context.addLine(to: CGPoint(x: columns[4], y: vertical))
+      }
+      for horizontal in columns {
+        context.move(to: CGPoint(x: horizontal, y: 1800))
+        context.addLine(to: CGPoint(x: horizontal, y: 630))
+      }
+      context.strokePath()
+      for (columnIndex, text) in ["항목 Item", "수량 Qty", "금액 Amount", "상태 Status"].enumerated() {
+        draw(text, x: columns[columnIndex] + 15, y: 1710, size: 35)
+      }
+      for row in 1...8 {
+        let values = [String(format: "ROW%02d 연구", row), "\(row * 3)",
+                      "$\(row * 123).45", "완료 PASS"]
+        for (columnIndex, text) in values.enumerated() {
+          draw(text, x: columns[columnIndex] + 15, y: CGFloat(1710 - row * 130), size: 35)
+        }
+      }
+    }
+  }
+
+  private static func pdf(_ image: CGImage) throws -> Data {
+    let bytes = NSMutableData()
+    let consumer = try XCTUnwrap(CGDataConsumer(data: bytes))
+    var box = CGRect(x: 0, y: 0, width: 595, height: 842)
+    let pdf = try XCTUnwrap(CGContext(consumer: consumer, mediaBox: &box, nil))
+    pdf.beginPDFPage(nil)
+    pdf.draw(image, in: box)
+    pdf.endPDFPage()
+    pdf.closePDF()
+    return bytes as Data
+  }
+
+  static func normalized(_ value: String) -> String { value.filter { !$0.isWhitespace } }
+
+  /// 한글 완성 문자도 한 글자로 세며 공백만 제외한다. 읽기 순서 오류도 오차에 포함된다.
+  static func characterErrorRate(_ expected: String, _ actual: String) -> Double {
+    let source = [Character](normalized(expected)), target = [Character](normalized(actual))
+    var previous = Array(0...target.count)
+    for (rowIndex, left) in source.enumerated() {
+      var current = [rowIndex + 1]
+      for (columnIndex, right) in target.enumerated() {
+        current.append(min(current[columnIndex] + 1, previous[columnIndex + 1] + 1,
+                           previous[columnIndex] + (left == right ? 0 : 1)))
+      }
+      previous = current
+    }
+    return Double(previous.last ?? 0) / Double(max(1, source.count))
   }
 }
