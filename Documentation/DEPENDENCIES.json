@@ -20,12 +20,13 @@
     },
     {
       "name": "OpenDocument.core",
-      "version": "7.5.2",
-      "revision": "77e2a0a6e4b33c33a5aee64551fcd0d7493c9101",
+      "version": "7.5.2-omni.1",
+      "revision": "b302cc85311490676986a2b731971473ad21efac",
       "license": "MPL-2.0",
-      "repository": "https://github.com/opendocument-app/OpenDocument.core",
+      "repository": "https://github.com/hellosunghyun/OpenDocument.core",
       "license_sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
-      "upstream_license_verified": true
+      "upstream_license_verified": true,
+      "upstream_base_revision": "77e2a0a6e4b33c33a5aee64551fcd0d7493c9101"
     },
     {
       "name": "hwp-swift",

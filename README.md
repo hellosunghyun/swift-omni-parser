@@ -16,11 +16,11 @@
 ```swift
 .package(
   url: "https://github.com/hellosunghyun/swift-omni-parser.git",
-  exact: "0.1.0-alpha.1"
+  branch: "main"
 )
 ```
 
-사용할 타깃의 의존성에 `.product(name: "OmniParser", package: "swift-omni-parser")`를 추가합니다. `0.1.0-alpha.1`은 개발·검토 중인 프리릴리즈입니다. 소비 프로젝트의 `Package.resolved`도 함께 관리합니다.
+사용할 타깃의 의존성에 `.product(name: "OmniParser", package: "swift-omni-parser")`를 추가합니다. 공개 `0.1.0-alpha.1` 태그는 내부 revision 의존성 때문에 버전 설치가 실패합니다. 수정 버전이 발행되기 전에는 `main`을 사용하고 소비 프로젝트의 `Package.resolved`로 커밋을 고정합니다. 이 브랜치도 개발·검토 중이며, 기존 태그를 강제로 변경하지 않습니다.
 
 ## 사용법
 
