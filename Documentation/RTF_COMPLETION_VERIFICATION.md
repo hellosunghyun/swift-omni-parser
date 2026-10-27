@@ -1,6 +1,6 @@
 # RTF·부분 복구 후속 검증
 
-2026-10-27. 맥북에서 이관한 미커밋 변경을 맥미니에서 검증했다. 외부 다운로드·업로드·푸시·PR 생성 없이 이관된 의존성 캐시를 사용했다. iOS 27.0과 Swift 언어 모드 5.0을 유지한다.
+2026-10-27. 맥북에서 이관한 미커밋 변경을 맥미니에서 검증했다. 의존성은 외부 다운로드 없이 이관된 캐시를 사용했다. 후속 실기기 실행에서는 사용자 승인으로 Apple 프로비저닝 서버 통신을 허용했다. 푸시·PR 생성은 하지 않았다. iOS 27.0과 Swift 언어 모드 5.0을 유지한다.
 
 ## 변경과 확인 범위
 
@@ -19,7 +19,7 @@
 | RTF 회귀 9개 | PASS, 2.781초 |
 | 맥북 / iPhone 17 실기기 iOS 27.0.1 / 경계 수정 전 | 기존 후속 **27/27 PASS**, 5.819초 |
 | 맥미니 generic iOS Simulator 빌드 | **PASS**, arm64·x86_64 |
-| 마지막 경계 수정 후 실기기 | 미실행. 이관된 completed-physical.log는 의존성 해석 단계에서 끝나 실행 성공 증거가 아님 |
+| 맥미니 / iPhone 17 실기기 iOS 27.2 / 마지막 경계 수정 포함 | 전체 **28/28 PASS**, skip 0, 테스트 본문 합계 5.425초. RTF 9개 0.401초 |
 | 맥미니 SwiftLint strict | 미실행. 실행 파일이 없어 외부 설치 없이 진행할 수 없음 |
 | 맥북 최종 이관 lint 기록 | 53파일, 위반 0건. 맥미니 재실행 결과와 구분 |
 
@@ -51,6 +51,30 @@ xcodebuild build -scheme OmniParser \
 
 로컬 증거는 위 검증 폴더의 `macmini-tests-retry.log`·동명 xcresult, `macmini-build.log`, `completed-lint.log`, `final-physical.log`·동명 xcresult에 있다. 실제 실행에는 결과 번들 경로도 지정했다. 다른 Mac에서는 해당 Mac의 Simulator ID를 사용한다.
 
+## 맥미니 실기기 서명·실행
+
+사용자 승인 후 Xcode 자동 프로비저닝으로 iPhone 17을 포함하는 검증 앱용 프로파일을 발급하고 서명했다. 개발 팀은 실행 명령에만 적용했으며 패키지 저장소 설정에 넣지 않았다. 발급된 개발용 프로파일 만료는 2026-11-03 UTC다.
+
+첫 설치는 기기에 남은 맥북 앱과 개발 팀이 달라 거절됐다. 기존 앱은 보존하고 저장소 밖 호스트의 bundle prefix를 `dev.hellosunghyun.omniparser.verification.macmini`로 분리했다. 재시도는 통과했지만 27개만 실행되고 마지막 경계 검사가 빠져 최종 결과로 채택하지 않았다. 새 DerivedData와 별도 테스트 제품·모듈 이름 `OmniParserMacMiniTests`로 재빌드한 최종 실행에서 28개와 해당 경계 검사의 개별 통과를 xcresult로 확인했다. 앞선 27개 실행에서 이전 테스트 번들이 선택된 정확한 원인은 확정하지 않았다.
+
+호스트의 테스트 Swift 파일은 패키지 테스트와 바이트 비교해 일치함을 확인했다. 추가한 코드는 리소스 Bundle 연결용 어댑터뿐이다. 실기기 OS는 xcresult 기준 **27.2 (24B119)**이며 예전 맥북 기록의 27.0.1과 구분한다.
+
+```bash
+# 저장소 밖 DeviceHost에서 실행. 실제 개발 팀은 실행 환경에서 지정한다.
+xcodebuild test -project OmniParserVerification.xcodeproj -scheme VerificationHost \
+  -destination 'platform=iOS,id=00008150-001D58E23C45401C' \
+  -destination-timeout 30 -jobs 4 -derivedDataPath ../MacMiniDeviceFreshDerivedData \
+  -clonedSourcePackagesDirPath ../SourcePackages \
+  -disableAutomaticPackageResolution -skipPackageUpdates \
+  -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation \
+  -parallel-testing-enabled NO -collect-test-diagnostics never \
+  -resultBundlePath ../macmini-physical-fresh.xcresult \
+  DEVELOPMENT_TEAM="$OMNI_DEVELOPMENT_TEAM" CODE_SIGN_STYLE=Automatic \
+  -allowProvisioningUpdates CURRENT_PROJECT_VERSION=2
+```
+
+최종 로그·결과는 검증 폴더의 `macmini-physical-fresh.log`와 `macmini-physical-fresh.xcresult`다. `xcresulttool get test-results summary`에서도 passedTests 28, failedTests 0, skippedTests 0을 확인했다. 초기 실패·27개 실행 로그와 기존 맥북 앱은 삭제하지 않았다. 서명·설치 과정은 통과했고, 호스트의 화면 방향·AppIntents 메타데이터 경고와 기존 OCR QoS 경고는 파서 검사 실패와 구분한다.
+
 ## 남은 제약
 
-RTF의 독립 WMF/EMF/DIB 등 ImageIO가 읽지 못하는 내장 그림은 위치가 있는 경고로 반환한다. 모든 RTF 요소·벡터 그림·페이지 좌표의 완전 복원은 아니다. 셀 안의 본문과 OCR 교차 순서는 경고와 셀 위치로 표시한다. 최신 28개 테스트의 실기기 재실행과 맥미니 lint는 남아 있다. 대용량 최대 메모리·모든 native 압축 입력의 안전성·배포 라이선스 전체 감사·자동 CI는 이번 결과로 입증하지 않는다. 새 의존성이나 바이너리는 추가하지 않았다.
+RTF의 독립 WMF/EMF/DIB 등 ImageIO가 읽지 못하는 내장 그림은 위치가 있는 경고로 반환한다. 모든 RTF 요소·벡터 그림·페이지 좌표의 완전 복원은 아니다. 셀 안의 본문과 OCR 교차 순서는 경고와 셀 위치로 표시한다. 최신 28개 테스트는 실기기에서도 확인했으며 맥미니 lint는 남아 있다. 대용량 최대 메모리·모든 native 압축 입력의 안전성·배포 라이선스 전체 감사·자동 CI는 이번 결과로 입증하지 않는다. 새 의존성이나 바이너리는 추가하지 않았다.
