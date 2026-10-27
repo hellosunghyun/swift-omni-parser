@@ -1,13 +1,14 @@
 import Foundation
 
 /// ZIP을 열기 전에 중앙 디렉터리의 크기·경로·암호화 여부를 검사한다.
-/// 선언된 크기 검증과 실제 압축 해제량 검증은 별개이며, 후자는 ArchiveReader에서도 확인한다.
+/// 모든 실제 해제량·CRC도 스트리밍 검사한 뒤 native 백엔드가 원본 ZIP을 읽게 한다.
 nonisolated enum DocumentArchiveGuard {
   private static let endSignature = 0x0605_4B50
   private static let entrySignature = 0x0201_4B50
 
   static func validate(_ data: Data, options: DocumentParserOptions) throws {
     _ = try entryNames(in: data, options: options)
+    try DocumentArchiveReader.validateContents(data, options: options)
   }
 
   static func entryNames(in data: Data, options: DocumentParserOptions) throws -> Set<String> {
