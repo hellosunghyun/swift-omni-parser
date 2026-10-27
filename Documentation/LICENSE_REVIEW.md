@@ -14,7 +14,7 @@
 | --- | --- | --- | --- |
 | SwiftSoup | 2.14.3 | MIT | 원래 저작권·허가문 보존 |
 | OLEKit | 0.3.1 | Apache-2.0 | 원래 라이선스·해당 고지 보존, 수정 시 변경 표시 등 적용 조건 유지 |
-| OpenDocument.core | 7.5.2 | MPL-2.0 | 해당 라이브러리·수정된 MPL 파일은 MPL 유지, 소스 취득 방법 고지 |
+| OpenDocument.core 포크 | v7.5.2-omni.1 / b302cc85 | MPL-2.0 | 해당 라이브러리·수정된 MPL 파일은 MPL 유지, 소스 취득 방법 고지 |
 | hwp-swift / CoreHwp | 0.19.0 | LGPL-2.1 | 해당 라이브러리·수정분의 조건 유지, 링크한 바이너리 재배포 시 LGPL 제6조 등 검토 |
 | OfficeOxide | 0.1.15 / 5d183f4 | MIT OR Apache-2.0 | 이 배포에서는 MIT 선택, 내부 구성요소의 별도 조건은 유지 |
 
@@ -70,3 +70,7 @@ SPM 해석 결과의 외부 소스 패키지는 SwiftSoup, OLEKit, OpenDocument.
 - [서드파티 고지와 소스 취득 경로](../THIRD_PARTY_NOTICES.md)
 
 이 문서는 기록한 버전과 배포 구성의 검토 결과이며, 법적 보증이나 소비 앱의 배포 승인서는 아닙니다.
+
+## 2026-10-27 XLS 수정 포크 전환
+
+OpenDocument.core 의존성을 `hellosunghyun/OpenDocument.core`의 `b302cc85311490676986a2b731971473ad21efac`으로 고정했다. 변경한 native 소스는 MPL-2.0을 유지한다. [Release](https://github.com/hellosunghyun/OpenDocument.core/releases/tag/v7.5.2-omni.1)에 고정 Conan 요구사항의 원문 고지, recipe/package 리비전, uchardet 0.0.8 대응 소스를 보존했다. 원문 고지는 Git에서도 줄바꿈 바이트를 유지한다. 이는 앱 배포 방식까지 포함한 모든 라이선스 의무를 이행했다는 판정은 아니다.

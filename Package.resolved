@@ -1,5 +1,5 @@
 {
-  "originHash" : "00de2d28402a83857f80a73d82bd591e786fbe0948f04d7936c954a49bb06da1",
+  "originHash" : "f072020d7775a2263e4830626749db9e215a79706d0bb2a55729ba4dc50b2941",
   "pins" : [
     {
       "identity" : "hwp-swift",
@@ -22,10 +22,9 @@
     {
       "identity" : "opendocument.core",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/opendocument-app/OpenDocument.core",
+      "location" : "https://github.com/hellosunghyun/OpenDocument.core.git",
       "state" : {
-        "revision" : "77e2a0a6e4b33c33a5aee64551fcd0d7493c9101",
-        "version" : "7.5.2"
+        "revision" : "b302cc85311490676986a2b731971473ad21efac"
       }
     },
     {
