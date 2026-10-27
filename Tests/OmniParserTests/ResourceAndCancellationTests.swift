@@ -222,6 +222,16 @@ extension ResourceAndCancellationTests {
     }
   }
 
+  func testZIPDescriptorCRCMatchingOptionalSignatureIsNotMisread() throws {
+    // CRC32의 32비트 선형식을 GF(2)에서 풀어 만든 4바이트이며 실제 CRC도 서명 값과 같다.
+    let payload = Data([0xAC, 0x0A, 0x7A, 0xD5])
+    for signature in [false, true] {
+      let archive = makeZIP(name: "magic.bin", packed: payload, method: 0, size: payload.count,
+                            checksum: 0x0807_4B50, descriptorSignature: signature)
+      XCTAssertNoThrow(try DocumentArchiveGuard.validate(archive, options: .init()))
+    }
+  }
+
   func testZIPChecksBinaryPayloadCRCAndAggregateBudget() async throws {
     let input = try Data(contentsOf: TestFixtures.url(
       "RealWorld/docx/real-docx-02-table_footnotes.docx"))
@@ -315,18 +325,27 @@ extension ResourceAndCancellationTests {
   }
 
   /// ZIP 검증용 바이트를 메모리에서 만든다. 외부 샘플이나 영구 바이너리 자산은 추가하지 않는다.
-  private func makeZIP(name: String, packed: Data, method: Int, size: Int, checksum: Int) -> Data {
+  private func makeZIP(
+    name: String, packed: Data, method: Int, size: Int, checksum: Int,
+    descriptorSignature: Bool? = nil
+  ) -> Data {
     let nameBytes = Data(name.utf8)
+    let flags = descriptorSignature == nil ? 0 : 8
     func number(_ value: Int, _ count: Int = 4) -> Data {
       Data((0..<count).map { UInt8(truncatingIfNeeded: value >> ($0 * 8)) })
     }
     var local = Data([0x50, 0x4B, 0x03, 0x04])
-    for value in [20, 0, method, 0, 0] { local.append(number(value, 2)) }
-    for value in [checksum, packed.count, size] { local.append(number(value)) }
+    for value in [20, flags, method, 0, 0] { local.append(number(value, 2)) }
+    let sizes = descriptorSignature == nil ? [checksum, packed.count, size] : [0, 0, 0]
+    for value in sizes { local.append(number(value)) }
     local.append(number(nameBytes.count, 2)); local.append(number(0, 2))
     local.append(nameBytes); local.append(packed)
+    if let signature = descriptorSignature {
+      if signature { local.append(number(0x0807_4B50)) }
+      for value in [checksum, packed.count, size] { local.append(number(value)) }
+    }
     var central = Data([0x50, 0x4B, 0x01, 0x02])
-    for value in [20, 20, 0, method, 0, 0] { central.append(number(value, 2)) }
+    for value in [20, 20, flags, method, 0, 0] { central.append(number(value, 2)) }
     for value in [checksum, packed.count, size] { central.append(number(value)) }
     for value in [nameBytes.count, 0, 0, 0, 0] { central.append(number(value, 2)) }
     central.append(number(0)); central.append(number(0)); central.append(nameBytes)

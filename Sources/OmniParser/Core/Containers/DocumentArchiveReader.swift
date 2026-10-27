@@ -66,13 +66,13 @@ nonisolated enum DocumentArchiveReader {
         reader.uint32(offset + 22) == entry.uncompressedSize
       else { throw DocumentParsingError.malformedDocument }
     } else {
-      // 스트리밍 ZIP의 크기·CRC는 본문 뒤의 descriptor에 있다.
-      let descriptor = finish + (reader.uint32(finish) == 0x0807_4B50 ? 4 : 0)
-      guard descriptor <= end - 12,
-        reader.uint32(descriptor) == entry.checksum,
-        reader.uint32(descriptor + 4) == entry.compressedSize,
-        reader.uint32(descriptor + 8) == entry.uncompressedSize
-      else { throw DocumentParsingError.malformedDocument }
+      // CRC 자체가 선택적 서명과 같을 수 있어, 두 배치를 모두 중앙 메타데이터와 대조한다.
+      let candidates = reader.uint32(finish) == 0x0807_4B50 ? [finish, finish + 4] : [finish]
+      guard candidates.contains(where: { position in
+        position <= end - 12 && reader.uint32(position) == entry.checksum
+          && reader.uint32(position + 4) == entry.compressedSize
+          && reader.uint32(position + 8) == entry.uncompressedSize
+      }) else { throw DocumentParsingError.malformedDocument }
     }
     return data[start..<finish]
   }
