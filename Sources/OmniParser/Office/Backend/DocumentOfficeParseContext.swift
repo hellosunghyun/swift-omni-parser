@@ -1,6 +1,4 @@
-import CoreGraphics
 import Foundation
-import ImageIO
 import OdrCore
 
 /// OpenDocument.core의 문서 트리를 순회하며 블록·그림·경고를 누적한다.
@@ -133,15 +131,18 @@ nonisolated struct DocumentOfficeParseContext {
     do {
       let decoded = try DocumentImageDecoder.decode(
         data, maximumPixels: options.maximumImagePixels)
-      let recognized = try options.performOCR ? DocumentOCR.recognize(
-        image: decoded.image,
-        orientation: decoded.orientation,
-        location: DocumentLocation(part: part ?? image.href)
-      ) : []
-      if options.extractImages {
-        retainImage(decoded.image, part: part ?? image.href, orientation: decoded.orientation)
+      // PNG 보관과 OCR 실패 처리는 다른 이미지 형식과 같은 경로를 사용한다.
+      let result = try DocumentRasterParser.parseImage(
+        decoded.image, orientation: decoded.orientation, format: .image,
+        location: DocumentLocation(part: part ?? image.href), options: options,
+        remainingBytes: max(0, options.maximumExpandedBytes - imageBytes))
+      for var image in result.images {
+        image.id = "\(image.location.part ?? "office")/image[\(images.count)]"
+        imageBytes += image.pngData.count
+        images.append(image)
       }
-      blocks.appendInReadingOrder(recognized)
+      warnings.append(contentsOf: result.warnings)
+      blocks.appendInReadingOrder(result.blocks)
     } catch is CancellationError {
       throw CancellationError()
     } catch {
@@ -152,25 +153,6 @@ nonisolated struct DocumentOfficeParseContext {
           location: DocumentLocation(part: part ?? image.href)
         ))
     }
-  }
-
-  private mutating func retainImage(
-    _ image: CGImage, part: String, orientation: CGImagePropertyOrientation
-  ) {
-    let location = DocumentLocation(part: part)
-    guard let png = DocumentImageEncoder.png(image, orientation: orientation),
-      png.count <= options.maximumExpandedBytes - imageBytes
-    else {
-      warnings.append(DocumentWarning(
-        code: .resourceLimitReached, message: "Office image raster could not be retained.",
-        location: location))
-      return
-    }
-    images.append(DocumentEmbeddedImage(
-      id: "\(part)/image[\(images.count)]", pngData: png, location: location,
-      orientation: orientation))
-    imageBytes += png.count
-    blocks.appendBlock(.image, location: location)
   }
 
   private func childPart(_ element: OdrCore.Element, inherited: String?) -> String? {

@@ -25,6 +25,39 @@ final class ResourceAndCancellationTests: XCTestCase {
     } catch { XCTAssertEqual(error as? DocumentParsingError, .inputTooLarge) }
   }
 
+  func testStructuredTextRecoveryIsReported() async throws {
+    for (name, text) in [("broken.json", "{\"value\":"),
+                         ("broken.xml", "<root><value>kept</root>"),
+                         ("broken.rtf", "{\\rtf1 kept")] {
+      let result = try await DocumentParser.parse(.data(Data(text.utf8), fileName: name))
+      XCTAssertFalse(result.fullText.isEmpty)
+      XCTAssertTrue(result.warnings.contains {
+        $0.code == .malformedContent && $0.location != nil
+      })
+      TestFixtures.assertTextConsistency(result)
+    }
+  }
+
+  func testSharedImagePathPreservesPNGWhenOCRFails() throws {
+    let data = try Data(contentsOf: TestFixtures.url("LegacyImage.png"))
+    let decoded = try DocumentImageDecoder.decode(data, maximumPixels: 40_000_000)
+    let result = try DocumentRasterParser.parseImage(
+      decoded.image, orientation: decoded.orientation, format: .image,
+      location: .init(part: "test-image"), options: .init(extractImages: true, performOCR: true)
+    ) { _, _, _ in throw DocumentParsingError.malformedDocument }
+    XCTAssertEqual(result.images.count, 1)
+    XCTAssertTrue(result.warnings.contains { $0.code == .imageOCRFailed })
+    XCTAssertEqual(result.images.first?.location.part, "test-image")
+  }
+
+  func testXMLEntitiesAreNotExpanded() async throws {
+    let source = "<!DOCTYPE root [<!ENTITY a 'ab'><!ENTITY b '&a;&a;'>]>"
+      + "<root>&b;</root>"
+    let result = try await DocumentParser.parse(.data(Data(source.utf8), fileName: "entity.xml"))
+    XCTAssertFalse(result.fullText.contains("abab"))
+    XCTAssertTrue(result.warnings.contains { $0.code == .unsupportedElement })
+  }
+
   func testPartialImageFailureKeepsBodyAndTable() async throws {
     let result = try await DocumentParser.parse(TestFixtures.input("LegacySample.doc"),
       options: .init(extractImages: true, maximumImagePixels: 1))
