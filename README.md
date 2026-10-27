@@ -54,13 +54,16 @@ let outcomes = try await DocumentParser.parseBatch(
 | 형식 | 구현 경로 |
 | --- | --- |
 | TXT·CSV·JSON·XML | Foundation 및 형식별 구조 추출 |
-| HTML·Markdown | SwiftSoup·형식별 구조 추출·내장/로컬 참조 이미지 처리 |
-| RTF | Foundation 문단·표·병합 셀 + 내장 래스터 그림 추출·선택적 OCR |
+| HTML | SwiftSoup DOM의 본문·제목·목록·표와 내장/로컬 참조 그림. CSS 조판·스크립트 실행 제외 |
+| Markdown | 줄 단위 제목·본문·파이프 표와 인라인 그림 참조. CommonMark 전체 방언·참조형 그림은 미지원 |
+| RTF | Foundation 문단·표·병합 셀 + 내장 래스터 그림·선택적 OCR. 독립 WMF/EMF/DIB 렌더링 제외 |
 | JPEG·PNG·HEIC·TIFF·CGImage | ImageIO·Vision, 다중 프레임과 방향 처리 |
-| PDF | PDFKit·페이지 좌표·표 추정·삽입 이미지·선택적 OCR |
+| PDF | 페이지 좌표·선/정렬 기반 표 추정·표시된 그림 영역의 래스터 추출·선택적 OCR. 원본 이미지 스트림 반환은 아님 |
 | DOC·PPT | OfficeOxide, OfficeArt 그림 보완 |
 | DOCX·XLS·XLSX·PPTX | OpenDocument.core |
-| HWP·HWPX | hwp-swift의 CoreHwp |
+| HWP·HWPX | CoreHwp 본문·표·문단/셀 그림 앵커. 지원 래스터 BinData 추출·OCR, 페이지 조판 순서는 경고 |
+
+인코딩 판별은 BOM·UTF-16 패턴과 레거시 문자셋 휴리스틱을 사용합니다. JSON 객체 키는 정렬하며 XML은 엔티티 확장을 허용하지 않습니다. Office는 백엔드가 제공하는 문서 요소를 추출하며, 제공하지 않는 헤더·각주·도형 앵커·좌표까지 완전하게 복원하지 않습니다.
 
 표는 기존 구현의 처리 경로를 나타내며 모든 문서의 완전한 복원을 보장하지 않습니다. 위치를 복원하지 못하거나 일부 요소가 실패하면 경고를 반환합니다. 이미지 속 표의 셀 구조 복원, 암호 해제, 파일 형식 변환은 제공하지 않습니다. 구체적인 옵션·위치·읽기 순서 제약은 [API 문서](Documentation/API.md)를 확인하세요.
 
@@ -85,11 +88,9 @@ xcodebuild test -scheme OmniParser \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `v7.5.2-omni.1`의 고정 커밋입니다. 공개 Release ZIP을 새 캐시에서 받아 **iPhone 17 Simulator와 iPhone 17 실기기 모두 16개 테스트가 통과**했습니다. 테스트 skip이나 기대값 변경 없이 기존 XLS 원본 정답 검사도 통과합니다.
+기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `v7.5.2-omni.1`의 고정 커밋입니다. 기존 XLS 원본 셀 정답 검사도 포함해 **32개 테스트가 iPhone 17 Simulator와 실기기에서 모두 통과**했습니다. SwiftLint strict도 53파일·위반 0건입니다.
 
-RTF 표·그림, 손상 입력 복구와 XML 엔티티 차단을 추가했습니다. 최신 코드의 검증 상태와 남은 제약은 [RTF 후속 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)에 구분했습니다. 위 16개 결과는 XLS 전환 당시의 기록입니다.
-
-SwiftPM 기본 테스트 명령은 Simulator용입니다. 실기기는 저장소 밖의 임시 호스트 앱에 같은 테스트를 연결해 검증했습니다. 원인·고정 리비전·실행 명령·남은 한계는 [XLS 수정·전환 결과](Documentation/XLS_CHART_FIX.md)를 확인하세요. 기존 upstream 7.5.2에서 발생한 15/16 실패는 전환 전 기록으로 구분합니다.
+실기기는 저장소 밖 호스트 앱에 같은 테스트를 연결했습니다. 자체 생성 한영 대용량 스캔·혼합 배치의 시간/메모리와 남은 QoS 경고는 [최종 로컬 검증](Documentation/LOCAL_REVIEW_2026-10-27.md)에 기록했습니다. 이 수치는 Debug·샘플링 측정이며 일반 문서 전체의 성능 보증은 아닙니다. 원래 XLS 결함과 전환 이력은 [XLS 수정·전환 결과](Documentation/XLS_CHART_FIX.md), RTF 구현 검증은 [RTF 후속 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)을 확인하세요.
 
 ## 의존성과 라이선스
 
