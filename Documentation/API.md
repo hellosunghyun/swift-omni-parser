@@ -40,6 +40,29 @@ let outcomes = try await DocumentParser.parseBatch(
 - 암호화·손상·압축·입력 크기 검사와 취소는 설정과 관계없이 적용한다. 그림·OCR을 켜면 해당 작업의 픽셀·개수·보관 바이트 제한도 적용한다.
 - 기존 호출에서 이미지·OCR 결과가 필요했다면 두 옵션을 명시해야 한다. 결과를 필터링해서 숨기는 것이 아니라 해당 추출 작업을 생략한다.
 
+## 요청별 OCR 언어
+
+`ocrLanguage`는 OCR을 켰을 때 사용하는 요청별 옵션이다. 기본값 `.automatic`은 기존의 한국어·영어 힌트와 자동 언어 감지를 유지한다. 이 옵션만 지정해도 OCR이 켜지는 것은 아니다.
+
+```swift
+let mixed = try await DocumentParser.parse(
+  .url(fileURL), options: .init(performOCR: true, ocrLanguage: .koreanAndEnglish)
+)
+let english = try await DocumentParser.parse(
+  .url(englishURL), options: .init(performOCR: true, ocrLanguage: .english)
+)
+```
+
+| 모드 | Vision 언어 힌트 | 자동 감지 |
+| --- | --- | --- |
+| `.automatic` | 한국어 → 영어, 기존 기본값 | 켬 |
+| `.koreanAndEnglish` | 한국어 → 영어 | 끔 |
+| `.english` | 영어 | 끔 |
+
+한글이 포함된 혼합 행은 `.koreanAndEnglish`, 영어 전용 자료는 `.english`로 명시할 수 있다. 지원 가능한 모든 자료에서 한 모드가 더 정확하다는 뜻은 아니다. 같은 한영 혼합 샘플에서 자동 감지를 끄면 한글 누락이 줄었지만 작은 영어 표에서는 회귀와 메모리 증가도 확인해 기본값을 바꾸지 않았다. 정답·시간·메모리의 적용 범위는 [개선 루프 기록](IMPROVEMENT_LOOP_2026-10-28.md)을 확인한다.
+
+본문 OCR과 작은 숫자 보완은 같은 모드를 사용한다. 언어는 각 파싱 호출의 요청 풀에 고정하고 다른 동시 호출과 섞지 않는다. `parseBatch`에서는 전달한 모드를 모든 입력에 적용한다. 서로 다른 모드가 필요한 입력은 각각 `parse`를 호출하고 호출 측에서 동시 수를 제한한다. 문서의 네이티브 본문·표 추출과 PNG 반환 설정에는 영향을 주지 않는다.
+
 ## Office 추출 경로
 
 - XLS·XLSX는 OpenDocument.core의 셀 좌표 API로 읽는다. HTML 화면용 행·열 눈금과 인쇄용 중복 출력을 본문에 섞지 않는다.

@@ -21,15 +21,19 @@ nonisolated enum DocumentOCR {
     }
   }
 
-  /// 기존 Vision revision 3과 같은 한영·정확도·언어 보정 설정을 사용한다.
-  static func makeRequest() -> RecognizeTextRequest {
+  /// 정확도·언어 보정은 유지하며 호출자가 선택한 언어 정책만 적용한다.
+  static func makeRequest(language: DocumentOCRLanguage = .automatic) -> RecognizeTextRequest {
     var request = RecognizeTextRequest(.revision3)
     // Swift Vision 기본값(1/32)과 VN 요청 기본값(0)이 달라 작은 글자 기준을 명시한다.
     request.minimumTextHeightFraction = 0
     request.recognitionLevel = .accurate
     request.usesLanguageCorrection = true
-    request.recognitionLanguages = [.init(identifier: "ko-KR"), .init(identifier: "en-US")]
-    request.automaticallyDetectsLanguage = true
+    if language == .english {
+      request.recognitionLanguages = [.init(identifier: "en-US")]
+    } else {
+      request.recognitionLanguages = [.init(identifier: "ko-KR"), .init(identifier: "en-US")]
+    }
+    request.automaticallyDetectsLanguage = language == .automatic
     return request
   }
 

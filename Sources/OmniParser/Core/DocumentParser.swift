@@ -20,7 +20,9 @@ nonisolated public enum DocumentParser {
     options: DocumentParserOptions = DocumentParserOptions(),
     progress: ProgressHandler? = nil
   ) async throws -> DocumentParseResult {
-    try await DocumentOCR.$sessions.withValue(DocumentOCRSessionPool()) {
+    try await DocumentOCR.$sessions.withValue(
+      DocumentOCRSessionPool(language: options.ocrLanguage)
+    ) {
       try await parseInput(input, index: 0, options: options, progress: progress)
     }
   }
@@ -40,7 +42,9 @@ nonisolated public enum DocumentParser {
     try Task.checkCancellation()
     if inputs.isEmpty { return [] }
     let pool = DocumentPDFWorkPool(options: options)
-    return try await DocumentOCR.$sessions.withValue(DocumentOCRSessionPool()) {
+    return try await DocumentOCR.$sessions.withValue(
+      DocumentOCRSessionPool(language: options.ocrLanguage)
+    ) {
       try await DocumentPDFScheduling.$pool.withValue(pool) {
         try await runBatch(inputs, options: options, progress: progress)
       }

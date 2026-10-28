@@ -278,6 +278,16 @@ nonisolated public struct DocumentProgress: Sendable, Equatable {
   }
 }
 
+/// 요청 하나에 적용할 OCR 언어 정책. 파싱 호출마다 독립적으로 설정한다.
+nonisolated public enum DocumentOCRLanguage: String, Sendable {
+  /// 기존 한영 인식과 자동 언어 감지를 유지한다.
+  case automatic
+  /// 자동 감지 없이 한국어·영어 우선순위를 명시한다.
+  case koreanAndEnglish
+  /// 자동 감지 없이 영어만 인식하도록 지정한다.
+  case english
+}
+
 /// 이미지·OCR 활성화와 입력·추출·병렬 작업 제한. 프로세스 전체 메모리의 강제 상한은 아니다.
 nonisolated public struct DocumentParserOptions: Sendable {
   /// 그림을 PNG와 image 블록으로 반환한다. OCR 실행 여부와 독립적이며 기본값은 false다.
@@ -285,6 +295,8 @@ nonisolated public struct DocumentParserOptions: Sendable {
   /// 그림·스캔 페이지의 Vision OCR을 실행한다. false면 네이티브 본문·표만 읽는다.
   /// 이미지 단독 입력이나 스캔 전용 문서는 텍스트가 비어 있을 수 있다.
   public var performOCR: Bool
+  /// OCR을 켰을 때 적용할 언어 정책. 기본값은 기존 동작을 유지하는 automatic이다.
+  public var ocrLanguage: DocumentOCRLanguage
   /// 문서 하나 또는 읽으려는 그림 데이터의 바이트 한도.
   public var maximumInputBytes: Int
   /// 압축 해제·CFB 읽기와 형식별 보관 그림에 적용하는 누적 바이트 제한.
@@ -322,10 +334,12 @@ nonisolated public struct DocumentParserOptions: Sendable {
     maximumPDFOperators: Int = 100_000,
     maximumConcurrentPDFPages: Int = ProcessInfo.processInfo.activeProcessorCount,
     pdfWorkingMemoryTargetBytes: Int = 256 * 1024 * 1024,
-    maximumPDFImageBytes: Int = 500 * 1024 * 1024
+    maximumPDFImageBytes: Int = 500 * 1024 * 1024,
+    ocrLanguage: DocumentOCRLanguage = .automatic
   ) {
     self.extractImages = extractImages
     self.performOCR = performOCR
+    self.ocrLanguage = ocrLanguage
     self.maximumInputBytes = max(1, maximumInputBytes)
     self.maximumExpandedBytes = max(1, maximumExpandedBytes)
     self.maximumArchiveEntries = max(1, maximumArchiveEntries)

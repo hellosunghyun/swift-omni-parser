@@ -60,7 +60,7 @@ nonisolated enum DocumentNumericOCR {
   private static func recognize(
     _ image: CGImage, orientation: CGImagePropertyOrientation
   ) async throws -> [RecognizedTextObservation] {
-    let request = DocumentOCR.makeRequest()
+    let request = DocumentOCR.makeRequest(language: DocumentOCR.sessions?.language ?? .automatic)
     do {
       return try await request.perform(on: image, orientation: orientation)
     } catch {
