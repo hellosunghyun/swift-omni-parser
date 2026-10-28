@@ -347,6 +347,32 @@ OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내�
 
 기존 List XML 66,539행과 500ms 결과 1행의 참조를 전수 재검사해 파싱 누락·미해결 참조·중복 ID·전방 참조는 없었다. 표시 timestamp에는 원시 단위·시계 원점 선언이 없었고 free 시각·lifetime·free backtrace 필드도 없었다. 현재 XML만으로 CoreML scratch의 정확한 할당·해제 수명을 복원할 수 없다. 기존 coverage·시간 기준의 미해결 판정과 48개 POI 대조는 유지한다.
 
+## 기존 trace의 개별 할당 이력
+
+새 profile·export 없이 기존 trace 사본의 `Created & Destroyed` → `Allocations List` → 주소 옆 화살표 → `History`를 확인했다. XML에 없었던 개별 Malloc/Free 사건이 UI에 있었다. 12.89MiB로 표시된 Espresso 버퍼 두 개는 표시 시각 기준 각각 3.619ms·3.007ms 뒤 해제됐고 생존 구간이 2.643ms 겹쳤다. 크기는 반올림된 표시값이다.
+
+첫 버퍼는 입력 shape 변경·graph coloring·blob 할당 경로에서 만들어졌고 plan 준비·blob 소멸자 경로에서 해제됐다. 이 두 할당의 장기 잔류는 관찰되지 않았지만 요청·모델의 간접 소유나 idle 캐시 정책의 영향은 미확정이다. 두 번째의 free backtrace는 독립 선택하지 않았다. 3ms 안팎의 버퍼는 5ms sampler가 놓칠 수 있으므로 관측 최고값을 실제 최고점의 상한으로 해석하지 않는다.
+
+같은 상대 시계라는 전제에서는 warmup JPEG·PDF 요청이 겹친 await 구간 안에 들어가지만, UI의 POI 표식과 원점을 직접 대조하지 못해 조건부로 남겼다. 문서별 고유 귀속·measured 최고점의 원인·전체 97.16MiB 그룹의 수명으로 확대하지 않는다. 기존 XML coverage 차이와 시간 기준의 미해결 상태도 유지한다. 원본 trace 172파일의 해시·추가 파일 부재를 재확인했으며 제품 코드·기본값·동시성은 바꾸지 않았다.
+
+## 숫자 보완 OCR의 자연 분기 확인
+
+기존 대출 계산기 JPEG 한 장을 현재 코드 그대로인 기준과 숫자 보완 trace만 넣은 외부 사본에서 각각 한 번 파싱했다. 각 실행의 실제 XCTest 1개가 통과했고 실패/skip/runtime warning은 0건이었다. 양쪽 Release·Swift 5·`-O`·WMO·testability를 확인했다. 명령·후처리 wall은 87.739초·75.652초로 정상 파싱 성능 비교가 아니다.
+
+| 정책 | 실제 보완 대상 | 완료 cutoff | 숫자 요청 성공/실패 | 채택한 보완 |
+| --- | ---: | --- | ---: | ---: |
+| automatic | 3 | 150·140·160 | 3/0 | 2 |
+| koreanAndEnglish | 0 | 없음 | 0/0 | 0 |
+| english | 0 | 없음 | 0/0 | 0 |
+
+각 정책 안에서 기준/trace의 전체 공개 필드 지문과 canonical 그림 픽셀이 같았다. 정책 간 출력이 같다는 뜻은 아니다. automatic의 실제 숫자 요청 getter에서 한영 언어·자동 감지·revision 3·최소 높이 0·accurate·언어 보정을 확인했다. 다른 두 정책은 이 입력에서 분기가 0회였으므로 숫자 재인식 경로의 언어 전달은 실행 미검증이다. 작은 일반 배치도 앞선 진단에서 숫자 분기가 0회였으므로 이 경로의 변경을 해당 배치의 메모리 해법으로 취급하지 않는다.
+
+이미지에서 직접 읽은 총이자·총비용과 실제 보완 두 블록의 지문은 같았다. 이는 assistant의 시각 전사이며 human-gold가 아니다. 비기본 정책의 개별 토큰 지문 미일치는 블록 분할 차이일 수 있어 금액 오류로 단정하지 않는다. 원문을 저장하지 않은 실행에서 전체 공백 정규화 검사를 사후 수행했다고 주장하지 않는다. 관찰 값을 조작하거나 제품에 진단 hook을 추가하지 않았다.
+
+제품 테스트에는 기본 공개 API로 월납입·총이자·총비용과 보완 이력 2개·위치/신뢰도 값의 존재·텍스트 일관성을 확인하는 회귀를 추가했다. 금액·구분자가 다르거나 낮은 신뢰도의 대안을 거부하는 안전성 검사 2개도 포함한다. 최초 안전성 검사 2개 실행은 통과·wall 71.483초였으며, 실제 OCR 회귀를 더한 최종 선택 실행은 **3개 통과·실패/skip/runtime warning 0건·wall 20.445초**였다. 마지막 실행은 제품 컴파일을 캐시에서 재사용했고 테스트의 실제 Swift 5·`-O`·WMO·testability를 확인했다. 제품 컴파일 옵션 근거는 동일 제품 소스로 수행한 최초 실행과 구분한다. 기존 sysroot·AppIntents 빌드 경고가 각각 1건 있었고 SwiftLint strict 62파일·위반 0건이었다.
+
+제품 Sources·Package·기존 테스트/샘플은 앞선 전체 77개 통과 버전과 같고 새 테스트 파일만 추가했다. 이번 선택 실행을 전체 80개 동시 통과로 합산하지 않는다. 공개 옵션·OCR 판단 로직·의존성은 변경하지 않았고 비기본 정책의 숫자 재인식 분기 검증 공백도 유지한다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -394,5 +420,7 @@ OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내�
 실제 실패 BMP와 JPEG 부분집합의 후속 원자료는 `~/Developer/Codex/OmniParserVerification/2026-10-29/ImprovementLoop-20261029/LegacyHWPParity/`에 분리했다. `Preparation-03/Run-01/`은 target 제외 JPEG 6쌍, `Preparation-04/Run-01/FINAL_REPORT.json`은 실제 BMP target의 공개 앵커 연결·세 정책 비교·전체 입력 지문이다. 앞선 준비·컴파일 실패도 같은 폴더에 보존했다.
 
 같은 날짜 루트의 `SharedRequestValueProbe/ExecutionPrep02/FINAL_REPORT.md`·`FINAL_REPORT.json`과 `Results/A1/`·`Results/B1/`에 요청 값 공유 후보의 실제 명령·표본·컴파일·환경·소스 지문을 보존했다. 제품 기준 `fe92ef3`와 문서만 바뀐 `7c3b36d`를 구분했으며 제품·테스트·샘플·패키지 157개 pin은 같았다. 준비·보고서 생성 실패도 별도 기록했다.
+
+같은 날짜 루트의 `NativeLifetimeUI-02/`에는 직접 UI 관찰과 원본 trace 보존, 조건부 POI 대조를 분리했다. `NumericLanguageBranch/`에는 자연 숫자 분기의 기준/trace 실제 실행·언어별 요청 getter·시각 전사 지문·단계 시간과 제품 미변경 근거가 있다. 해당 진단의 테스트 수와 `NumericRegression/`의 제품 회귀 실행 수는 합치지 않는다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
