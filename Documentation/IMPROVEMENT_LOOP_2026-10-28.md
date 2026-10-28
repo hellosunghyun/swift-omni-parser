@@ -93,7 +93,7 @@
 
 ## Vision 문서 인식 API의 외부 진단
 
-`RecognizeDocumentsRequest`도 별도 호스트에서 실제 실행했다. 언어 지원 선검사에서 한국어·영어를 포함한 33개 언어를 확인한 뒤, 같은 자체 이미지 3개와 기존 JPEG에 자동 감지 on/off를 적용했다. 자체 이미지의 픽셀 SHA는 앞선 `RecognizeTextRequest` 진단과 같았고 JPEG 원본 바이트도 고정했다. 인식 본문은 로그에 남기지 않았다.
+`RecognizeDocumentsRequest`도 별도 호스트에서 실제 실행했다. 언어 지원 선검사에서 한국어·영어를 포함한 33개 언어를 확인한 뒤, 같은 자체 이미지 3개와 기존 JPEG에 자동 감지 on/off를 적용했다. 4입력 모두 실제 픽셀 SHA가 앞선 `RecognizeTextRequest` 진단과 같았고 정책·반복 사이에도 같았다. 렌더러 소스 일치만으로 판정하지 않았다. 인식 본문은 로그에 남기지 않았다.
 
 | 문서 인식 정책 | 혼합 문서 CER | 영수증 CER | 별도 행 대조군 CER | JPEG 부분 정답 |
 | --- | ---: | ---: | ---: | ---: |
@@ -102,7 +102,7 @@
 
 자체 이미지는 각 3회로 예열 1회와 이후 2회를 구분했으며 반복 간 CER는 같았다. JPEG는 정책별 1회다. 실제 XCTest는 4개 통과·실패/skip·runtime warning 0, OCR 기록 20개와 지원 조회 기록 8개다. 전체 단계 wall은 159.813초였다. 이는 정확도 진단이며 교차 반복 성능 비교가 아니므로 기존 엔진 대비 시간·메모리 개선으로 해석하지 않는다.
 
-관측한 컨테이너에서 `text.lines`와 `text.transcript`는 NFC·공백 제외 시 같고 문단도 포함됐다. 두 자체 이미지에서는 표 컨테이너도 관측했지만, 셀 문자열의 연속 포함 여부와 문자의 존재 여부는 달랐다. 문자 개수만 맞는 것을 셀 순서·귀속 정답으로 간주하지 않는다. 목록은 관측하지 못했으며 일반 표·목록의 완전한 추출까지 검증한 것은 아니다.
+관측한 컨테이너에서 `text.lines`와 `text.transcript`는 NFC·공백 제외 시 같고 문단도 포함됐다. 두 자체 이미지에서는 표 컨테이너도 관측했지만, 자식 문자열이 부모의 줄에 연속 포함되지 않은 사례가 반복을 포함해 1,800건이었다. 문자 개수 검사는 통과했지만 이를 셀 순서·귀속 정답으로 간주하지 않는다. 목록·중첩 표는 관측하지 못했으며 일반 표·목록의 완전한 추출까지 검증한 것은 아니다.
 
 새 API에서도 언어별 절충이 남았고 모든 입력의 정확도·출력·속도·메모리를 함께 보존한다는 근거는 얻지 못했다. **제품의 OCR 엔진은 유지했다.** 최초 지원 조회의 잘못된 프로젝트 경로 실행은 실제 테스트 0개·exit 66으로 별도 보존하고 성공 결과에 합산하지 않는다.
 
@@ -144,6 +144,21 @@ swiftlint lint --strict --no-cache Documentation/VisionMemoryReproduction.swift
 
 모든 반복에서 블록·원래 OCR 텍스트·신뢰도·위치·순서·경고 지문과 반환한 PNG가 같았다. 이 범위에서 시간 회귀는 관찰하지 못했지만 **작은 배치 메모리가 더 줄었다고 할 수 없다**. footprint 중앙값·RSS가 증가한 값도 함께 남긴다. 첫 실행 전후에는 다른 프로젝트의 Xcode 테스트 프로세스도 관찰했으며 각 파싱 표본과의 정확한 겹침은 확인하지 못했다. 무부하 성능의 인과 비교나 최대 그림 개수 전체의 비용 검증으로 일반화하지 않는다. 네 명령의 wall 합계는 428.720초, 첫 명령 시작부터 마지막 종료까지는 519.824초다. 빌드·설치·예열이 포함되므로 표의 파싱 시간과 구분한다.
 
+### 작은 배치의 증가 구간 분석
+
+같은 원시 표본을 추가 실행 없이 구간별로 대조했다. v2 두 프로세스의 footprint peak 중앙값은 각각 202.16·201.16MiB로, v1의 184.50·188.28MiB보다 높았다. 최고점 중앙값 차이 15.93MiB를 하나의 이상치로 설명할 수는 없다.
+
+| 작은 배치 구간의 footprint 중앙값 | v1 | v2 |
+| --- | ---: | ---: |
+| 파싱 전 | 28.10MiB | 30.04MiB |
+| 파싱 중 최고점 | 185.73MiB | 201.66MiB |
+| 반환 결과 보관 중 | 28.40MiB | 30.15MiB |
+| 결과 해제 뒤 | 28.40MiB | 30.14MiB |
+
+차이의 대부분은 파싱 중 일시적 최고점에 나타났다. 약 16MiB가 반환 결과에 계속 남는 패턴은 확인되지 않았다. 그렇다고 모든 네이티브 매핑이 해제됐다는 증거는 아니다. 양변의 DI 경계는 같고 작은 PDF의 그림 영역은 1개다. 새 CGRect 목록의 값 payload는 최대 32바이트 규모여서 이것만으로 증가분을 설명하기 어렵지만, 배열의 실제 할당량·async frame 수명·네이티브 작업 겹침을 측정한 것은 아니다.
+
+5ms sampler는 최대값만 보관했다. 시계열·최고점 시각·문서별 OCR 구간이 없어 어떤 요청이나 할당 주체가 원인인지 확정할 수 없다. 다음 진단은 이 시간 정보를 제품 밖에서 수집해 최고점 구간을 찾는 것이다. 근거 없이 작은 배열을 다른 자료구조로 바꾸거나 동시성·해상도를 낮추지는 않는다.
+
 `RecognizeDocumentsRequest` 외부 진단은 앞 절과 구분하며 위 제품 성능 통계에 포함하지 않았다.
 
 일반 generic Simulator 빌드도 arm64·x86_64 모두 통과했다(12.064초, 경고·오류 0). Release 테스트와 별개로 저장소 CI의 기본 빌드 구성을 사용했다.
@@ -166,11 +181,13 @@ xcodebuild build -scheme OmniParser -jobs 2 \
 - `MainFinal/generic-build.metadata.json`: 일반 Simulator 빌드 전체 인자·12.064초 wall. arm64·x86_64 통과·경고 0.
 - `FinalDefaultCorpus65/CorpusComparison.json`: OCR·그림 추출을 켠 기본 언어 모드의 65문서 semantic·PNG·메타데이터 대조와 원본 지문·실제 테스트 수·196.464초 wall.
 - `FinalV2ABBA/RESULTS.json`: 최종 소스의 일반 작은 배치·서로 다른 그림 16개 ABBA 40표본, 전체 출력·PNG 대조와 환경 간섭 기록.
+- `FinalV2ABBA/MEM_PATTERN.json`: 작은 배치의 파싱 전·최고점·결과 보관·해제 후 수치와 시계열 부재의 한계.
 - `KoreanLineInvestigation/accuracy-matrix.json`: 한영 2×2·언어 순서·고정 픽셀과 정답 CER.
 - `AutoLanguageComparison/SmallResults.json`: 작은 배치 20표본·컴파일·환경·문서별 변화.
 - `EnglishModeComparison/EnglishModeResults.json`: 실제 요청별 모드 ABBA·JPEG 부분 정답·컴파일·환경·32회 회귀.
 - `BusinessPlanPolicy4/`, `ManualEnglishPriority/`: 직접 Vision의 영어 표·수동 영어 우선 진단. 정답 텍스트는 로컬 oracle에만 보존했다.
 - `GPUSelectionComparison/GPUResults.json`: GPU 초도 10표본·9개 실제 테스트·환경·source proof.
 - `RecognizeDocumentsPrototype/Results-Accuracy-v2-01/`: 문서 인식 API의 4개 실제 테스트·28개 기록·원시 지문·단계 시간. 선검사와 실패 실행도 별도 보존했다.
+- `RecognizeDocumentsPrototype/actual-pixel-comparison-v2.json`, `ACCURACY_V2_SUMMARY.json`: 4입력의 실제 픽셀 대조, CER·부분 정답과 중첩 컨테이너 포함 검사 한계.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
