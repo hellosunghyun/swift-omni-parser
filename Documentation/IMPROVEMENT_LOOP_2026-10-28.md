@@ -193,6 +193,18 @@ JPEG OCR과 PDF 그림 OCR의 Vision 요청 마커 사이에서, CoreML 모델 �
 
 이것은 현재 코드의 높은 메모리 구간에서 native 작업 저장소를 확인한 근거다. 절대 최고점의 캡처나 앞선 V1/V2 +15.93MiB 차이의 인과적 원인, 누수·속도 개선의 증거는 아니다. 진단의 measured 3회 모두 기존 69블록·그림/경고 0개와 전체 의미 지문이 같았고 실제 테스트 1개 통과·runtime warning 0건이었다. raw 할당 스택 68,310,619바이트는 Git 밖에 보존했다. 본문·메모리 content를 출력하지 않았다.
 
+## 원본 이미지 Data 입력 후보 — 미채택
+
+외부 복제본에서 단일 프레임 JPEG·PNG·HEIC의 주 OCR 요청에 원래 압축 Data를 전달하는 후보를 만들었다. ImageIO의 크기 검증, 원본 CGImage의 PNG 추출·숫자 보완, TIFF·PDF·내장 그림 경로와 언어 정책은 유지했다. 새 인코딩·색 변환을 넣지 않았다.
+
+작은 3문서의 같은 호스트·헬퍼·입력·옵션에서 A→B 두 실행, 각 예열 1회·측정 5회만 수행했다. 실제 테스트는 각각 1개 통과·실패/skip·runtime warning·Sendable 경고 0건이다. 다만 helper의 PASS는 같은 프로세스의 반복 일치 검사이며 **A/B 출력 동일성을 뜻하지 않는다**.
+
+실제 Data 분기는 JPEG에서 예열 포함 6회 사용됐다. JPEG는 64블록을 유지했지만 텍스트 SHA 6개·bounds 8개·confidence 1개가 달랐고 전체 의미 지문도 바뀌었다. 두 PDF OCR 요청의 진단 필드는 같았다. DOCX 네이티브 필드의 독립적인 동일성은 기록하지 않았다.
+
+`CVPixelBufferCreate`의 framework stderr `-6680`은 6→0회로 줄었지만 출력 보존과 메모리 개선의 증거는 아니다. 기존 부분 oracle의 case-sensitive 단어 경계 일치는 32→33/64, 추가 1개·기존 일치 손실 0이었다. 앞선 compact 부분 문자열 점수와 정의가 다르며, 변경된 문구 전체의 정확도를 검증한 것도 아니다. 기본 경로는 바꾸지 않았다.
+
+공통 진단 JSON·정규식 작업이 측정 구간에 포함돼 시간·메모리 수치를 정상 성능으로 사용하지 않는다. 출력 보존에 실패해 추가 ABBA·74개 회귀·65문서·codec·취소 검증은 실행하지 않았다. 실패 결과·후보 패치는 Git 밖에 보존했다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -216,5 +228,6 @@ JPEG OCR과 PDF 그림 OCR의 Vision 요청 마커 사이에서, CoreML 모델 �
 - `GPUSelectionComparison/GPUResults.json`: GPU 초도 10표본·9개 실제 테스트·환경·source proof.
 - `RecognizeDocumentsPrototype/Results-Accuracy-v2-01/`: 문서 인식 API의 4개 실제 테스트·28개 기록·원시 지문·단계 시간. 선검사와 실패 실행도 별도 보존했다.
 - `RecognizeDocumentsPrototype/actual-pixel-comparison-v2.json`, `ACCURACY_V2_SUMMARY.json`: 4입력의 실제 픽셀 대조, CER·부분 정답과 중첩 컨테이너 포함 검사 한계.
+- `EncodedInputCandidate/ParityAB-01/RESULTS.json`: 실제 Data 분기·JPEG의 필드별 변화·원 실행 중 부분 정답·미채택 판단과 미실행 항목.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
