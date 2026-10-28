@@ -296,11 +296,39 @@ Set 단계의 실제 제품 Release는 **77개 통과·실패/skip/runtime warni
 
 최초 불일치가 있을 때 기존 재번호 루프를 실행하는 C와, 불일치 검사로 정렬 검사까지 감싸는 D도 같은 harness로 비교했다. 두 후보 모두 256개 공개 필드 검사와 128개 원본 유지 검사를 통과했다. D의 큰 공유 연속 입력은 7.489→2.913ms, 현재 footprint 122.079→102.915MiB였지만, 원본을 유지한 중복/간격 입력은 7.103→7.895ms(+11.1%), 뒤섞인 중복은 34.430→36.372ms(+5.6%)였다. 작은 입력의 마이크로초 차이·프로세스별 편차·allocator 잔류도 원자료에 남겼다. 속도 보존을 확정하지 못해 C·D도 적용하지 않았고 제품 모델·API 계약 테스트는 그대로 유지했다. C의 첫 컴파일에서 발생한 초기화 전 self 캡처 오류도 별도 보존했다.
 
+후속 최적화 SIL 대조에서는 관측한 D 회귀 입력의 추가 검사가 첫 원소에서 종료했다. 관련 helper 32개도 클로저 번호를 정규화하면 같았다. 이 입력의 시간 증가를 추가 100,000건 순회·정렬·COW 복사로 설명할 근거는 없다. 코드 배치·측정·allocator 영향의 기여량은 확정하지 못했으며 기존 관측과 미채택 판정은 유지한다. 반복 결과의 lastUse 조건은 seed를 생성자 반환까지 보관하고 타이머 종료 전에 해제하므로, 모든 lastUse를 단독 소유나 순수 생성자 시간으로 해석하지 않는다.
+
+## 구형 Vision 대체의 실제 한글 회귀 위치
+
+기존 `VNImageRequestHandler` 후보는 이미 작은 배치 5표본에서 시간 +35.54%와 HWP/HWPX assertion 2개 실패로 미채택됐다. 같은 성능 실험을 반복하지 않고 `fe92ef3` 소스와 기존 두 noori 문서의 원본 BinData로 차이의 위치를 확인했다. legacy의 동기 수행은 전용 작업 큐에 두었다. [Apple의 perform 문서](https://developer.apple.com/documentation/vision/vnimagerequesthandler/perform(_:))도 요청 완료·실패 후 반환하는 동작으로 설명한다.
+
+처음 PNG/JPEG로 한정한 진단은 고유 JPEG 2개 × 세 언어 정책의 6쌍이 모두 같았다. 하지만 Swift에서도 세로 한글 부분 표식이 없어 원래 실패 target을 포함하지 않은 부분집합이었다. 이 통과를 HWP 회귀 해소로 해석하지 않는다. 지원 래스터 전체에서 공개 파서의 row 2·column 2 표식 블록과 그림 ID를 원래 BinData에 연결해 대상을 바로잡았다.
+
+실제 target은 두 컨테이너가 공유하는 원본 BMP 한 종(115×720, 방향 1)이었다. 같은 CGImage·방향·고정 픽셀과 revision 3·최소 높이 0·accurate·언어 보정·언어 목록을 맞춘 raw 비교 결과는 다음과 같다.
+
+| 정책 | Swift 관찰 / 한글 수 / 표식 | raw VN 관찰 / 한글 수 / 표식 |
+| --- | --- | --- |
+| automatic | 2 / 5 / 있음 | 1 / 1 / 없음 |
+| koreanAndEnglish | 2 / 5 / 있음 | 1 / 1 / 없음 |
+| english | 0 / 0 / 없음 | 0 / 0 / 없음 |
+
+VN은 원래 순서와 제품 기하 정렬 순서로 관찰을 연결해도 표식이 없었다. 공통 관찰의 필드는 같았고 Swift 쪽에 표식 관찰이 추가로 있었다. 관찰 수·텍스트의 공개 출력도 달라 단순 분할 차이로 설명되지 않는다. raw VN→Swift 변환의 UUID·필드 보존은 통과했으므로 이 원본에서 확인한 차이는 변환 전부터 존재한다. Apple 내부 원인은 미확정이며 모든 문서·OS의 품질 차이로 일반화하지 않는다. english의 빈 결과 일치도 한국어 인식 성공을 뜻하지 않는다.
+
+JPEG 부분집합과 실제 BMP target 진단은 각각 XCTest 1개 통과·실패/skip/runtime warning 0건이었다. 명령 wall은 각각 71.882초·88.141초로 빌드·시작·첨부 내보내기를 포함하며 backend 속도가 아니다. 첫 컴파일의 정수 타입 오류는 exit 65·0테스트로 보존했다. backing provider 데이터와 별도 sRGB RGBA 픽셀 해시를 구분했고 입력 불변도 확인했다. 초기 픽셀 계측이 decode를 강제할 수 있으므로 실제 lazy 생산 경로·메모리·속도 검증으로 확대하지 않는다. 제품의 Swift Vision 경로·언어 기본값은 유지했다.
+
+## 외부 소비자 검증의 환경 제약
+
+요청별 언어 옵션이 추가되기 전의 소비자 빌드와 이후 내부 회귀를 구분했다. 새 외부 모듈에는 기존 옵션 초기화·기본 단일/배치 호출과 세 OCR 정책의 공개 호출을 준비했다. OmniParser와 기존 네 의존성은 로컬 mirror와 고정 revision, 바이너리는 기존 캐시를 사용했다.
+
+OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내부 sandbox 적용 오류로 exit 74가 됐다. 공식 CLI의 명령별 `--disable-sandbox`로 중첩만 피하고 외부 네트워크 차단을 유지한 resolve 1회는 성공했으나, 같은 캐시를 지정한 후속 Xcode도 동일 단계에서 실패했다. CLI 해석 성공은 제품 컴파일 성공이 아니며 Consumer.swift의 양 아키텍처 컴파일 근거는 없다. 이 외부 소비자 검증은 미완료다. 해당 소비자 검증에서는 전역 보안 설정·의존성·원본 refs를 바꾸지 않았다. 네트워크 차단 없는 일반 로컬 빌드는 요청 조건 확인 전 실행하지 않는다.
+
 ## 네이티브 할당 수명 추적의 한계
 
 별도 진단 호스트에서 첫 OCR 전 gate와 프로세스 신원 확인 후 Allocations·Points of Interest를 한 번 기록했다. 실제 테스트 1개가 통과했고 예열·측정 모두 기존 69블록·그림/경고 0개와 같았다. 본문이나 heap content는 출력하지 않았다. 48개 표식은 trace와 stdout 사이에서 대응했지만, 이 계측 실행을 정상 성능 비교로 사용하지 않는다.
 
 전체 범위의 Statistics는 persistent 67,404개였으나 List export는 66,539개로 865개·32,240바이트가 달랐다. 별도 500ms export도 List의 표시 시각이 요청 범위와 맞는지 확정하지 못했다. 사본의 Instruments UI에서 `Created & Persistent`가 선택 범위 안에서 생성되어 그 끝까지 남은 할당을 뜻한다는 설명과 전체 집계는 확인했지만 CLI 차이는 해소하지 못했다. 정확한 free 시각·완전한 alloc/free 대응이나 추가 메모리 절감의 근거로 사용하지 않는다.
+
+기존 List XML 66,539행과 500ms 결과 1행의 참조를 전수 재검사해 파싱 누락·미해결 참조·중복 ID·전방 참조는 없었다. 표시 timestamp에는 원시 단위·시계 원점 선언이 없었고 free 시각·lifetime·free backtrace 필드도 없었다. 현재 XML만으로 CoreML scratch의 정확한 할당·해제 수명을 복원할 수 없다. 기존 coverage·시간 기준의 미해결 판정과 48개 POI 대조는 유지한다.
 
 ## 원자료와 남은 확인
 
@@ -341,6 +369,11 @@ Set 단계의 실제 제품 Release는 **77개 통과·실패/skip/runtime warni
 - `HWPAnchorCorpus65/`, `PNGContainerReadOnlyReview/`: 의미/픽셀 65개 일치와 PNG 바이트 1개 차이, 이전 실행의 바이트 변동 근거.
 - `PNGContainerAB-01/Comparison.json`: 실제 반환 PNG 8개·CRC·ICC/IDAT의 압축 및 해제 지문·creation date 차이, 두 실행의 소스/컴파일/단계 시간. 기존 corpus의 엄격 비교 상태는 유지했다.
 - `ResultOrderCopyCandidate/FINAL_REPORT.md`: 세 생성자 후보의 실제 모델 소스·동일 harness·ABBA 숫자 CSV·명령·바이너리 지문, 전체 필드/원본 보존과 시간 회귀·미채택 판단. 원시 실행과 실패 빌드는 같은 폴더의 각 후보 아래에 보존했다.
+- `ResultOrderCopyCandidate/SILReview-01/REPORT.md`: A/D의 실제 최적화 SIL·함수 경계·도달 helper 대조, 회귀 입력의 조기 종료와 반복 lastUse의 seed 수명 제한.
+- `LocalConsumer-20261029/Preparation-01/Build-01/`, `Preparation-02/Run-01/`: 로컬 mirror 소비자의 Xcode 실패·CLI 예열 성공과 후속 Xcode 실패, 명령·다섯 revision·네트워크 차단 범위. 뒤 경로는 같은 LocalConsumer 폴더 아래다.
 - `FinalV2ABBA/PeakAllocationPrep/NativeLifetimeCapturePrep/`: gate·신원 검증·단일 native trace, 48개 표식 대응과 export coverage·시간 기준의 미해결 상태. UI 검토는 원본을 보존한 사본에서만 했다.
+- `FinalV2ABBA/PeakAllocationPrep/NativeLifetimeCapturePrep/SchemaAudit-01/`: 기존 XML 전체 행·참조·timestamp 형식과 free/lifetime 필드 부재 검사. 새 export·profile은 실행하지 않았다.
+
+실제 실패 BMP와 JPEG 부분집합의 후속 원자료는 `~/Developer/Codex/OmniParserVerification/2026-10-29/ImprovementLoop-20261029/LegacyHWPParity/`에 분리했다. `Preparation-03/Run-01/`은 target 제외 JPEG 6쌍, `Preparation-04/Run-01/FINAL_REPORT.json`은 실제 BMP target의 공개 앵커 연결·세 정책 비교·전체 입력 지문이다. 앞선 준비·컴파일 실패도 같은 폴더에 보존했다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
