@@ -2,7 +2,7 @@
 
 2026-10-28. 실기기 없이 Mac mini M4·16GiB, Xcode 27.1, iPhone 17 / iOS 27.0 Simulator에서 확인했다. Swift 언어 모드 5, `-O`·WMO·테스트 활성화 설정을 실제 컴파일 로그로 대조했다.
 
-기존 URL 스냅샷 Reader의 대용량 메모리 절감은 Release에서도 관측했다. 작은 배치의 추가 최적화 후보 7개는 속도·추출 결과·메모리 조건을 함께 충족하지 못해 적용하지 않았다. 별도로 발견한 동기 파일 조정의 QoS 경고는 `f41da5d`에서 수정했다. 공개 API·의존성·바이너리·OCR 설정·동시성 옵션은 유지한다.
+기존 URL 스냅샷 Reader의 대용량 메모리 절감은 Release에서도 관측했다. 작은 배치의 최적화 후보 7개와 추가 공개 API 경로 2개는 속도·추출 결과·메모리 조건을 함께 충족하지 못해 적용하지 않았다. 별도로 발견한 동기 파일 조정의 QoS 경고는 `f41da5d`에서 수정했다. 공개 API·의존성·바이너리·OCR 설정·동시성 옵션은 유지한다.
 
 ## 같은 입력의 Release 비교
 
@@ -81,6 +81,23 @@ Data는 계측을 시작한 뒤 로드하고 결과 측정까지 보유했다. U
 
 숫자 보완 OCR은 작은 배치의 여섯 호출에서 대상 0개·cutoff 요청 0회였다. 이 배치의 원인 후보로 더 진행하지 않았다. 앞선 [진단](BATCH_MEMORY_2026-10-28.md)은 높은 메모리 시점에 CoreML→Espresso 모델 준비·CPU blob의 97.16MiB 스택 그룹을 확인했다. 이것이 제거 가능한 메모리량이나 동기→비동기 전환 증가량 전체를 뜻하지 않는다. 공개 요청 재사용으로 내부 모델 공유를 보장할 수 없으며, 이번 실험에서 속도와 결과를 보존한 작은 배치의 확실한 추가 절감은 확보하지 못했다.
 
+## 추가 Vision 경로 비교
+
+`efb014d`와 같은 런타임을 고정한 외부 작업본에서 공개 API 후보 두 개를 추가 검증했다. 기존 CGImage·방향·revision 3·한영·정확도·언어 설정·동시 문서 2개·PDF 예산을 유지했다. 변경은 OCR 호출 경로뿐이며, 같은 프로젝트/패키지 경로와 5ms 샘플러를 사용했다. [performAll](https://developer.apple.com/documentation/vision/imagerequesthandler/performall(_:))은 결과 스트림을 제공하지만 단일 요청의 메모리 절감을 보장하는 API는 아니다.
+
+| 후보·기준/후보 표본 | 시간 중앙값·기준 → 후보 | footprint peak 중앙값·기준 → 후보 | 최대 footprint·기준 → 후보 |
+| --- | ---: | ---: | ---: |
+| 단일 요청 `performAll`·각 10, ABBA | 1.3235 → 1.3259초 | 211.31 → 207.71MiB | 220.44 → 222.64MiB |
+| `CIImage(cgImage:)` 입력·각 5, 정순 초도 | 1.4303 → 1.1978초 | 207.80 → 215.96MiB | 221.86 → 221.00MiB |
+
+스트림 후보는 두 번째 후보 실행에서 peak 중앙값이 다시 높아졌고 최대 footprint도 기준보다 컸다. CIImage 후보는 최대값 차이가 약 −0.39%뿐이고 peak 중앙값은 +3.93%였다. CIImage의 시간은 정순 초도 관측이므로 속도 향상으로 확정하지 않는다. **두 후보 모두 속도·결과를 유지한 메모리 절감 조건을 충족하지 못해 적용하지 않았다.** CIImage는 초도에서 메모리 이득이 없어 교차 반복을 추가하지 않았다. 반환 PNG를 만드는 프로필은 아니다.
+
+30개 측정 표본 모두 기존 semantic SHA와 69블록·경고 0개가 같았다. 여섯 XCTest 실행에서 작은 배치와 HWP/HWPX 세로 한글·Vision 진행 중 취소·추출 취소·읽기 실패와 취소 우선순위·사용자 우선순위 OCR의 실제 6개 테스트가 각각 통과했다. 총 36개 테스트 실행에서 실패·skip·runtime warning은 없었다. 선택자로 요청한 별도 파일 입력 취소 2개는 외부 호스트에 해당 테스트 파일이 없어 발견되지 않았으며 통과 개수에 포함하지 않았다. 채택하지 않은 후보이므로 전체 65문서·80페이지 배치를 추가 실행하지 않았다. 공개 API·제품 소스·의존성·기본 설정을 변경하지 않았다.
+
+제품 소스·Tests·Package·의존성은 `efb014d`와 차이가 없음을 대조했고, 기본 55파일과 예제 1파일의 strict lint도 각각 위반 0건이었다.
+
+별도 [Vision 최소 재현 예제](VISION_MEMORY_REPRODUCTION.md)는 OmniParser 의존성 없이 자체 이미지 두 장의 동시 OCR을 비교한다. 최종 예제도 Release ABBA 20표본을 실행했고 입력·텍스트·좌표·신뢰도 지문이 같았다. 실제 Simulator의 지원 장치 조회에서는 `.main`에 CPU·GPU가 나왔지만 명시적 지정은 없었다. 이는 실제 사용 장치의 증거가 아니다. 장치 강제 선택이나 내부 모델 캐시 제어를 제품에 추가하지 않았다. 최초 한 행 한영 혼합 예제의 마커 실패도 별도로 보존했다.
+
 ## 발견해 수정한 QoS 대기
 
 수정 전 Release 56개 테스트는 통과했지만 xcresult에 런타임 경고가 1개 있었다. 사용자 우선순위 OCR 배치 테스트의 `DocumentInputReader.swift:19`, 동기 `NSFileCoordinator.coordinate`가 높은 QoS에서 Default QoS 작업을 기다리는 지점이었다. 저장된 27개 스택 프레임은 주소뿐이어서 내부 서비스 큐의 이름까지 확정하지 않았다.
@@ -102,6 +119,10 @@ URL 읽기를 구조화된 자식 작업으로 만들고 Default QoS의 전용 c
 | 최종 I/O 수정 후 성능 재확인 | 작은 배치 5·URL 5·대용량 3표본 | 345.36초 |
 | 최종 작은 배치 5ms 교차 확인 | 4실행·20표본·결과 동일, runtimeWarnings 0 | 135.92초 |
 | 동시 문서 1·2 절충 ABBA | 4실행·20표본·결과 동일, runtimeWarnings 0 | 141.89초 |
+| 추가 performAll 후보 ABBA | 4실행·20표본·미채택 | 169.96초 |
+| 추가 CIImage 후보 초도 | 2실행·10표본·미채택 | 62.83초 |
+| 최종 독립 Vision 예제 ABBA | 4실행·20표본·결과 동일, runtimeWarnings 0 | 46.92초 |
+| 문서·예제 추가 후 generic Simulator build | arm64·x86_64 통과 | 3.77초 |
 
 벽시계에는 빌드·설치·예열·XCTest·결과 검증이 포함된다. `전체−본문`을 순수 빌드 시간으로 계산하지 않았다. 처음 최종 성능 호스트의 코어가 incremental로 컴파일된 중간 13표본은 보존하고 위 비교에서 제외했다. 이후 코어·테스트 모두 동일한 `-O`·Swift 5·WMO로 다시 실행한 결과만 사용했다.
 
@@ -130,6 +151,9 @@ swiftlint lint --strict
 - `QoSReadFix/`: 후보 8개·제품 57개 xcresult, summary·실행 명령·build·lint와 원본 helper 보존 증거.
 - `SmallBatchMemory/QoSReadFix/WMOComparableRun/`: 최종 source·kit·host·97개 자산·60/20페이지 원본 해시 대조, 컴파일 필드, 전체 성능 표본·환경·wall 기록.
 - `SmallBatchMemory/PairedQoSSmall/`: 5ms 교차 확인의 `PairedResults.json`, `SourceAndCompilerProof.json`, `RunSnapshots/`, `commands.json`, `stage-wall.json`.
+- `VisionMemoryFollowup/NewCandidateComparison/`: 추가 두 후보의 원시 표본·SourceSnapshot·실제 컴파일 필드·명령·환경·xcresult. `PublicAPIResearch-efb014d/`에 SDK 조사와 미채택 패치를 보존했다.
+- `VisionMemoryFollowup/FinalChecks/`: 최종 generic Simulator build 로그·3.77초 명령 기록, 런타임 불변·예제 소스 SHA·린트 확인.
+- `VisionMemoryFollowup/StandaloneVisionFinal/`: 최종 독립 예제의 ABBA 20표본·정리 전과의 지문 대조·소스 SHA·장치 진단·runtime warning 확인.
 - `VisionMemoryFollowup/Concurrency12Comparison/`: 동시 문서 1·2의 `Concurrency12Results.json`, `OnlyConcurrencyDiffersProof.json`, `RunSnapshots/`, `commands.json`, `stage-wall.json`, 원시 로그·xcresult·환경 기록을 담은 `Results/`.
 
 80페이지 ABBA와 최종 성능 재확인 중 다른 Simulator 재기동은 관측되지 않았지만 공유 Mac의 swap 보유량은 약 8GiB였다. 앞선 URL/Data 정순 단계의 다른 Simulator 관측·종료 기록도 제외하지 않았다. Simulator 한 대라는 사실이 시스템 무부하를 뜻하지 않는다. 실기기·발열·모든 입력의 최대 메모리나 속도를 보장하는 결과가 아니며, 짧은 순간의 최고치는 샘플링에서 놓칠 수 있다.
