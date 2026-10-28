@@ -219,6 +219,32 @@ JPEG OCR과 PDF 그림 OCR의 Vision 요청 마커 사이에서, CoreML 모델 �
 
 이 조회는 기존 렌더 결과의 메타데이터·수명 근거이며 새 버퍼의 동등성·COW의 물리 페이지·메모리 절감을 검증한 것은 아니다. 소유 버퍼 치환이나 제품 코드 변경은 하지 않았다.
 
+### 소유 버퍼 후보의 기능·성능·해제 검증
+
+이후 제품 밖에서 실패 가능한 `calloc` → `Data(bytesNoCopy:, deallocator: .free)` → CFData/provider로 독립 비트맵을 만드는 후보를 시험했다. 가변 포인터와 CGContext의 범위를 끝낸 뒤 불변 provider만 이미지에 남겼다. 렌더링 해상도·OCR 옵션·작업 동시성은 바꾸지 않았다.
+
+A/B 기능 비교는 각 2개씩 총 4개 테스트가 통과했다. 6사례의 전체·crop 픽셀, 색공간·메타데이터, PNG 바이트와 디코딩 결과가 같았다. PDFKit 객체 해제 뒤 이미지도 읽을 수 있었다. 작은 3문서 배치의 예열·반복 결과 역시 텍스트·읽기 순서·위치·신뢰도·경고를 포함한 전체 지문이 같았다.
+
+계측을 넣지 않은 실제 후보의 A→B→B→A는 4개 테스트가 통과했다. 각 프로세스 예열 1회 후 5회씩 총 20표본이며 모두 기존 69블록·그림/경고 0개였다. 5ms sampler와 입력·호스트·기존 헬퍼·Release 설정은 같았다.
+
+| 작은 3문서 | 기존 A 중앙값 / 최대 | 소유 버퍼 B 중앙값 / 최대 |
+| --- | ---: | ---: |
+| 파싱 시간 | 1.217 / 1.663초 | 1.206 / 1.355초 |
+| peak footprint | 191.104 / 203.096MiB | 186.471 / 202.002MiB |
+| peak RSS | 529.141 / 535.625MiB | 532.570 / 538.016MiB |
+
+시간 중앙값은 -0.93%, footprint는 -2.42%였지만 RSS 중앙값은 +0.65%였다. A1/A2 footprint 중앙값 자체가 182.346→197.284MiB로 변해 약 4.63MiB의 후보 차이보다 프로세스 간 편차가 컸다. 공유 Mac의 다른 QA 작업·swap도 기록했다. 출력은 같았고 이번 20표본의 시간 중앙값·최대값에서는 증가를 관찰하지 못했다. **메모리 절감 효과는 확정하지 않았고 제품에 적용하지 않았다.**
+
+해제 확인은 성능 후보와 분리했다. 원본 주소·바이트 수만 기록하는 `.custom` deallocator 진단으로 마지막 crop 해제, 할당 nil·소유권 설치 뒤 nil 주입, allocation 시점 취소를 검사해 3개 테스트가 통과했다. 이 진단 변형의 원본 버퍼는 마지막 crop까지 유지됐고 이후 정확히 한 번 해제됐다. 두 nil 경로는 native 본문·위치와 기존 경고를 보존하고 페이지 경고를 추가했다. 취소는 내부 PDF의 cooperative 경계에서 `CancellationError`로 전달됐고 버퍼도 한 번 해제됐다.
+
+이 결과로 무계측 `.free` 후보의 할당·브리지 동작까지 입증하지 않는다. 실제 OOM, bridge 내부 할당 실패, Vision 실행 중 취소나 모든 입력·OS의 보장도 아니다. 주소가 같다는 관측도 provider 내부 복사 부재·zero-copy·물리 footprint 절감의 증명으로 쓰지 않는다. 실행 인자 `-test-iterations 1`을 Xcode가 거부해 컴파일·테스트 0개로 끝난 첫 시도도 보존했다. 해당 옵션만 제외한 새 실행은 실제 Swift 5·`-O`·WMO로 3개 통과·실패/skip/runtime warning 0건, 빌드 포함 wall 90.807초였다.
+
+추가로 양 renderer를 넣은 별도 바이너리에서 A/B 순서를 미리 고정한 10쌍·20표본을 같은 프로세스로 비교했다. 실제 1개 테스트 통과·실패/skip/runtime warning 0, 빌드 포함 wall 116.666초였고 양쪽 예열 분기의 도달과 전체 출력 지문 일치를 확인했다. footprint 중앙값은 A 198.651→B 201.987MiB, RSS는 527.883→529.609MiB였으며 B의 footprint가 10쌍 중 6쌍에서 컸다. 쌍별 B−A 차이의 중앙값은 footprint +2.211MiB·RSS +1.852MiB·시간 -0.010초였다. 시간의 변형별 중앙값은 1.135→1.138초로, 일관된 메모리·속도 개선은 관찰하지 못했다.
+
+이 교차 진단은 프로세스별 편차를 일부 줄이지만 두 renderer를 넣은 코드 배치·TaskLocal 조회·공유 Vision 캐시·직전 실행의 영향을 포함한다. 별도 프로세스 ABBA를 대체하거나 단독 채택 근거로 쓰지 않는다. 두 비교 모두 요구한 메모리 절감을 입증하지 못했으므로 후보를 미채택으로 정리했다.
+
+`CGDataProvider(dataInfo:data:size:releaseData:)`로 Data/CFData를 없애는 대안도 정적으로 검토했다. 정상 수명의 해제 callback은 제공하지만 nil 생성 실패 때 callback의 책임까지 SDK 헤더만으로 확정하지 못했다. 해제 상태 관리가 추가되고 메모리 이득도 미검증이라 별도 런타임이나 제품 변경으로 이어가지 않았다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -245,5 +271,9 @@ JPEG OCR과 PDF 그림 OCR의 Vision 요청 마커 사이에서, CoreML 모델 �
 - `EncodedInputCandidate/ParityAB-01/RESULTS.json`: 실제 Data 분기·JPEG의 필드별 변화·원 실행 중 부분 정답·미채택 판단과 미실행 항목.
 - `OwnedPDFBitmapCandidate/REVIEW.md`, `METADATA_GATES.json`: COW·소유권·실패 경계의 정적 검토와 제품 치환 보류. 이후 실제 조회 결과는 `MetadataOnly/`로 분리했다.
 - `OwnedPDFBitmapCandidate/MetadataOnly/`: renderer 원본 지문, 기본 한도의 6사례 메타데이터·PDFKit 수명 종료 전후 픽셀 해시, 실제 1개 테스트·명령·91.314초 wall.
+- `OwnedPDFBitmapCandidate/ParityAB-01/`: 소유 버퍼 후보의 실제 4개 테스트, 6사례 픽셀·PNG·메타데이터와 배치 전체 필드 대조.
+- `OwnedPDFBitmapCandidate/PerfABBA-01/`: 무계측 후보의 정상 ABBA 20표본, 프로세스별 편차·속도·footprint·RSS와 미확정 판정.
+- `OwnedPDFBitmapCandidate/OwnershipDiagnostics/Execution-01/`, `Execution-02/`: 첫 실행의 인자 오류·0테스트 실패와 새 실행의 실제 3개 소유권·실패·취소 테스트, source proof·해제 event. 본문·픽셀 로그는 남기지 않았다.
+- `OwnedPDFBitmapCandidate/WithinProcessPrep/Execution-02/`: 동일 프로세스 교차 10쌍·20표본, 양 분기 예열 도달·전체 출력 지문, 모든 쌍의 차이·순서 효과. `Execution-01/`의 문서 변경 감지로 시작 전 중단된 기록도 보존했다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
