@@ -316,6 +316,23 @@ VN은 원래 순서와 제품 기하 정렬 순서로 관찰을 연결해도 표
 
 JPEG 부분집합과 실제 BMP target 진단은 각각 XCTest 1개 통과·실패/skip/runtime warning 0건이었다. 명령 wall은 각각 71.882초·88.141초로 빌드·시작·첨부 내보내기를 포함하며 backend 속도가 아니다. 첫 컴파일의 정수 타입 오류는 exit 65·0테스트로 보존했다. backing provider 데이터와 별도 sRGB RGBA 픽셀 해시를 구분했고 입력 불변도 확인했다. 초기 픽셀 계측이 decode를 강제할 수 있으므로 실제 lazy 생산 경로·메모리·속도 검증으로 확대하지 않는다. 제품의 Swift Vision 경로·언어 기본값은 유지했다.
 
+## Swift Vision 요청 값 공유 후보 — 미채택
+
+풀에서 새 세션을 만들 때마다 요청을 초기화하는 대신 같은 `RecognizeTextRequest` 값을 복사하는 후보를 외부 작업본에서 비교했다. 언어·동시 문서 수 2·세션 독점 대여·idle 최대 2개·숫자 보완 정책은 유지했다. 값 복사가 네이티브 캐시를 공유하거나 독립시킨다고 가정하지 않았다. 제품 코드는 적용하지 않았다.
+
+기존 PDF·JPEG·DOCX 작은 배치를 A1→B1로 한 번씩 실행했다. 각각 예열 1회·측정 5회, Release Swift 5·`-O`·WMO·5ms sampler다. 실제 XCTest는 각각 1개 통과·실패/skip/runtime warning 0건이었다. 측정 10개 모두 전체 의미 지문·69블록·그림/경고 0개가 같았다. 그림을 반환하지 않는 조건이므로 픽셀 보존의 새 검증은 아니다.
+
+| 지표 | 기준 A1 | 후보 B1 |
+| --- | ---: | ---: |
+| 파싱 시간 중앙값 | 1.3300초 | 1.1601초 |
+| footprint 최고 관측 중앙값 | 196.89MiB | 194.39MiB |
+| footprint 최고 관측 최대값 | 206.28MiB | 206.55MiB |
+| RSS 최고 관측 최대값 | 467.81MiB | 479.30MiB |
+
+footprint 중앙값은 2.50MiB(-1.27%) 낮았지만 최대값은 +0.13%, RSS 최대값은 +2.45%였다. 기준 footprint 범위가 약 27MiB여서 작은 중앙값 차이를 편차와 구분하지 못했다. 시간 -12.77%도 정순 초도 관측이며 인과적 속도 개선으로 확정하지 않는다. 메모리 조건 미달로 B2/A2와 추가 gate를 진행하지 않았다. 공유 Mac의 다른 Simulator·swap·표본 계측 한계도 남는다.
+
+이 후보는 OCR을 끈 요청에서도 초기화가 발생하며, 취소·실패한 대여를 폐기해도 원래 요청 값은 풀에 남는다. 해당 비용·자원 수명·재진입 안전과 cache/취소/HWP/전체 언어 회귀는 이 초도에서 검증하지 않았다. 미실행 항목을 통과로 처리하지 않으며 작은 배치의 추가 최대 메모리 절감은 계속 목표 미달이다.
+
 ## 외부 소비자 검증의 환경 제약
 
 요청별 언어 옵션이 추가되기 전의 소비자 빌드와 이후 내부 회귀를 구분했다. 새 외부 모듈에는 기존 옵션 초기화·기본 단일/배치 호출과 세 OCR 정책의 공개 호출을 준비했다. OmniParser와 기존 네 의존성은 로컬 mirror와 고정 revision, 바이너리는 기존 캐시를 사용했다.
@@ -375,5 +392,7 @@ OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내�
 - `FinalV2ABBA/PeakAllocationPrep/NativeLifetimeCapturePrep/SchemaAudit-01/`: 기존 XML 전체 행·참조·timestamp 형식과 free/lifetime 필드 부재 검사. 새 export·profile은 실행하지 않았다.
 
 실제 실패 BMP와 JPEG 부분집합의 후속 원자료는 `~/Developer/Codex/OmniParserVerification/2026-10-29/ImprovementLoop-20261029/LegacyHWPParity/`에 분리했다. `Preparation-03/Run-01/`은 target 제외 JPEG 6쌍, `Preparation-04/Run-01/FINAL_REPORT.json`은 실제 BMP target의 공개 앵커 연결·세 정책 비교·전체 입력 지문이다. 앞선 준비·컴파일 실패도 같은 폴더에 보존했다.
+
+같은 날짜 루트의 `SharedRequestValueProbe/ExecutionPrep02/FINAL_REPORT.md`·`FINAL_REPORT.json`과 `Results/A1/`·`Results/B1/`에 요청 값 공유 후보의 실제 명령·표본·컴파일·환경·소스 지문을 보존했다. 제품 기준 `fe92ef3`와 문서만 바뀐 `7c3b36d`를 구분했으며 제품·테스트·샘플·패키지 157개 pin은 같았다. 준비·보고서 생성 실패도 별도 기록했다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
