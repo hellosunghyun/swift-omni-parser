@@ -49,6 +49,8 @@ let outcomes = try await DocumentParser.parseBatch(
 
 `extractImages`와 `performOCR`은 독립적인 옵션이며 모두 기본값이 `false`입니다. 이미지 단독 입력과 스캔 전용 PDF는 OCR을 켜야 텍스트를 얻을 수 있습니다. 라이브러리는 입력 URL·본문을 로그에 기록하지 않습니다.
 
+한영 혼합 문서에는 `options: .init(performOCR: true, ocrLanguage: .koreanAndEnglish)`, 영어 전용 자료에는 `.english`를 지정할 수 있습니다. 기본 `.automatic`은 기존 동작을 유지합니다. 모드별 정확도·메모리 절충과 배치 적용 방식은 [요청별 OCR 언어](Documentation/API.md#요청별-ocr-언어)를 확인하세요.
+
 ## 형식과 처리 경로
 
 | 형식 | 구현 경로 |
@@ -88,11 +90,13 @@ xcodebuild test -scheme OmniParser \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 최신 **Release 회귀 57개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 55파일·위반 0건입니다. 이전 48개 회귀로 새 버전 소비 프로젝트의 빌드와 재빌드 Office 엔진도 확인했습니다.
+기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 최신 **Release 회귀 72개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 58파일·위반 0건입니다. OCR·그림 추출을 켜고 기본 언어 모드를 사용한 65문서 대조에서도 텍스트·위치·순서·OCR·경고·그림 픽셀이 보존됐습니다. 이전 48개 회귀로 새 버전 소비 프로젝트의 빌드와 재빌드 Office 엔진도 확인했습니다.
 
-실기기 32개 통과와 과거 대용량 기록은 이전 동기 OCR 코드의 결과입니다. 최신 실기기 검증은 아직 하지 않았습니다. [Release 배치·URL/Data·QoS 검증](Documentation/RELEASE_MEMORY_2026-10-28.md)에 최신 결과를 기록했습니다. 대용량 URL 입력의 footprint 절감은 확인했지만 작은 배치의 추가 메모리 절감은 확보하지 못했습니다. [입력 Reader의 앞선 Debug 검증](Documentation/BATCH_MEMORY_2026-10-28.md), [오픈소스 후속 검증과 65문서 대조](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md), 과거 [대용량 기록](Documentation/LOCAL_REVIEW_2026-10-27.md)·[RTF 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)·[XLS 전환](Documentation/XLS_CHART_FIX.md)은 당시 결과로 보존합니다.
+실기기 32개 통과와 과거 대용량 기록은 이전 동기 OCR 코드의 결과입니다. 최신 실기기 검증은 아직 하지 않았습니다. [Release 배치·URL/Data·QoS 검증](Documentation/RELEASE_MEMORY_2026-10-28.md)에 앞선 메모리·QoS 비교를 기록했습니다. 대용량 URL 입력의 footprint 절감은 확인했지만 작은 배치의 추가 메모리 절감은 확보하지 못했습니다. [입력 Reader의 앞선 Debug 검증](Documentation/BATCH_MEMORY_2026-10-28.md), [오픈소스 후속 검증과 65문서 대조](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md), 과거 [대용량 기록](Documentation/LOCAL_REVIEW_2026-10-27.md)·[RTF 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)·[XLS 전환](Documentation/XLS_CHART_FIX.md)은 당시 결과로 보존합니다.
 
 [Vision 단독 메모리 재현 예제](Documentation/VISION_MEMORY_REPRODUCTION.md)는 자체 생성 이미지로 OCR 동시성 1·2를 비교합니다. 별도 XCTest 타깃에 복사해 실행하며 제품이나 기본 CI 테스트에는 포함하지 않습니다.
+
+[OCR 정확도·PDF 중복 개선 기록](Documentation/IMPROVEMENT_LOOP_2026-10-28.md)에 요청별 언어 옵션, 같은 위치의 중복 그림 OCR 수정, 실제 시간·메모리 비교를 정리했습니다. 기본 언어 정책은 유지하며, 동일 영역 OCR을 생략한 시간 개선과 추가 peak 메모리 절감 여부를 구분합니다.
 
 PR·main 푸시의 자동 검사에는 `.github/workflows/verification.yml`을 사용합니다. 실제 GitHub 실행은 다음 푸시 이후 확인해야 합니다. [기여 안내](CONTRIBUTING.md)와 [보안 제보](SECURITY.md)에 검증·샘플 제출 기준을 적었습니다.
 
