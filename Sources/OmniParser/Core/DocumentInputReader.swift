@@ -1,4 +1,5 @@
 import Darwin
+import Dispatch
 import Foundation
 
 /// URL 입력을 읽는 동안만 파일 제공자와 조정하고, 파싱 중에는 독립된 바이트를 유지한다.
@@ -6,7 +7,19 @@ import Foundation
 nonisolated enum DocumentInputReader {
   static let temporaryPrefix = "OmniParserInput-"
 
-  static func read(_ url: URL, maximumBytes: Int) throws -> Data {
+  @concurrent static func read(_ url: URL, maximumBytes: Int) async throws -> Data {
+    try Task.checkCancellation()
+    return try await withThrowingTaskGroup(of: Data.self) { group in
+      group.addTask(executorPreference: DocumentInputReadExecutor.shared) {
+        try readSynchronously(url, maximumBytes: maximumBytes)
+      }
+      guard let data = try await group.next() else { throw DocumentParsingError.unreadableInput }
+      try Task.checkCancellation()
+      return data
+    }
+  }
+
+  private static func readSynchronously(_ url: URL, maximumBytes: Int) throws -> Data {
     guard url.isFileURL else { throw DocumentParsingError.unsupportedFormat }
     guard !url.path.utf8.contains(0), !url.path(percentEncoded: true).contains("%00") else {
       throw DocumentParsingError.unreadableInput
@@ -183,5 +196,19 @@ nonisolated enum DocumentInputReader {
     }
     _ = try checkedSize(descriptor, maximumBytes: maximumBytes)
     return data
+  }
+}
+
+/// 동기 파일 조정은 기본 QoS 큐에서 수행하되 Swift 작업의 취소 컨텍스트는 유지한다.
+nonisolated private final class DocumentInputReadExecutor: TaskExecutor {
+  static let shared = DocumentInputReadExecutor()
+  private let queue = DispatchQueue(label: "DocumentParsing.Input.Read", qos: .default,
+    attributes: .concurrent, autoreleaseFrequency: .workItem)
+
+  func enqueue(_ job: consuming ExecutorJob) {
+    let job = UnownedJob(job)
+    queue.async(qos: .default, flags: .enforceQoS) {
+      job.runSynchronously(on: self.asUnownedTaskExecutor())
+    }
   }
 }

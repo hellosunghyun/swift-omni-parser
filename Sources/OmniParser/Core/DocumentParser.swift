@@ -137,7 +137,7 @@ nonisolated public enum DocumentParser {
     }
 
     progress?(DocumentProgress(inputIndex: index, phase: .identifying, fractionCompleted: 0))
-    let prepared = try read(input, options: options)
+    let prepared = try await read(input, options: options)
     try Task.checkCancellation()
     let format = try prepared.image != nil ? DocumentFormat.image : DocumentFormatDetector.detect(
       data: prepared.data, fileName: prepared.fileName, options: options)
@@ -164,7 +164,7 @@ nonisolated public enum DocumentParser {
   }
 
   /// URL 입력만 기준 디렉터리를 보존한다. Data의 파일명은 로컬 참조 그림을 읽을 권한이 아니다.
-  private static func read(_ input: DocumentInput, options: DocumentParserOptions) throws
+  private static func read(_ input: DocumentInput, options: DocumentParserOptions) async throws
     -> PreparedInput {
     switch input {
     case .data(let data, let fileName):
@@ -182,7 +182,8 @@ nonisolated public enum DocumentParser {
         data: Data(), fileName: nil, baseDirectory: nil, image: (image, orientation))
     case .url(let url):
       do {
-        let data = try DocumentInputReader.read(url, maximumBytes: options.maximumInputBytes)
+        let data = try await DocumentInputReader.read(
+          url, maximumBytes: options.maximumInputBytes)
         return PreparedInput(
           data: data,
           fileName: url.lastPathComponent,

@@ -151,6 +151,29 @@ final class FileInputRegressionTests: XCTestCase {
     }
   }
 
+  func testURLCancellationBeforeReadingLeavesSourceAndSnapshotsUnchanged() async throws {
+    let directory = try Self.makeDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let source = directory.appendingPathComponent("cancel-before-read.txt")
+    let bytes = Data("입력 읽기 전 취소 Cancel before read".utf8)
+    try bytes.write(to: source)
+    let before = try Self.snapshotDirectories()
+    let progress = TestProgress()
+    let task = Task {
+      try await DocumentParser.parse(.url(source)) { event in
+        progress.append(event)
+        if event.phase == .identifying { withUnsafeCurrentTask { $0?.cancel() } }
+      }
+    }
+    do {
+      _ = try await task.value
+      XCTFail("URL 읽기 전 취소를 무시했습니다.")
+    } catch { XCTAssertEqual(error as? DocumentParsingError, .cancelled) }
+    XCTAssertEqual(progress.values.map(\.phase), [.identifying, .cancelled])
+    XCTAssertEqual(try Data(contentsOf: source), bytes)
+    XCTAssertEqual(try Self.snapshotDirectories(), before)
+  }
+
   func testURLCancellationAfterReadingLeavesNoSnapshots() async throws {
     let directory = try Self.makeDirectory()
     defer { try? FileManager.default.removeItem(at: directory) }
