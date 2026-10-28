@@ -90,7 +90,7 @@ xcodebuild test -scheme OmniParser \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 최신 **Release 회귀 74개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 58파일·위반 0건입니다. 요청별 한영 옵션은 자체 생성 PDF의 그림·전체 페이지 OCR과 TIFF 두 프레임에서도 확인했습니다. OCR·그림 추출을 켜고 기본 언어 모드를 사용한 65문서 대조에서도 텍스트·위치·순서·OCR·경고·그림 픽셀이 보존됐습니다. 이전 48개 회귀로 새 버전 소비 프로젝트의 빌드와 재빌드 Office 엔진도 확인했습니다.
+기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 최신 **Release 회귀 77개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 61파일·위반 0건입니다. 요청별 언어 옵션, PDF의 그림·전체 페이지 OCR, TIFF 두 프레임, HWPX에서 같은 그림을 여러 문단·표 셀에 배치한 경우도 확인했습니다. OCR·그림 추출을 켠 기본 언어의 65문서 대조에서는 텍스트·위치·순서·OCR·경고·그림 픽셀이 같았습니다. PNG 원시 바이트는 한 입력이 달라 64/65였고, 차이와 후속 진단을 검증 기록에 보존했습니다. 이전 48개 회귀로 새 버전 소비 프로젝트의 빌드와 재빌드 Office 엔진도 확인했습니다.
 
 실기기 32개 통과와 과거 대용량 기록은 이전 동기 OCR 코드의 결과입니다. 최신 실기기 검증은 아직 하지 않았습니다. [Release 배치·URL/Data·QoS 검증](Documentation/RELEASE_MEMORY_2026-10-28.md)에 앞선 메모리·QoS 비교를 기록했습니다. 대용량 URL 입력의 footprint 절감은 확인했지만 작은 배치의 추가 메모리 절감은 확보하지 못했습니다. [입력 Reader의 앞선 Debug 검증](Documentation/BATCH_MEMORY_2026-10-28.md), [오픈소스 후속 검증과 65문서 대조](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md), 과거 [대용량 기록](Documentation/LOCAL_REVIEW_2026-10-27.md)·[RTF 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)·[XLS 전환](Documentation/XLS_CHART_FIX.md)은 당시 결과로 보존합니다.
 
