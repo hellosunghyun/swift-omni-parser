@@ -169,6 +169,30 @@ xcodebuild build -scheme OmniParser -jobs 2 \
   -skipMacroValidation -packageAuthorizationProvider netrc CODE_SIGNING_ALLOWED=NO
 ```
 
+## 후속 언어 전달 회귀
+
+요청별 한영 옵션의 직접 CGImage 검사에 자체 생성 PDF·TIFF 회귀 2개를 추가했다. PDF는 같은 2페이지 문서의 그림 OCR과, PNG 예산 1바이트로 보관 실패를 유도한 전체 페이지 OCR 복구 경로를 구분한다. 그림의 part 유무·위치 경고, 페이지별 CER·읽기 순서·신뢰도·전체 텍스트 일관성을 확인한다. TIFF는 서로 다른 한영 마커를 넣은 두 프레임을 프레임 순서·페이지 위치와 함께 검사한다.
+
+최신 패키지 Release 테스트는 **74개 통과·실패/skip·runtime warning 0건**, 명령 wall 112.483초다. 실행 당시 소스·테스트 57파일 해시와 현재 파일이 같고 strict lint 58파일도 통과했다. 제품 소스·옵션의 기본값·의존성은 바꾸지 않았다. 앞선 generic 빌드 이후의 Swift 변경은 테스트 파일뿐이다.
+
+Office·HWP·HTML·RTF도 정적 호출 경로에서는 같은 TaskLocal 풀을 사용한다. 다만 이번의 명시 언어 형식별 런타임 회귀에 포함하지 않았고, 앞선 기본 언어 65문서 대조로 이 공백을 대신하지 않는다.
+
+## 최고점 시계열 진단
+
+제품 밖의 고정 호스트에서 양변에 같은 계측을 넣어 V1→V2→V2→V1을 실행했다. 4개 테스트가 모두 통과했고 예열 4회·측정 12회의 전체 결과 지문은 기존 69블록·그림/경고 0개와 같았다. 타임라인 4,988행과 메모리 샘플 4,236개를 보존했다. 네 실행의 wall 합계는 206.456초이며 진단 준비·확인 간격과 구분한다.
+
+측정 12회의 footprint 최고 샘플은 모두 JPEG와 PDF의 Vision `request.perform` 시작·종료 마커 사이에 있었다. PDF 그림 OCR 구간 4회, 전체 페이지 OCR 구간 8회였다. 이는 두 비동기 요청의 대기 구간이 겹친다는 관측이지 내부 네이티브 커널이 같은 순간 실행됐다는 증거가 아니다. 숫자 보완·블록 변환의 구간과도 구분했다.
+
+실제 샘플 간격 중앙값은 4.971ms, 최대는 118.282ms였다. 같은 Mutex 안에서 메모리를 조회해 이벤트 기록이 지연될 수 있으며 순간 최고점을 놓칠 수 있다. 계측은 시점·수명을 바꾸므로 진단의 footprint 중앙값 V1 194.60→V2 186.46MiB를 정상 성능 결과나 기존 증가가 해결됐다는 증거로 사용하지 않는다. 네이티브 할당 주체는 이 시계열만으로 확정하지 않았다.
+
+### 현재 코드의 네이티브 할당 스택
+
+이후 외부 V2의 같은 진단 호스트를 cached Release로 한 번 빌드하고, 해당 테스트 프로세스에만 MallocStackLogging을 적용했다. warmup 완료를 확인한 뒤 measured 1회차의 높은 메모리 시점(문턱 180MiB, 관측 180.096MiB)을 캡처했다. PID·UID·시작 시각·앱 container·실행 파일 해시를 검증하고 독립 재개 watchdog과 finally를 사용했다. 약 6.195초 뒤 앱을 재개했으며 캡처·테스트 모두 exit 0이었다.
+
+JPEG OCR과 PDF 그림 OCR의 Vision 요청 마커 사이에서, CoreML 모델 준비 → Espresso `allocate_blobs` → `blob_cpu::resize` → `posix_memalign` 스택을 직접 확인했다. 가장 큰 그룹은 28회 할당·97.156MiB, 별도 그룹은 4회·37.563MiB였다. 분류별 CoreML·Espresso 집계는 서로 겹치므로 합산하거나 footprint 기여율로 계산하지 않는다. 각 그룹이 어느 문서 하나에 속하는지는 식별하지 못했다.
+
+이것은 현재 코드의 높은 메모리 구간에서 native 작업 저장소를 확인한 근거다. 절대 최고점의 캡처나 앞선 V1/V2 +15.93MiB 차이의 인과적 원인, 누수·속도 개선의 증거는 아니다. 진단의 measured 3회 모두 기존 69블록·그림/경고 0개와 전체 의미 지문이 같았고 실제 테스트 1개 통과·runtime warning 0건이었다. raw 할당 스택 68,310,619바이트는 Git 밖에 보존했다. 본문·메모리 content를 출력하지 않았다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -178,10 +202,13 @@ xcodebuild build -scheme OmniParser -jobs 2 \
 - `PDFOverlapV2/TRACE_RESULTS.json`, `PDFOverlapV2/BENCH_RESULTS.json`: 같은 영역의 호출 수와 대상 프로필 40표본 ABBA. 일반 작은 배치·서로 다른 그림은 포함하지 않았다.
 - `V2FaultVerified/RESULTS.json`: 실패·빈 결과·취소·성공 재사용 5개와 기본 인식 경로 6개, 실제 발견 수·warning·소스/컴파일 근거.
 - `MainFinal/`: 최종 Release 72개 결과·111.799초 wall·소스/테스트 57파일 SHA.
+- `MainCrossFormatLanguage/`: PDF 그림·페이지 복구와 TIFF 두 프레임을 포함한 최신 Release 74개·112.483초·소스 지문.
 - `MainFinal/generic-build.metadata.json`: 일반 Simulator 빌드 전체 인자·12.064초 wall. arm64·x86_64 통과·경고 0.
 - `FinalDefaultCorpus65/CorpusComparison.json`: OCR·그림 추출을 켠 기본 언어 모드의 65문서 semantic·PNG·메타데이터 대조와 원본 지문·실제 테스트 수·196.464초 wall.
 - `FinalV2ABBA/RESULTS.json`: 최종 소스의 일반 작은 배치·서로 다른 그림 16개 ABBA 40표본, 전체 출력·PNG 대조와 환경 간섭 기록.
 - `FinalV2ABBA/MEM_PATTERN.json`: 작은 배치의 파싱 전·최고점·결과 보관·해제 후 수치와 시계열 부재의 한계.
+- `PeakTimeline/ANALYSIS.json`, `Results/*-timeline.jsonl`: 12개 측정의 최고점과 요청 대기 구간, 실제 샘플 간격·계측 영향. `PROOF.json`·소스/자산 해시도 보존했다.
+- `FinalV2ABBA/PeakAllocationPrep/CaptureV2Owner/FINAL_RUNTIME_REPORT.json`: 현재 V2의 measured 높은 메모리 시점·OCR 마커 상관·직접 할당 스택·실제 출력 지문. 외부 cached build는 15.045초, 앱 동결 구간의 경과 시간은 성능 비교에서 제외했다.
 - `KoreanLineInvestigation/accuracy-matrix.json`: 한영 2×2·언어 순서·고정 픽셀과 정답 CER.
 - `AutoLanguageComparison/SmallResults.json`: 작은 배치 20표본·컴파일·환경·문서별 변화.
 - `EnglishModeComparison/EnglishModeResults.json`: 실제 요청별 모드 ABBA·JPEG 부분 정답·컴파일·환경·32회 회귀.
