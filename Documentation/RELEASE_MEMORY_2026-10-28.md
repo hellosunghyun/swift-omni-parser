@@ -36,6 +36,21 @@ Reader의 대용량 ABBA 비교는 최대 footprint −10.73%, 시간 +0.33%였�
 
 20표본의 semantic과 69블록·경고 0개가 같고, 모든 실행의 runtimeWarnings는 비어 있었다. 최대 footprint 차이는 −0.48%지만 peak 중앙값은 +2.80%, 최대 RSS는 +1.81%였다. 따라서 **작은 배치의 추가 메모리 절감은 확인하지 못했다.** 이번 교차 확인에서 시간 중앙값은 −7.30%였으나, 공유 Mac의 한 체인이므로 모든 환경의 속도 향상으로 일반화하지 않는다. QoS 수정과 메모리 절감 판단을 구분한다.
 
+## 동시 문서 1·2의 메모리·시간 절충
+
+`efb014d`의 소스와 같은 프로젝트·헬퍼·97개 자산을 고정하고 작은 PDF·JPEG·DOCX 3문서를 동시 1→2→2→1 순서로 비교했다. 각 실행은 예열 1회와 측정 5회로 설정별 10표본, 전체 20표본이다. 앞과 같은 iPhone 17 / iOS 27.0 Simulator에서 실제 `-O`·Swift 5·WMO를 확인했고, footprint·RSS를 양쪽 모두 5ms마다 읽었다. 이전 20ms 결과와 합산하지 않았다.
+
+`maximumConcurrentDocuments` 외에는 설정을 바꾸지 않았다. OCR은 켜고 그림 반환은 껐으며, PDF 동시 페이지 10·작업 예산 256MiB·이미지 한도 4,000만 픽셀을 유지했다. 실행마다 같은 SourceSnapshot을 보존하고, 방법 선택과 고유 결과 경로를 제외한 빌드 명령도 대조했다.
+
+| 동시 문서 | 표본 | 시간 중앙값 | footprint peak 중앙값 | 최대 footprint | 최대 RSS |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | 10 | 2.1936초 | 142.88MiB | 152.47MiB | 440.28MiB |
+| 2 | 10 | 1.3308초 | 200.03MiB | 208.61MiB | 530.55MiB |
+
+동시 1은 최대 footprint가 약 **56.14MiB 낮은 대신 시간 중앙값이 약 0.863초 길었다.** 이는 메모리·속도의 절충이며, **기본값 2는 유지한다.** 20표본 모두 semantic SHA와 문서별 본문·신뢰도·읽기 순서·위치·경고 해시가 정확히 같았고 69블록·경고 0개를 보존했다. 네 실행 모두 exit 0·runtimeWarnings 0건이었다. 이 입력에는 실패 문서가 없고 반환 그림도 0개이므로 부분 실패·그림 픽셀 복원의 새 검증으로 표현하지 않는다.
+
+전체 wall은 141.89초다. 다른 Simulator 재기동은 관측되지 않았지만 공유 Mac의 swap은 8687.44M→8815.38M이었다. 5ms 표본도 순간 최고치나 프로세스 메모리의 상한을 보장하지 않으며, **이 동시성 비교는 실기기에서 검증하지 않았다.** 설정·입력·환경이 다른 문서의 메모리나 속도로 일반화하지 않는다. 원시 표본·문서별 해시·명령·환경·SourceSnapshot은 아래 근거의 `VisionMemoryFollowup/Concurrency12Comparison/`에 보존했다.
+
 ## URL과 Data 입력 비용
 
 사용자가 승인한 자체 생성 12페이지 연구 보고서다. 실제 출판 논문은 사용하지 않았다. 일반 자료는 2,374,173바이트, 그림 많은 자료는 25,187,698바이트다. 각 조건을 URL→Data→Data→URL로 실행해 입력 방식별 10표본, 전체 60표본을 보존했다. 기준 코드는 `19952e1`이다.
@@ -86,6 +101,7 @@ URL 읽기를 구조화된 자식 작업으로 만들고 Default QoS의 전용 c
 | Reader 전후 80페이지 ABBA | 4실행·12표본·동일 semantic/PNG | 약 1,056초 |
 | 최종 I/O 수정 후 성능 재확인 | 작은 배치 5·URL 5·대용량 3표본 | 345.36초 |
 | 최종 작은 배치 5ms 교차 확인 | 4실행·20표본·결과 동일, runtimeWarnings 0 | 135.92초 |
+| 동시 문서 1·2 절충 ABBA | 4실행·20표본·결과 동일, runtimeWarnings 0 | 141.89초 |
 
 벽시계에는 빌드·설치·예열·XCTest·결과 검증이 포함된다. `전체−본문`을 순수 빌드 시간으로 계산하지 않았다. 처음 최종 성능 호스트의 코어가 incremental로 컴파일된 중간 13표본은 보존하고 위 비교에서 제외했다. 이후 코어·테스트 모두 동일한 `-O`·Swift 5·WMO로 다시 실행한 결과만 사용했다.
 
@@ -114,5 +130,6 @@ swiftlint lint --strict
 - `QoSReadFix/`: 후보 8개·제품 57개 xcresult, summary·실행 명령·build·lint와 원본 helper 보존 증거.
 - `SmallBatchMemory/QoSReadFix/WMOComparableRun/`: 최종 source·kit·host·97개 자산·60/20페이지 원본 해시 대조, 컴파일 필드, 전체 성능 표본·환경·wall 기록.
 - `SmallBatchMemory/PairedQoSSmall/`: 5ms 교차 확인의 `PairedResults.json`, `SourceAndCompilerProof.json`, `RunSnapshots/`, `commands.json`, `stage-wall.json`.
+- `VisionMemoryFollowup/Concurrency12Comparison/`: 동시 문서 1·2의 `Concurrency12Results.json`, `OnlyConcurrencyDiffersProof.json`, `RunSnapshots/`, `commands.json`, `stage-wall.json`, 원시 로그·xcresult·환경 기록을 담은 `Results/`.
 
 80페이지 ABBA와 최종 성능 재확인 중 다른 Simulator 재기동은 관측되지 않았지만 공유 Mac의 swap 보유량은 약 8GiB였다. 앞선 URL/Data 정순 단계의 다른 Simulator 관측·종료 기록도 제외하지 않았다. Simulator 한 대라는 사실이 시스템 무부하를 뜻하지 않는다. 실기기·발열·모든 입력의 최대 메모리나 속도를 보장하는 결과가 아니며, 짧은 순간의 최고치는 샘플링에서 놓칠 수 있다.

@@ -87,6 +87,17 @@ OOXML·HWPX는 native 백엔드 진입 전에 ZIP의 모든 항목을 64KiB 버�
 
 배치의 동시 문서 수와 진행 중 PDF 작업 예산은 결과 전체의 메모리 상한이 아니다. 반환 PNG가 많은 배치는 입력을 작은 묶음으로 나눠 소비하고, PNG가 필요 없으면 `extractImages: false`를 유지한다. 결과의 `fullText`·`blocks`를 호출자가 변경한 경우에는 두 값의 일관성도 호출자가 유지해야 한다.
 
+기본 동시 문서 수는 2다. 메모리를 우선할 때만 1로 낮출 수 있다.
+
+```swift
+let memoryFirst = try await DocumentParser.parseBatch(
+  inputs,
+  options: .init(performOCR: true, maximumConcurrentDocuments: 1)
+)
+```
+
+작은 OCR 배치의 Simulator 교차 비교에서는 동시 1의 최대 footprint가 약 56.14MiB 낮은 대신 시간 중앙값이 약 0.863초 길었다. 20표본의 결과는 같았지만 실기기에서는 검증하지 않았다. 입력별 보장값은 아니며, 설정·환경은 [검증 기록](RELEASE_MEMORY_2026-10-28.md#동시-문서-12의-메모리시간-절충)을 확인한다.
+
 ## 오류 반환
 
 단일 `parse`는 외부 백엔드 오류를 포함해 `DocumentParsingError`로 정규화한다. 이미 분류된 열기·형식·크기·암호화 오류는 유지하고, 분류되지 않은 백엔드 오류는 `malformedDocument`, 취소는 `cancelled`로 반환한다. 원문을 포함할 수 있는 외부 오류 메시지를 그대로 노출하지 않는다.
