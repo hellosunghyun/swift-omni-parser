@@ -13,6 +13,39 @@ nonisolated struct DocumentHWPParseContext {
   var binaryItems: [HwpBinaryData] = []
   var descriptions: [UInt32: String] = [:]
   var visitedImages: Set<String> = []
+  /// 성공한 첫 OCR의 블록 범위만 저장하며 픽셀·OCR 배열을 별도로 보관하지 않는다.
+  var imageOCRRanges: [String: Range<Int>] = [:]
+  /// 그림 내부 OCR bounds를 제외한 전체 논리 앵커를 보관한다.
+  private var imageOCRAnchors: [String: Set<ImageOCRAnchor>] = [:]
+
+  nonisolated private struct ImageOCRAnchor: Hashable {
+    let part: String?
+    let page: Int?
+    let row: Int?
+    let column: Int?
+    let paragraph: Int?
+    let rowSpan: Int?
+    let columnSpan: Int?
+
+    init(_ location: DocumentLocation) {
+      part = location.part
+      page = location.page
+      row = location.row
+      column = location.column
+      paragraph = location.paragraph
+      rowSpan = location.rowSpan
+      columnSpan = location.columnSpan
+    }
+  }
+
+  init(options: DocumentParserOptions) {
+    self.options = options
+  }
+
+  /// 사전 저장소를 직접 갱신해 Set의 복사본을 붙잡지 않는다.
+  mutating func insertImageOCRAnchor(_ name: String, location: DocumentLocation) -> Bool {
+    imageOCRAnchors[name, default: []].insert(ImageOCRAnchor(location)).inserted
+  }
 
   mutating func appendSections(_ sections: [HwpSection]) async throws {
     for (sectionIndex, section) in sections.enumerated() {

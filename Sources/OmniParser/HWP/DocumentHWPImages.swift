@@ -54,10 +54,11 @@ extension DocumentHWPParseContext {
       ["jpg", "jpeg", "png", "gif", "bmp", "tif", "tiff"].contains(suffix)
     else { return }
     guard visitedImages.insert(item.name).inserted else {
-      // 같은 그림의 반복 배치는 기록하되 비트맵·OCR은 다시 만들지 않는다.
+      // 그림 배치는 기존대로 남기고 성공한 OCR만 새로운 논리 앵커로 옮긴다.
       if options.extractImages {
         blocks.appendBlock(.image, text: description ?? "", location: location)
       }
+      appendCachedImageOCR(item.name, location: location)
       return
     }
     guard imageAttempts < options.maximumEmbeddedImages,
@@ -78,7 +79,12 @@ extension DocumentHWPParseContext {
       }
       let recognized = try await options.performOCR ? DocumentOCR.recognize(
         image: decoded.image, orientation: decoded.orientation, location: location) : []
+      let start = blocks.count
       blocks.appendInReadingOrder(recognized)
+      if !recognized.isEmpty {
+        imageOCRRanges[item.name] = start..<blocks.count
+        _ = insertImageOCRAnchor(item.name, location: location)
+      }
     } catch is CancellationError {
       throw CancellationError()
     } catch {
@@ -86,6 +92,23 @@ extension DocumentHWPParseContext {
         code: options.performOCR ? .imageOCRFailed : .extractionFailed,
         message: "HWP image could not be decoded or recognized.",
         location: location))
+    }
+  }
+
+  nonisolated private mutating func appendCachedImageOCR(
+    _ name: String, location: DocumentLocation
+  ) {
+    guard let range = imageOCRRanges[name],
+      insertImageOCRAnchor(name, location: location)
+    else { return }
+    // 원본 배열의 slice를 보유하지 않고 첫 성공 범위에서 한 블록씩 복제한다.
+    for index in range {
+      var block = blocks[index]
+      let bounds = block.location.bounds
+      block.location = location
+      block.location.bounds = bounds
+      block.readingOrder = blocks.count
+      blocks.append(block)
     }
   }
 
