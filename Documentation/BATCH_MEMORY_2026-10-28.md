@@ -2,6 +2,8 @@
 
 2026-10-28 · 기준 `64d3a66` → 비공개 입력 스냅샷 Reader · iPhone 17 / iOS 27.0 Simulator
 
+이 문서는 앞선 Debug 실행 기록이다. 같은 날 수행한 후속 Release·URL/Data 교차 확인과 QoS 수정·최종 57개 회귀는 [Release 메모리 검증](RELEASE_MEMORY_2026-10-28.md)에 기록했다.
+
 큰 URL 입력의 힙 복사를 줄였다. 문서·PDF 페이지 동시성, 작업 예산, OCR 언어·해상도, PNG encoder와 공개 API는 유지했다. `.data`·CGImage 입력은 기존 경로다. 아래 수치는 Debug 테스트 호스트의 관측값이며 실기기·Release 결과가 아니다.
 
 ## 원인 조사와 선택
