@@ -373,6 +373,12 @@ OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내�
 
 제품 Sources·Package·기존 테스트/샘플은 앞선 전체 77개 통과 버전과 같고 새 테스트 파일만 추가했다. 이번 선택 실행을 전체 80개 동시 통과로 합산하지 않는다. 공개 옵션·OCR 판단 로직·의존성은 변경하지 않았고 비기본 정책의 숫자 재인식 분기 검증 공백도 유지한다.
 
+## 숫자 회귀 추가 후 전체 검증
+
+후속 전체 Release 실행은 실제 **80개 통과·실패/skip/runtime warning 0건·명령 wall 69.637초**였다. 선택 실행의 테스트 수를 합산한 값이 아니라 하나의 xcresult에서 전체 80개를 확인했다. 실행 중 Sources·Tests·샘플·Package 158파일의 지문이 같았다. 제품·테스트 컴파일은 캐시를 재사용했으므로 새 compiler invocation을 확인했다고 주장하지 않는다. 동일 소스의 앞선 Swift 5·`-O`·WMO 근거와 고정 실행 명령을 함께 보존했다. 이번 로그의 빌드 경고는 0건이며 앞선 새 컴파일의 sysroot·AppIntents 경고 기록을 없애지 않는다. 정상 파싱 속도나 메모리 개선 비교는 아니다.
+
+같은 trace 사본의 추가 UI 검토에서는 텍스트 대신 트랙 컨테이너를 선택해 POI 전환에 성공했다. 하지만 Points 목록·요약 메뉴 제목을 바꿔도 실제 outline은 Regions 요약 12행 집계에 머물렀다. 키보드·실제 메뉴 좌표 선택도 같은 결과여서 메뉴 제목만으로 POI 시각 대조 성공을 주장하지 않는다. 기존 UI 시계 원점의 조건부 상태·고유 요청 귀속 불가를 유지하며 원본 trace 172파일은 그대로다. 새 profile·export는 실행하지 않았다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -421,6 +427,6 @@ OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내�
 
 같은 날짜 루트의 `SharedRequestValueProbe/ExecutionPrep02/FINAL_REPORT.md`·`FINAL_REPORT.json`과 `Results/A1/`·`Results/B1/`에 요청 값 공유 후보의 실제 명령·표본·컴파일·환경·소스 지문을 보존했다. 제품 기준 `fe92ef3`와 문서만 바뀐 `7c3b36d`를 구분했으며 제품·테스트·샘플·패키지 157개 pin은 같았다. 준비·보고서 생성 실패도 별도 기록했다.
 
-같은 날짜 루트의 `NativeLifetimeUI-02/`에는 직접 UI 관찰과 원본 trace 보존, 조건부 POI 대조를 분리했다. `NumericLanguageBranch/`에는 자연 숫자 분기의 기준/trace 실제 실행·언어별 요청 getter·시각 전사 지문·단계 시간과 제품 미변경 근거가 있다. 해당 진단의 테스트 수와 `NumericRegression/`의 제품 회귀 실행 수는 합치지 않는다.
+같은 날짜 루트의 `NativeLifetimeUI-02/`에는 직접 UI 관찰과 원본 trace 보존, 조건부 POI 대조를 분리했다. `NumericLanguageBranch/`에는 자연 숫자 분기의 기준/trace 실제 실행·언어별 요청 getter·시각 전사 지문·단계 시간과 제품 미변경 근거가 있다. 해당 진단의 테스트 수와 `NumericRegression/`의 제품 회귀 실행 수는 합치지 않는다. `MainNumeric80/`에는 후속 전체 80개 실행의 명령·xcresult·소스 지문이, `NativeLifetimeUI-03/RESULT.json`에는 POI 트랙 선택과 실제 표 전환 실패를 구분한 후속 관찰이 있다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
