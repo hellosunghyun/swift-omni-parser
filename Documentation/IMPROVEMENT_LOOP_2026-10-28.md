@@ -205,6 +205,14 @@ JPEG OCR과 PDF 그림 OCR의 Vision 요청 마커 사이에서, CoreML 모델 �
 
 공통 진단 JSON·정규식 작업이 측정 구간에 포함돼 시간·메모리 수치를 정상 성능으로 사용하지 않는다. 출력 보존에 실패해 추가 ABBA·74개 회귀·65문서·codec·취소 검증은 실행하지 않았다. 실패 결과·후보 패치는 Git 밖에 보존했다.
 
+## PDF 비트맵 저장소 대안 — 적용 보류
+
+현재 캡처의 `DocumentPDFPageSpace.render` → `CGBitmapContextCreateImage` → `CGDataProviderCreateWithCopyOfData` → `create_protected_copy` → `mmap` 경로에는 3회·약 7.406MiB의 저장소 그룹이 있었다. 이는 렌더 결과의 저장소 생성 스택이며 물리 복사·동시에 살아 있는 두 벌의 dirty 픽셀·중복 footprint의 증거는 아니다.
+
+[Apple 문서](https://developer.apple.com/documentation/coregraphics/cgcontext/makeimage%28%29?language=objc)와 설치 SDK 헤더는 일부 snapshot이 COW로 동작해 context 수정 때 실제 복사가 생길 수 있다고 설명한다. 현재 코드는 snapshot 이후 context를 다시 수정하지 않고 OCR에 context를 넘기지도 않는다. 직접 소유한 Data/CFData 버퍼로 바꿔도 절감이 0이거나 브리지 복사가 추가될 수 있다.
+
+따라서 제품 치환은 보류했다. 살아 있는 CGContext를 이미지 provider의 owner로 보관하는 방식도 PDFKit·가변 상태의 수명을 OCR 작업에 넘길 수 있어 제외한다. 기존 자동 stride·이미지 보간·rendering intent의 실제 값과 독립 이미지 수명을 먼저 조회하는 단계이며, 확인 전에는 추정값으로 치환하거나 7.4MiB 절감을 주장하지 않는다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -229,5 +237,6 @@ JPEG OCR과 PDF 그림 OCR의 Vision 요청 마커 사이에서, CoreML 모델 �
 - `RecognizeDocumentsPrototype/Results-Accuracy-v2-01/`: 문서 인식 API의 4개 실제 테스트·28개 기록·원시 지문·단계 시간. 선검사와 실패 실행도 별도 보존했다.
 - `RecognizeDocumentsPrototype/actual-pixel-comparison-v2.json`, `ACCURACY_V2_SUMMARY.json`: 4입력의 실제 픽셀 대조, CER·부분 정답과 중첩 컨테이너 포함 검사 한계.
 - `EncodedInputCandidate/ParityAB-01/RESULTS.json`: 실제 Data 분기·JPEG의 필드별 변화·원 실행 중 부분 정답·미채택 판단과 미실행 항목.
+- `OwnedPDFBitmapCandidate/REVIEW.md`, `METADATA_GATES.json`: COW·소유권·실패 경계 검토와 제품 치환 보류. 실제 메타데이터 조회는 별도 후속 단계다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
