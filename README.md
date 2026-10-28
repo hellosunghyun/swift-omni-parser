@@ -92,6 +92,8 @@ xcodebuild test -scheme OmniParser \
 
 실기기 32개 통과와 과거 대용량 기록은 이전 동기 OCR 코드의 결과입니다. 최신 실기기 검증은 아직 하지 않았습니다. [Release 배치·URL/Data·QoS 검증](Documentation/RELEASE_MEMORY_2026-10-28.md)에 최신 결과를 기록했습니다. 대용량 URL 입력의 footprint 절감은 확인했지만 작은 배치의 추가 메모리 절감은 확보하지 못했습니다. [입력 Reader의 앞선 Debug 검증](Documentation/BATCH_MEMORY_2026-10-28.md), [오픈소스 후속 검증과 65문서 대조](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md), 과거 [대용량 기록](Documentation/LOCAL_REVIEW_2026-10-27.md)·[RTF 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)·[XLS 전환](Documentation/XLS_CHART_FIX.md)은 당시 결과로 보존합니다.
 
+[Vision 단독 메모리 재현 예제](Documentation/VISION_MEMORY_REPRODUCTION.md)는 자체 생성 이미지로 OCR 동시성 1·2를 비교합니다. 별도 XCTest 타깃에 복사해 실행하며 제품이나 기본 CI 테스트에는 포함하지 않습니다.
+
 PR·main 푸시의 자동 검사에는 `.github/workflows/verification.yml`을 사용합니다. 실제 GitHub 실행은 다음 푸시 이후 확인해야 합니다. [기여 안내](CONTRIBUTING.md)와 [보안 제보](SECURITY.md)에 검증·샘플 제출 기준을 적었습니다.
 
 ## 의존성과 라이선스
