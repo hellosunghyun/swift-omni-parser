@@ -3,6 +3,7 @@ import CoreText
 import Foundation
 import ImageIO
 import OmniParser
+import UniformTypeIdentifiers
 import XCTest
 
 /// 원래 실패했던 같은 행의 한영 문구를 공개 파싱 API와 자체 생성 픽셀로 검증한다.
@@ -66,6 +67,62 @@ final class MixedLanguageOCRRegressionTests: XCTestCase {
     TestFixtures.assertTextConsistency(after)
   }
 
+  // 이 자체 생성 두 형식의 회귀이며 모든 PDF·TIFF의 인식 품질을 보장하지 않는다.
+  func testKoreanEnglishPolicyAppliesToPDFImageAndPageOCR() async throws {
+    let lines = mixedLines(page: false)
+    let receipt = try image(page: false, lines: lines)
+    let bytes = NSMutableData()
+    let consumer = try XCTUnwrap(CGDataConsumer(data: bytes))
+    // PDF의 기본 2배 렌더링이 기존 영수증의 픽셀 크기를 유지한다.
+    var box = CGRect(x: 0, y: 0, width: receipt.width / 2, height: receipt.height / 2)
+    let context = try XCTUnwrap(CGContext(consumer: consumer, mediaBox: &box, nil))
+    for _ in 0..<2 {
+      context.beginPDFPage(nil)
+      context.draw(receipt, in: box)
+      context.endPDFPage()
+    }
+    context.closePDF()
+    for limitedImages in [false, true] {
+      var options = DocumentParserOptions(performOCR: true, maximumConcurrentPDFPages: 2,
+                                         ocrLanguage: .koreanAndEnglish)
+      if limitedImages {
+        // PNG 보관 실패는 그림 OCR 작업을 만들지 않고 전체 페이지 OCR로 복구한다.
+        options.extractImages = true
+        options.maximumExpandedBytes = 1
+      }
+      let result = try await DocumentParser.parse(.data(bytes as Data, fileName: "mixed.pdf"),
+                                                   options: options)
+      try assertPagedOCR(result, format: .pdf, expected: [lines, lines],
+                         markers: [["INVOICE", "영수증"], ["INVOICE", "영수증"]])
+      XCTAssertEqual(result.warnings.count, limitedImages ? 2 : 0)
+      XCTAssertTrue(result.warnings.allSatisfy {
+        $0.code == .resourceLimitReached && [1, 2].contains($0.location?.page ?? 0)
+      })
+      // 그림 OCR에는 XObject part가 있고 전체 페이지 OCR에는 part가 없다.
+      XCTAssertTrue(result.blocks.allSatisfy {
+        limitedImages ? $0.location.part == nil : $0.location.part != nil
+      }, "PDF 그림 OCR과 전체 페이지 OCR의 위치가 구분되지 않습니다.")
+    }
+  }
+
+  func testKoreanEnglishPolicyAppliesToEachTIFFFrame() async throws {
+    var frames = [mixedLines(page: false), mixedLines(page: false)]
+    frames[1][0] = "RESEARCH MARKER 연구"
+    let bytes = NSMutableData()
+    let destination = try XCTUnwrap(CGImageDestinationCreateWithData(
+      bytes, UTType.tiff.identifier as CFString, frames.count, nil))
+    for lines in frames {
+      CGImageDestinationAddImage(destination, try image(page: false, lines: lines),
+        [kCGImagePropertyOrientation: CGImagePropertyOrientation.up.rawValue] as CFDictionary)
+    }
+    XCTAssertTrue(CGImageDestinationFinalize(destination))
+    let result = try await DocumentParser.parse(.data(bytes as Data, fileName: "mixed.tiff"),
+      options: .init(performOCR: true, ocrLanguage: .koreanAndEnglish))
+    try assertPagedOCR(result, format: .tiff, expected: frames,
+                       markers: [["INVOICE", "영수증"], ["RESEARCH", "연구"]])
+    XCTAssertTrue(result.warnings.isEmpty)
+  }
+
   private func assertMixedText(page: Bool) async throws {
     let lines = mixedLines(page: page)
     let image = try image(page: page, lines: lines)
@@ -100,6 +157,44 @@ final class MixedLanguageOCRRegressionTests: XCTestCase {
     XCTAssertTrue(zip(boxes, boxes.dropFirst()).allSatisfy { earlier, later in
       earlier.midY <= later.midY + min(earlier.height, later.height) / 2
     }, "단일 열의 읽기 순서가 위에서 아래로 이어지지 않습니다.")
+    for block in result.blocks {
+      let confidence = try XCTUnwrap(block.ocrConfidence)
+      XCTAssertTrue(confidence.isFinite && (0...1).contains(confidence))
+      let bounds = try XCTUnwrap(block.location.bounds)
+      XCTAssertTrue(bounds.minX.isFinite && bounds.minY.isFinite)
+      XCTAssertTrue(bounds.width.isFinite && bounds.height.isFinite)
+      XCTAssertGreaterThan(bounds.width, 0)
+      XCTAssertGreaterThan(bounds.height, 0)
+      XCTAssertGreaterThanOrEqual(bounds.minX, 0)
+      XCTAssertGreaterThanOrEqual(bounds.minY, 0)
+      XCTAssertLessThanOrEqual(bounds.maxX, 1.000001)
+      XCTAssertLessThanOrEqual(bounds.maxY, 1.000001)
+    }
+  }
+
+  /// 페이지별 원문을 비교하며 직접 CGImage의 형식·전역 행 좌표 전제를 사용하지 않는다.
+  private func assertPagedOCR(
+    _ result: DocumentParseResult, format: DocumentFormat,
+    expected: [[String]], markers: [[String]]
+  ) throws {
+    XCTAssertEqual(result.format, format)
+    XCTAssertTrue(result.images.isEmpty)
+    XCTAssertFalse(result.blocks.isEmpty)
+    XCTAssertTrue(result.blocks.allSatisfy { $0.kind == .imageOCR })
+    let pages = try result.blocks.map { try XCTUnwrap($0.location.page) }
+    XCTAssertEqual(pages, pages.sorted())
+    XCTAssertEqual(Set(pages), Set(1...expected.count))
+    for (index, lines) in expected.enumerated() {
+      let text = result.blocks.filter { $0.location.page == index + 1 }
+        .map(\.text).joined(separator: "\n")
+      for marker in markers[index] {
+        XCTAssertTrue(normalized(text).contains(normalized(marker)),
+                      "페이지 \(index + 1)의 한영 마커가 없습니다.")
+      }
+      XCTAssertLessThanOrEqual(characterErrorRate(lines.joined(separator: "\n"), text), 0.01,
+                              "페이지 \(index + 1)의 CER가 1%를 초과했습니다.")
+    }
+    TestFixtures.assertTextConsistency(result)
     for block in result.blocks {
       let confidence = try XCTUnwrap(block.ocrConfidence)
       XCTAssertTrue(confidence.isFinite && (0...1).contains(confidence))
