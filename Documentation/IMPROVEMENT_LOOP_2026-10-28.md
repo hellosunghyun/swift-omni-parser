@@ -245,6 +245,16 @@ A/B 기능 비교는 각 2개씩 총 4개 테스트가 통과했다. 6사례의 
 
 `CGDataProvider(dataInfo:data:size:releaseData:)`로 Data/CFData를 없애는 대안도 정적으로 검토했다. 정상 수명의 해제 callback은 제공하지만 nil 생성 실패 때 callback의 책임까지 SDK 헤더만으로 확정하지 못했다. 해제 상태 관리가 추가되고 메모리 이득도 미검증이라 별도 런타임이나 제품 변경으로 이어가지 않았다.
 
+## CPU 명시 선택 후보 — 미채택
+
+별도 외부 복제본의 `DocumentOCR.makeRequest` 한 파일에만 6줄을 넣어, 지원 목록에 CPU가 있으면 main compute stage에 지정했다. 언어·자동 감지·revision·정확도·숫자 보완·이미지 입력·동시성·해상도는 유지했다. 제품의 자동 장치 선택은 바꾸지 않았다.
+
+A→B 두 실행에서 실제 4개 테스트가 통과했고 실패/skip/runtime warning은 0건이었다. 각 예열 1회 후 5회씩 총 10표본의 전체 의미 지문은 기존 69블록·그림/경고 0개와 같았다. 실제 OCR 비교는 기본 `.automatic` 모드다. 측정 밖의 별도 설정 조회에서 세 언어 모드 모두 B의 main 설정이 CPU임을 확인했지만, 실제 모든 커널의 실행 장치를 추적한 것은 아니다. 자동 미지정인 A를 CPU라고 해석하지 않는다.
+
+파싱 시간 중앙값은 1.146→1.225초(+6.88%), peak footprint는 197.737→206.956MiB(+4.66%), peak RSS는 528.406→529.328MiB(+0.17%)였다. CLI 전체 wall은 A 96.369초·B 20.721초로 빌드 차이가 포함돼 파싱 속도로 비교하지 않는다. 실제 Swift 5·`-O`·WMO, 소스 지문과 공유 Mac 환경을 보존했다. 외부 호스트의 manifest 빌드에 나온 기존 clang sysroot 경고 A 5건·B 1건은 런타임 경고 0건과 구분해 원문에 남겼다.
+
+초기 A/B의 순서·캐시·환경 영향이 있어 CPU 선택의 보편적인 인과 효과로 단정하지 않는다. 이번 관측은 메모리·속도 이득을 뒷받침하지 않아 미채택으로 정리했고 추가 BA/ABBA·74개 회귀·65문서 검증은 실행하지 않았다. 실기기에서 자동 장치 선택 대신 CPU를 강제했을 때의 속도·전력·출력도 미검증이며, 이 Simulator 결과로 제품의 장치 정책을 바꾸지 않는다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -275,5 +285,6 @@ A/B 기능 비교는 각 2개씩 총 4개 테스트가 통과했다. 6사례의 
 - `OwnedPDFBitmapCandidate/PerfABBA-01/`: 무계측 후보의 정상 ABBA 20표본, 프로세스별 편차·속도·footprint·RSS와 미확정 판정.
 - `OwnedPDFBitmapCandidate/OwnershipDiagnostics/Execution-01/`, `Execution-02/`: 첫 실행의 인자 오류·0테스트 실패와 새 실행의 실제 3개 소유권·실패·취소 테스트, source proof·해제 event. 본문·픽셀 로그는 남기지 않았다.
 - `OwnedPDFBitmapCandidate/WithinProcessPrep/Execution-02/`: 동일 프로세스 교차 10쌍·20표본, 양 분기 예열 도달·전체 출력 지문, 모든 쌍의 차이·순서 효과. `Execution-01/`의 문서 변경 감지로 시작 전 중단된 기록도 보존했다.
+- `CPUSelectionCandidate/RESULTS.json`: 초기 A/B 10표본·실제 4개 테스트, 언어별 장치 설정과 전체 의미 지문·컴파일 근거, 빌드 wall과 파싱 시간·환경·미채택 판단.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
