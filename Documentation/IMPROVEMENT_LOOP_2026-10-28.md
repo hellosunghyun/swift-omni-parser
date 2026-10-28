@@ -379,6 +379,21 @@ OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내�
 
 같은 trace 사본의 추가 UI 검토에서는 텍스트 대신 트랙 컨테이너를 선택해 POI 전환에 성공했다. 하지만 Points 목록·요약 메뉴 제목을 바꿔도 실제 outline은 Regions 요약 12행 집계에 머물렀다. 키보드·실제 메뉴 좌표 선택도 같은 결과여서 메뉴 제목만으로 POI 시각 대조 성공을 주장하지 않는다. 기존 UI 시계 원점의 조건부 상태·고유 요청 귀속 불가를 유지하며 원본 trace 172파일은 그대로다. 새 profile·export는 실행하지 않았다.
 
+## 비기본 숫자 재인식의 내부 언어 전달
+
+공개 비기본 parse에서 자연 분기가 0회인 경우와 내부 요청 설정의 검증 공백을 구분했다. 같은 대출 계산기 픽셀에서 실제 automatic Vision 관찰 33개를 한 번 얻고, 대상 3개를 포함한 원래 배열을 값 변경 없이 `DocumentNumericOCR.refine`에 전달했다. TaskLocal 풀만 한영·영어로 각각 고정했으며 private 공개·제품 hook·Codable 조작은 없다.
+
+| 내부 refine 정책 | 실제 대상 | 완료 cutoff | 실제 요청 성공/실패 | 채택 보완 |
+| --- | ---: | --- | ---: | ---: |
+| koreanAndEnglish | 3 | 150·140·160 | 3/0 | 0 |
+| english | 3 | 150·140·160 | 3/0 | 2 |
+
+두 정책 모두 실제 getter에서 해당 언어 목록·자동 감지 off·revision 3·최소 높이 0·accurate·언어 보정과 빈 customWords를 확인했다. 사용한 관찰 필드의 지문과 canonical 픽셀도 전후 같았다. primary 1회와 숫자 요청 6회로 Vision 호출 7회 상한을 지켰다. 외부 실제 XCTest 1개 통과·실패/skip/runtime warning 0건, 외부 사본의 제품·테스트 실제 컴파일에서 Swift 5·`-O`·WMO·testability를 확인했다. 명령·후처리 wall은 111.081초, XCTest 본문은 5.521초다.
+
+이는 내부 함수가 TaskLocal 언어를 실제 요청에 전달하는 계약의 검증이다. 비기본 정책으로 인식한 primary가 같은 자연 혼동을 낸 공개 parse의 증거는 아니므로 앞선 자연 분기 미검증 상태를 대체하지 않는다. 정책별 보완 수 차이도 보편 정확도·금액 정답의 우열로 해석하지 않는다. 정상 파싱 성능·메모리 개선은 측정하지 않았고 제품 소스·80개 회귀에는 이 진단을 추가하지 않았다.
+
+기존 작은 배치 원자료도 요청 수의 집계 단위를 재확인했다. PeakTimeline은 배치당 JPEG 1회·PDF 그림 1회·PDF 페이지 1회이며 DOCX의 OCR은 0회다. warmup과 measured 한 번씩을 합친 6회와 배치당 호출을 혼동하지 않는다. 반환 그림 두 개의 canonical 지문은 다르지만 실제 OCR 직전 입력의 지문이 아니므로 세 요청의 입력 중복 유무까지 입증하지 않는다. 추가 캐시를 적용할 근거로 쓰지 않는다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -428,5 +443,7 @@ OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내�
 같은 날짜 루트의 `SharedRequestValueProbe/ExecutionPrep02/FINAL_REPORT.md`·`FINAL_REPORT.json`과 `Results/A1/`·`Results/B1/`에 요청 값 공유 후보의 실제 명령·표본·컴파일·환경·소스 지문을 보존했다. 제품 기준 `fe92ef3`와 문서만 바뀐 `7c3b36d`를 구분했으며 제품·테스트·샘플·패키지 157개 pin은 같았다. 준비·보고서 생성 실패도 별도 기록했다.
 
 같은 날짜 루트의 `NativeLifetimeUI-02/`에는 직접 UI 관찰과 원본 trace 보존, 조건부 POI 대조를 분리했다. `NumericLanguageBranch/`에는 자연 숫자 분기의 기준/trace 실제 실행·언어별 요청 getter·시각 전사 지문·단계 시간과 제품 미변경 근거가 있다. 해당 진단의 테스트 수와 `NumericRegression/`의 제품 회귀 실행 수는 합치지 않는다. `MainNumeric80/`에는 후속 전체 80개 실행의 명령·xcresult·소스 지문이, `NativeLifetimeUI-03/RESULT.json`에는 POI 트랙 선택과 실제 표 전환 실패를 구분한 후속 관찰이 있다.
+
+`NumericNondefaultPreparation-01/Run-01/`의 `contract-gate.json`·`FINAL_REPORT.json`에는 내부 비기본 숫자 요청의 실제 getter·분기·관찰/픽셀 불변·컴파일·7회 호출 상한을 보존했다. root의 앞선 문서 변경을 과도한 clean 가드가 거부한 준비 실패는 실행 전 상태로 별도 보존했다. 실제 진단 실행은 한 번이며 자동 재시도하지 않았다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
