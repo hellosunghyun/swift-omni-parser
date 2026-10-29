@@ -412,7 +412,7 @@ arm64 최초 기록기는 실제 target별 완료 문구를 일반 `Build comple
 
 후속으로 기존 NativeLifetime 기록의 phase10/stage1에서 실제 pool 인수의 크기를 확인했다. JPEG 780×326, PDF 그림 1440×403, PDF 페이지 1584×1224로 배치 안의 세 크기가 모두 다르며 다음 measured 배치도 같은 크기였다. 이 값은 이후 `request.perform`에 전달한 같은 CGImage 인수에서 읽었고 반환 PNG의 크기가 아니다. 해당 기록의 source와 현재 코드에서 관련 runtime 27파일·Package 2파일, 세 fixture 지문도 같았다. 이 입력들의 배치 내 정확한 CGImage 반복은 배제할 수 있어 새 SHA 계측 준비를 중단했고 빌드·OCR은 실행하지 않았다. 준비 파일과 초기 과도한 clean 가드의 실행 전 실패는 보존했다. 시각 내용·리사이즈 동등성·배치 간 픽셀 동일성이나 캐시 효과까지 판정한 것은 아니다.
 
-## 정수 픽셀 전체 영역 후보 — 기능 검증, 제품 미적용
+## 정수 픽셀 전체 영역 후보 — 기능 검증 후 성능 대조, 미채택
 
 다른 후보로, 논리 bounds에 미세한 여백이 있어도 `.integral` crop은 전체 페이지와 같을 수 있는 경우를 확인했다. 외부 사본의 private helper와 호출부 두 파일만 바꿨다. 같은 페이지 crop의 크기가 페이지와 같고 유효한 비공백 OCR 텍스트가 있을 때 이 확장 영역의 두 번째 전체 페이지 OCR을 생략한다. 기존 exact-full의 빈 결과 처리와 `successfulRegions`는 유지하며 신규 확장의 빈 배열·빈 문자열·공백·오류는 원래 페이지 fallback을 유지한다. 취소도 그대로 전파한다.
 
@@ -424,7 +424,24 @@ arm64 최초 기록기는 실제 target별 완료 문구를 일반 `Build comple
 
 외부 runner 한 번에서 baseline·candidate를 직렬로 실행해 각 XCTest 2개, 전체 4개가 통과했다. 실패/skip/runtime warning은 0건이다. 실제 Vision은 baseline 5회·candidate 4회, 주입 경계는 실제 Vision 0회였다. 정상 3사례와 경계 18사례 중 반환 결과 18개의 전체 공개 필드·PNG raw·canonical 픽셀이 같았고 취소 3사례도 같았다. 기존 그림의 논리 위치·part·신뢰도·원래 OCR 문자열·PNG를 보존했다. 크기가 같은 임의 이미지나 다른 페이지를 같은 입력으로 취급하지 않는다.
 
-양쪽 실제 컴파일의 Swift 5·`-O`·WMO·testability·arm64 Simulator·SDK27.1과 source/cache 보존을 확인했다. 각 빌드에는 기존 sysroot·AppIntents 경고가 각각 1건 있었고 단계 wall은 73.310초·69.792초다. 픽셀 복사 렌더·요청 계측이 있는 기능 진단의 wall을 정상 속도나 peak 메모리 개선 근거로 사용하지 않는다. main에는 적용하지 않았으며 진단 훅 없는 A/B 작업본의 정상 벤치마크를 준비한다. 기존 small3의 인수 크기는 모두 달라 이 재사용의 추가 이득 대상으로 보지 않는다.
+양쪽 실제 컴파일의 Swift 5·`-O`·WMO·testability·arm64 Simulator·SDK27.1과 source/cache 보존을 확인했다. 각 빌드에는 기존 sysroot·AppIntents 경고가 각각 1건 있었고 단계 wall은 73.310초·69.792초다. 픽셀 복사 렌더·요청 계측이 있는 기능 진단의 wall을 정상 속도나 peak 메모리 개선 근거로 사용하지 않는다. 기존 small3의 인수 크기는 모두 달라 이 재사용의 추가 이득 대상으로 보지 않는다.
+
+### 진단 훅 없는 ABBA 정상 실행
+
+순수 `8570415` 사본과 위 두 파일만 다른 후보를 A1→B1→B2→A2로 실행했다. 각 단계는 독립 프로세스이며 같은 두 XCTest에서 profile마다 예열 1회·측정 5회를 수행했다. 전체 48회 중 측정 40회이고, 실제 XCTest 8개 통과·실패/skip/runtime warning 0건이었다. OCR은 켜고 그림 반환은 끄며, 기본 언어와 문서 동시성 2를 유지했다. 기존 5ms footprint/RSS sampler를 양쪽에 똑같이 사용했고 결과 지문은 시간·peak 계측 밖에서 만들었다. 새 OCR 요청 계측·픽셀 복사·캐시는 없다.
+
+모든 예열·측정의 전체 공개 필드와 기존 semantic 지문은 실제 A1 기준과 같았다. near PDF는 앞선 Data·단일 parse·PNG-on 진단과 달리 URL·parseBatch·PNG-off 경로로 검증했다. 공개 그림 배열은 양쪽 모두 비어 있었고 모든 profile의 블록·위치·신뢰도·원래 OCR 문자열·경고·전체 텍스트가 보존됐다. 양쪽 제품·테스트의 실제 Swift 5·`-O`·WMO·testability·arm64 Simulator 컴파일도 확인했다.
+
+| profile | 시간 중앙값, 초 | footprint 중앙값, MiB | footprint 관측 최대, MiB | RSS 관측 최대, MiB |
+| --- | ---: | ---: | ---: | ---: |
+| 0.1pt inset PDF | 1.030 → 0.546 | 94.393 → 92.948 | 97.659 → 93.534 | 301.781 → 303.813 |
+| 기존 PDF·JPEG·DOCX small3 | 1.134 → 1.158 | 189.385 → 183.682 | 197.706 → 201.221 | 474.547 → 477.219 |
+
+near profile의 시간 중앙값은 47.04%, footprint 중앙값은 1.53% 줄었지만 RSS 최대는 0.67% 늘었다. small3은 footprint 중앙값이 3.01% 낮아도 관측 최대가 1.78%, 시간 중앙값이 2.09%, RSS 최대가 0.56% 늘었다. 이 실행으로 작은 배치의 속도·최대 메모리 보존을 확인하지 못해 **후보를 제품에 적용하지 않았다.** 공유 Mac의 부하·swap과 프로세스 간 변동이 있어 이 차이를 코드의 확정 회귀나 실기기 효과로 단정하지도 않는다. 두 profile은 같은 프로세스에서 차례로 실행되므로 과거 단독 profile 기록과 직접 비교하지 않는다. 5ms 표본은 순간 최고점의 상한을 보장하지 않는다.
+
+각 xcodebuild의 빌드·실행 포함 wall은 A1 74.370초, B1 70.507초, B2 68.859초, A2 72.841초이며 전체 증거 처리 포함 wall은 288.413초다. 각 빌드의 sysroot·AppIntents 경고 2건과 환경 관측을 보존했다. main 제품·테스트·패키지는 변경하지 않았고 정상 벤치마크 결과를 제품 전체 80개 회귀에 합산하지 않는다.
+
+독립 정적 검토는 실행 GO 이후, 실행 도중 완료됐다. 테스트는 각 프로세스의 자기 예열 기준과 즉시 비교하지만 A1과의 교차 비교는 runner가 해당 단계 종료 후 수행한다. 따라서 교차 불일치 시 다음 trial까지 즉시 차단한다는 보장은 없다. 이번 48회에는 교차 불일치가 없었으며 최초 runner·로그·manifest를 수정하지 않고 이 한계를 추가 기록했다. 후속 실행 도구를 재사용할 때는 A1 기준을 예열 직후 검사하도록 먼저 보완해야 한다.
 
 ## 원자료와 남은 확인
 
@@ -483,5 +500,7 @@ arm64 최초 기록기는 실제 target별 완료 문구를 일반 `Build comple
 외부 CLI 소비자의 원자료는 앞선 10월 28일 루트 아래 `R29/ConsumerCLICrossBuildPreparation-01/ActualRun-01/`과 `R29/ConsumerCLICrossBuildPreparation-02-x86_64/ActualRun-01/`에 있다. 실제 생성된 위치를 유지했으며 10월 29일 루트의 다른 자료와 구분한다. `COMPILE_EVIDENCE.json`·객체/모듈 지문·원본/사본 보존 대조와 최초 판정·준비 실패를 모두 남겼다.
 
 10월 29일 루트의 `PDFIntegralCoveragePreparation-01/Run-01/COMPARISON.json`·`RUNTIME_AUDIT.json`에는 자체 PDF의 실제 정수 crop·OCR 인수·반환 전체 필드·PNG와 경계 18사례 비교를 보존했다. 후보 diff와 진단 diff를 분리했으며 기능 검증 단계의 성공을 성능/peak 검증이나 제품 반영으로 바꾸지 않는다.
+
+같은 루트의 `PDFIntegralCoverageBenchmarkPreparation-01/Run-01/`에는 진단 훅 없는 ABBA 네 프로세스의 명령·xcresult·실제 컴파일·48회 지문·40개 측정·환경 관측이 있다. `COMPARISON.json`과 `RESULT.json`의 완료 상태는 실행·대조 완료이며 제품 채택을 뜻하지 않는다. 교차 지문 gate 시점의 한계와 미채택 판단도 원자료와 분리해 남겼다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
