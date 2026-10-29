@@ -64,10 +64,34 @@ nonisolated enum DocumentPDFImageExtractor {
 
   /// 잘라낸 그림 안의 OCR 좌표를 그림의 페이지 위치·크기에 맞춰 다시 변환한다.
   static func recognize(
-    _ crop: CGImage, location: DocumentLocation, bounds: CGRect
+    _ crop: CGImage, location: DocumentLocation, bounds: CGRect, maximumPixels: Int = 0
   ) async throws -> [DocumentBlock] {
-    try await DocumentOCR.recognize(
-      image: crop, orientation: .up, location: location).map { block in
+    let pool = DocumentOCR.sessions ?? DocumentOCRSessionPool()
+    let recognized = try await DocumentOCR.$sessions.withValue(pool) {
+      let primary = try await DocumentOCR.recognize(
+        image: crop, orientation: .up, location: location)
+      try Task.checkCancellation()
+      guard primary.isEmpty else { return primary }
+      let size = paddingSize(
+        width: crop.width, height: crop.height, maximumPixels: maximumPixels)
+      try Task.checkCancellation()
+      guard let size else { return primary }
+      let padded = padded(crop, size: size)
+      try Task.checkCancellation()
+      guard let padded else { return primary }
+      let blocks = try await DocumentOCR.recognize(
+        image: padded, orientation: .up, location: location)
+      try Task.checkCancellation()
+      return blocks.compactMap { block in
+        guard let local = unpaddedBounds(
+          block.location.bounds, cropWidth: crop.width, cropHeight: crop.height)
+        else { return nil }
+        var located = block
+        located.location.bounds = local
+        return located
+      }
+    }
+    return recognized.map { block in
       var located = block
       if let local = block.location.bounds {
         located.location.bounds = CGRect(
@@ -77,6 +101,57 @@ nonisolated enum DocumentPDFImageExtractor {
       }
       return located
     }
+  }
+
+  /// 페이지의 실제 래스터 면적 안에서만 고정 테두리를 추가한다. 0은 보완 비활성이다.
+  static func paddingSize(width: Int, height: Int, maximumPixels: Int) -> CGSize? {
+    let limit = min(maximumPixels, 1_000_000)
+    guard limit > 0, width > 0, height > 0,
+      width <= Int.max - 32, height <= Int.max - 32
+    else { return nil }
+    let paddedWidth = width + 32, paddedHeight = height + 32
+    guard paddedWidth <= limit / paddedHeight else { return nil }
+    return CGSize(width: paddedWidth, height: paddedHeight)
+  }
+
+  /// OCR의 좌상단 좌표에서 테두리를 빼고 원래 그림 안의 교차 영역만 남긴다.
+  static func unpaddedBounds(
+    _ bounds: CGRect?, cropWidth: Int, cropHeight: Int
+  ) -> CGRect? {
+    guard let bounds, cropWidth > 0, cropHeight > 0,
+      bounds.origin.x.isFinite, bounds.origin.y.isFinite,
+      bounds.size.width.isFinite, bounds.size.height.isFinite,
+      bounds.size.width > 0, bounds.size.height > 0
+    else { return nil }
+    let width = CGFloat(cropWidth), height = CGFloat(cropHeight)
+    let local = CGRect(
+      x: (bounds.minX * (width + 32) - 16) / width,
+      y: (bounds.minY * (height + 32) - 16) / height,
+      width: bounds.width * (width + 32) / width,
+      height: bounds.height * (height + 32) / height)
+    guard local.origin.x.isFinite, local.origin.y.isFinite,
+      local.size.width.isFinite, local.size.height.isFinite
+    else { return nil }
+    let clipped = local.intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
+    guard !clipped.isNull, !clipped.isEmpty,
+      clipped.origin.x.isFinite, clipped.origin.y.isFinite,
+      clipped.size.width.isFinite, clipped.size.height.isFinite
+    else { return nil }
+    return clipped
+  }
+
+  private static func padded(_ image: CGImage, size: CGSize) -> CGImage? {
+    guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+      let context = CGContext(data: nil, width: Int(size.width), height: Int(size.height),
+        bitsPerComponent: 8, bytesPerRow: 0, space: space,
+        bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue
+          | CGImageAlphaInfo.premultipliedLast.rawValue)
+    else { return nil }
+    context.setFillColor(CGColor(gray: 1, alpha: 1))
+    context.fill(CGRect(origin: .zero, size: size))
+    context.interpolationQuality = .none
+    context.draw(image, in: CGRect(x: 16, y: 16, width: image.width, height: image.height))
+    return context.makeImage()
   }
 
 }

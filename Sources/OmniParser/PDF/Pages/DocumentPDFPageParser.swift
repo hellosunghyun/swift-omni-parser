@@ -62,10 +62,21 @@ nonisolated enum DocumentPDFPageParser {
 
   @concurrent static func recognize(
     _ prepared: DocumentPDFPreparedPage,
-    recognizeImage: @Sendable (CGImage, DocumentLocation, CGRect) async throws -> [DocumentBlock]
-      = { try await DocumentPDFImageExtractor.recognize($0, location: $1, bounds: $2) }
+    recognizeImage:
+      (@Sendable (CGImage, DocumentLocation, CGRect) async throws -> [DocumentBlock])? = nil
   ) async throws -> DocumentPDFPreparedPage {
-    try await withTaskExecutorPreference(DocumentPDFTaskExecutor.shared) {
+    let maximumPixels: Int
+    if let raster = prepared.raster?.image {
+      let (pixels, overflow) = raster.width.multipliedReportingOverflow(by: raster.height)
+      maximumPixels = overflow ? 0 : pixels
+    } else {
+      maximumPixels = 0
+    }
+    let recognizeImage = recognizeImage ?? { image, location, bounds in
+      try await DocumentPDFImageExtractor.recognize(
+        image, location: location, bounds: bounds, maximumPixels: maximumPixels)
+    }
+    return try await withTaskExecutorPreference(DocumentPDFTaskExecutor.shared) {
       try await performRecognition(prepared, recognizeImage: recognizeImage)
     }
   }
@@ -189,15 +200,21 @@ nonisolated enum DocumentPDFPageParser {
     let value = normalized(candidate.text)
     guard !value.isEmpty else { return true }
     var relatedText = ""
+    var intersectingText = ""
     for block in blocks {
       guard !block.text.isEmpty, let other = block.location.bounds,
         other.insetBy(dx: -0.005, dy: -0.005).intersects(bounds)
       else { continue }
-      if normalized(block.text) == value { return true }
+      if other.intersects(bounds) {
+        if normalized(block.text) == value { return true }
+        intersectingText += block.text
+      }
       relatedText += block.text
     }
     // 페이지 OCR 한 줄이 본문 여러 블록에 걸친 경우도 비교하되, 중간 블록 배열은 만들지 않는다.
+    // 여유 영역의 블록을 빼면 새 부분 문자열이 생길 수 있어 기존 연결 조건도 유지한다.
     return normalized(relatedText).contains(value)
+      && normalized(intersectingText).contains(value)
   }
 
   private static func normalized(_ text: String) -> String {
