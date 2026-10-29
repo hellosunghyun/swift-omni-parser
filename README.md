@@ -51,6 +51,8 @@ let outcomes = try await DocumentParser.parseBatch(
 
 한영 혼합 문서에는 `options: .init(performOCR: true, ocrLanguage: .koreanAndEnglish)`, 영어 전용 자료에는 `.english`를 지정할 수 있습니다. 기본 `.automatic`은 기존 동작을 유지합니다. 모드별 정확도·메모리 절충과 배치 적용 방식은 [요청별 OCR 언어](Documentation/API.md#요청별-ocr-언어)를 확인하세요.
 
+기존 초기화와 새 옵션의 소스 호환성은 고정 로컬 미러를 사용한 arm64·x86_64 Simulator 외부 모듈 컴파일로 확인했습니다. 공개 태그 설치·앱 링크·외부 호출의 런타임 검증은 별도이며, [검증 범위](Documentation/IMPROVEMENT_LOOP_2026-10-28.md#외부-소비자-검증의-환경-제약)에 구분했습니다.
+
 ## 형식과 처리 경로
 
 | 형식 | 구현 경로 |

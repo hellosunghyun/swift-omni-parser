@@ -337,7 +337,23 @@ footprint 중앙값은 2.50MiB(-1.27%) 낮았지만 최대값은 +0.13%, RSS 최
 
 요청별 언어 옵션이 추가되기 전의 소비자 빌드와 이후 내부 회귀를 구분했다. 새 외부 모듈에는 기존 옵션 초기화·기본 단일/배치 호출과 세 OCR 정책의 공개 호출을 준비했다. OmniParser와 기존 네 의존성은 로컬 mirror와 고정 revision, 바이너리는 기존 캐시를 사용했다.
 
-OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내부 sandbox 적용 오류로 exit 74가 됐다. 공식 CLI의 명령별 `--disable-sandbox`로 중첩만 피하고 외부 네트워크 차단을 유지한 resolve 1회는 성공했으나, 같은 캐시를 지정한 후속 Xcode도 동일 단계에서 실패했다. CLI 해석 성공은 제품 컴파일 성공이 아니며 Consumer.swift의 양 아키텍처 컴파일 근거는 없다. 이 외부 소비자 검증은 미완료다. 해당 소비자 검증에서는 전역 보안 설정·의존성·원본 refs를 바꾸지 않았다. 네트워크 차단 없는 일반 로컬 빌드는 요청 조건 확인 전 실행하지 않는다.
+OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내부 sandbox 적용 오류로 exit 74가 됐다. 공식 CLI의 명령별 `--disable-sandbox`로 중첩만 피하고 외부 네트워크 차단을 유지한 resolve 1회는 성공했으나, 같은 캐시를 지정한 후속 Xcode도 동일 단계에서 실패했다. 당시 CLI 해석 성공은 제품 컴파일 성공이 아니며 Consumer.swift의 양 아키텍처 컴파일 근거도 없었다. 일반 Xcode 소비자 통합은 미완료다. 해당 소비자 검증에서는 전역 보안 설정·의존성·원본 refs를 바꾸지 않았다. 네트워크 차단 없는 일반 로컬 빌드는 요청 조건 확인 전 실행하지 않는다.
+
+후속으로 외부 네트워크 차단을 유지한 공식 Swift CLI의 `--build-system native --disable-sandbox --triple … --sdk … --target OmniParserConsumer`를 아키텍처별 격리 사본에서 한 번씩 실행했다. CLI의 내부 manifest sandbox만 끄고 가장 바깥의 `(deny network*)`는 컴파일러와 자손에 유지했다. 별도 resolve·자동 재시도·엔진 fallback·함수 실행은 없다.
+
+| 외부 모듈 컴파일 | arm64 Simulator | x86_64 Simulator |
+| --- | ---: | ---: |
+| 실제 제품 빌드 / 종료 | 1회 / 0 | 1회 / 0 |
+| 명령 wall | 24.084초 | 20.746초 |
+| Consumer·OmniParser 실제 Swift 언어 모드 | 5 | 5 |
+| 객체 min OS / SDK | 27.0 / 27.1 | 27.0 / 27.1 |
+| 모듈 2개·Consumer.swift.o | 확인 | 확인 |
+
+기존 옵션의 모든 초기화 인자·기본 단일/배치·세 언어 옵션의 단일/배치 소스를 `@testable` 없이 컴파일했다. 다섯 revision·바이너리 44파일·보호 원본 refs/config/remotes의 불변을 확인했고 arm64의 전체 준비 폴더도 x86_64 실행 전후 같았다. 원래 고정 source와 현재 제품의 Sources·ThirdParty·Package manifest도 같다. 새 private scratch의 빌드 파일·Git index 변경은 원본 변경과 구분해 보존했다.
+
+arm64 최초 기록기는 실제 target별 완료 문구를 일반 `Build complete`와 비교해 실패로 기록했다. 빌드 종료 0·실제 컴파일·세 산출물을 다시 검증한 별도 `VALIDATED_RESULT`로 판정을 보완했으며 원본 영수증·로그를 바꾸거나 재실행하지 않았다. x86_64는 첫 runner 호출이 준비 비교 JSON 누락으로 START/PID/컴파일 전에 중단됐다. 준비 메타데이터만 보완해 실제 제품 빌드는 한 번이었다. 두 실행에는 `--skip-update`·`--build-system native` deprecation 진단이 각각 1건씩 있으며 이 명령을 새 기본 CI 경로로 채택하지 않았다.
+
+이로써 두 Simulator 아키텍처의 외부 모듈 소스 호환성은 확인했다. 로컬 mirror의 임시 버전 검증이므로 공개 태그 clean install, 일반 Xcode 통합·앱 링크·정적 archive·런타임 OCR, Swift 6 언어 모드의 검증으로 확대하지 않는다. 일반 Xcode 준비는 사용자 답변 대기를 유지하며 실행하지 않았다.
 
 ## 네이티브 할당 수명 추적의 한계
 
@@ -396,6 +412,20 @@ OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내�
 
 후속으로 기존 NativeLifetime 기록의 phase10/stage1에서 실제 pool 인수의 크기를 확인했다. JPEG 780×326, PDF 그림 1440×403, PDF 페이지 1584×1224로 배치 안의 세 크기가 모두 다르며 다음 measured 배치도 같은 크기였다. 이 값은 이후 `request.perform`에 전달한 같은 CGImage 인수에서 읽었고 반환 PNG의 크기가 아니다. 해당 기록의 source와 현재 코드에서 관련 runtime 27파일·Package 2파일, 세 fixture 지문도 같았다. 이 입력들의 배치 내 정확한 CGImage 반복은 배제할 수 있어 새 SHA 계측 준비를 중단했고 빌드·OCR은 실행하지 않았다. 준비 파일과 초기 과도한 clean 가드의 실행 전 실패는 보존했다. 시각 내용·리사이즈 동등성·배치 간 픽셀 동일성이나 캐시 효과까지 판정한 것은 아니다.
 
+## 정수 픽셀 전체 영역 후보 — 기능 검증, 제품 미적용
+
+다른 후보로, 논리 bounds에 미세한 여백이 있어도 `.integral` crop은 전체 페이지와 같을 수 있는 경우를 확인했다. 외부 사본의 private helper와 호출부 두 파일만 바꿨다. 같은 페이지 crop의 크기가 페이지와 같고 유효한 비공백 OCR 텍스트가 있을 때 이 확장 영역의 두 번째 전체 페이지 OCR을 생략한다. 기존 exact-full의 빈 결과 처리와 `successfulRegions`는 유지하며 신규 확장의 빈 배열·빈 문자열·공백·오류는 원래 페이지 fallback을 유지한다. 취소도 그대로 전파한다.
+
+| 자체 PDF 경우 | 실제 page / crop | 기존 → 후보 Vision 호출 |
+| --- | --- | ---: |
+| exact-full | 1200×1600 / 1200×1600 | 1 → 1 |
+| 0.1pt inset | 1200×1600 / 1200×1600, 픽셀·metadata 같음 | 2 → 1 |
+| 1pt inset | 1200×1600 / 1196×1597 | 2 → 2 |
+
+외부 runner 한 번에서 baseline·candidate를 직렬로 실행해 각 XCTest 2개, 전체 4개가 통과했다. 실패/skip/runtime warning은 0건이다. 실제 Vision은 baseline 5회·candidate 4회, 주입 경계는 실제 Vision 0회였다. 정상 3사례와 경계 18사례 중 반환 결과 18개의 전체 공개 필드·PNG raw·canonical 픽셀이 같았고 취소 3사례도 같았다. 기존 그림의 논리 위치·part·신뢰도·원래 OCR 문자열·PNG를 보존했다. 크기가 같은 임의 이미지나 다른 페이지를 같은 입력으로 취급하지 않는다.
+
+양쪽 실제 컴파일의 Swift 5·`-O`·WMO·testability·arm64 Simulator·SDK27.1과 source/cache 보존을 확인했다. 각 빌드에는 기존 sysroot·AppIntents 경고가 각각 1건 있었고 단계 wall은 73.310초·69.792초다. 픽셀 복사 렌더·요청 계측이 있는 기능 진단의 wall을 정상 속도나 peak 메모리 개선 근거로 사용하지 않는다. main에는 적용하지 않았으며 진단 훅 없는 A/B 작업본의 정상 벤치마크를 준비한다. 기존 small3의 인수 크기는 모두 달라 이 재사용의 추가 이득 대상으로 보지 않는다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -449,5 +479,9 @@ OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내�
 `NumericNondefaultPreparation-01/Run-01/`의 `contract-gate.json`·`FINAL_REPORT.json`에는 내부 비기본 숫자 요청의 실제 getter·분기·관찰/픽셀 불변·컴파일·7회 호출 상한을 보존했다. root의 앞선 문서 변경을 과도한 clean 가드가 거부한 준비 실패는 실행 전 상태로 별도 보존했다. 실제 진단 실행은 한 번이며 자동 재시도하지 않았다.
 
 `OCRInputFingerprintPreparation-01/EXISTING_NATIVE_INPUT_RECHECK.json`·`STOPPED.md`에는 기존 실제 입력 크기와 관련 소스·fixture 대조, 새 지문 계측의 비실행·중단 이유를 기록했다. 미완성 runner를 검증된 실행 도구로 사용하지 않는다.
+
+외부 CLI 소비자의 원자료는 앞선 10월 28일 루트 아래 `R29/ConsumerCLICrossBuildPreparation-01/ActualRun-01/`과 `R29/ConsumerCLICrossBuildPreparation-02-x86_64/ActualRun-01/`에 있다. 실제 생성된 위치를 유지했으며 10월 29일 루트의 다른 자료와 구분한다. `COMPILE_EVIDENCE.json`·객체/모듈 지문·원본/사본 보존 대조와 최초 판정·준비 실패를 모두 남겼다.
+
+10월 29일 루트의 `PDFIntegralCoveragePreparation-01/Run-01/COMPARISON.json`·`RUNTIME_AUDIT.json`에는 자체 PDF의 실제 정수 crop·OCR 인수·반환 전체 필드·PNG와 경계 18사례 비교를 보존했다. 후보 diff와 진단 diff를 분리했으며 기능 검증 단계의 성공을 성능/peak 검증이나 제품 반영으로 바꾸지 않는다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
