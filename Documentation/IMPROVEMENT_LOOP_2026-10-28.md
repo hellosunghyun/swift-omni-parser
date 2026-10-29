@@ -527,6 +527,34 @@ Vision의 실제 호출 수는 이 실행에서 계측하지 않았다. 정적 �
 
 원자료는 `~/Developer/Codex/OmniParserVerification/2026-10-29/ImprovementLoop-20261029/PublicReferenceVerificationPreparation-01/Run-01/`에 있다. 외부 진단 1개를 기존 전체 81개 회귀와 합산하지 않는다.
 
+## PDF 인접 OCR 후보와 작은 배치 후속 대조
+
+인접한 네이티브 본문의 숫자를 그림 OCR과 같다고 판단할 수 있어, 실제 사각형 교차도 요구하는 C 후보를 외부 사본에서 검증했다. 신규 논리 경계 6개에서 A는 예상 2개 실패·4개 통과, C는 신규 6개와 기존 PDF 11개가 모두 통과했다. 단순히 여유 영역을 제거하면 다중 블록 연결에서 새 부분 문자열이 생길 수 있어 기존 연결 조건도 유지했다. 합계 wall은 157.279초다.
+
+그러나 실제 문서 단계는 **미통과·미채택**이다. 외부 자산 없이 만든 동일 968바이트 PDF의 A와 C가 각각 실제 테스트 1개·assertion 2개 실패했다. 그림 위치를 가진 숫자 OCR은 없고 전체 페이지 `ITEM 1212`와 네이티브 `ITEM 12`가 함께 남았다. 공개 필드·PNG·fullText 지문이 완전히 같았다. 최초 runner의 A gate도 전체 페이지 OCR을 예상하지 못해 중단됐으며, 이 실패를 성공으로 재해석하거나 A를 재실행하지 않았다. C는 별도 실행에서 최초로 확인했다.
+
+별도의 작은 혼합 배치 A/C/C/A는 네 실제 XCTest 모두 통과했다. 예열 4개·측정 20개에서 공개 출력 지문이 같고, 제어 payload와 측정 전 지문 gate를 재검산했다. 제품·테스트 모듈 각각의 한 compiler 명령에서 Swift 5·`-O`·WMO·testability·arm64 Simulator·SDK27.1을 확인했다. 양쪽 모두 coverage가 켜진 계측 Release 비교다.
+
+| 각 10개 측정 | A | C |
+| --- | ---: | ---: |
+| 시간 중앙값 / 최대 | 1.6721 / 2.6752초 | 1.4993 / 2.0769초 |
+| footprint 중앙값 / 최대 | 194.46 / 207.41 MiB | 185.98 / 201.66 MiB |
+| RSS 중앙값 / 최대 | 441.57 / 472.27 MiB | 470.20 / 479.38 MiB |
+
+시간 저하는 관찰하지 않았지만 RSS가 증가했고 다른 Layout QA Simulator도 켜져 있었다. 인과적인 속도 개선이나 추가 메모리 절감 목표 달성으로 부르지 않는다. C는 정확도 후보이며 메모리 개선 구현이 아니다.
+
+### 실제 crop의 빈 OCR과 고정 흰 여백 진단
+
+같은 PDF에서 prepare 1회·그림 recognize 1회만 호출한 진단은 실제 테스트 1개 통과·실패/skip/runtime warning 0건이었다. 실제 97×57 crop의 PNG는 공개 A/C와 같았고, PDF 중복 필터 이전의 변환 블록이 이미 비어 있었다. raw Vision observation 자체를 수집한 결과와 구분하며 실제 내부 요청 수는 미계측이다. 빌드 포함 wall은 63.540초다.
+
+이어서 원본 재인식 없이 사방에 흰 여백 16픽셀만 추가한 129×89 입력을 한 번 인식했다. 내부 canonical RGBA 픽셀 완전 일치·흰 테두리·출처 지문을 OCR 전에 검사했고 모두 통과했다. 실제 테스트 1개 통과·실패/skip/runtime warning 0건, 반환 문구는 `12`였다. 이는 한 자체 입력의 관측이며 일반 정확도·메모리·속도 성과가 아니다. 빌드 포함 wall은 61.909초다.
+
+여백을 제거해 역산한 OCR bounds는 원본 crop 밖까지 확장됐다. 따라서 좌표 보정·픽셀 한도·추가 요청의 속도와 메모리 영향을 검증하기 전에는 여백 처리도 제품에 넣지 않는다. crop의 `bytesPerRow=4800`만으로 전체 페이지 버퍼 소유나 피크 메모리 원인을 확정하지 않는다. 전체 페이지 래스터는 원래 페이지 OCR까지 별도로 보관한다.
+
+제품 소스·의존성·기본값은 그대로다. 저장소용 신규 7개 회귀와 전체 88개 runner는 외부 준비본이며 미반영·미실행이다. main의 기존 전체 81개 결과와 외부 후보/진단 수를 합산하지 않는다. 진단 도구의 명령 JSON 형식 오류는 Xcode 시작 전에 실패했고, 별도 결과 경로 오류는 실제 실행 없이 올바른 xcresult를 다시 읽어 해결했다. 두 실패 기록도 보존했다.
+
+원자료 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-29/ImprovementLoop-20261029/`다. `PDFAdjacentTextDedupPreparation-01/`의 `RootUnitRunner-01`, `RootPublicRunner-01`, `RootCOnlyRunner-01`, `RawImageDiagnosticPreparation-01`, `RawPaddingDiagnosticPreparation-01`에 최초 실패·xcresult·PNG·소스 지문을 보존했다. `PDFAdjacentSmall3Preparation-01/Reviewer-02`에는 20개 측정과 독립 재검산을 남겼다. 이 자료를 외부에 전송하거나 푸시하지 않았다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
