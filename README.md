@@ -92,7 +92,9 @@ xcodebuild test -scheme OmniParser \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 최신 전체 **Release 회귀 94개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 66파일·위반 0건입니다. 세 언어 정책의 실제 요청 설정과 영어를 포함한 동시 호출, PDF의 그림·전체 페이지 OCR, TIFF 두 프레임, HWPX에서 같은 그림을 여러 문단·표 셀에 배치한 경우도 확인했습니다. 기존 대출 계산기 그림의 실제 숫자 보완·금액 보존 회귀와 작은 PDF 그림의 빈 OCR 보완·인접 숫자 위치·중복·픽셀 예산·좌표 경계 검사도 포함합니다. 작은 영문·한영 그림과 PDF 회전을 상쇄해 정방향으로 표시한 페이지의 텍스트·좌표 회귀도 추가했습니다. 최신 PDF 수정 전후의 65문서 대조에서는 전체 텍스트·블록·위치·순서·신뢰도·경고·그림 픽셀이 모두 같았습니다. PNG 원시 바이트는 64/65 일치했고, 나머지 한 입력은 iCCP 색상 프로필의 생성 날짜·시각 필드 두 바이트만 달랐습니다. 차이 원본과 엄격 비교의 불일치 상태를 보존했습니다. 작은 배치 성능 대조는 별도의 세 문서를 사용했습니다. 이전 48개 회귀로 새 버전 소비 프로젝트의 빌드와 재빌드 Office 엔진도 확인했습니다.
+기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 최신 전체 **Release 회귀 99개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 67파일·위반 0건·generic Simulator 빌드 통과를 확인했습니다. 요청별 언어·동시 호출·PDF·TIFF·HWPX 회귀에 OCR 좌표 경계와 정방향으로 표시되는 PDF의 0/90/180/270도 페이지 좌표 검사를 포함합니다.
+
+최신 65문서 비교에서 본문·2,709개 블록의 문구·순서·신뢰도·이미지 픽셀은 유지됐고, 범위 밖 OCR 좌표 1개를 보정했습니다. PNG 원시 바이트는 64/65 일치하며 나머지는 색상 프로필 날짜·시각 필드 두 바이트만 달랐습니다. 엄격 비교의 차이 상태를 보존했습니다. 작은 숫자 그림의 오인식·페이지 OCR 중복과 추가 peak 메모리 절감은 남아 있습니다. 범위·실행 명령·단계별 시간은 [최신 수정·검증 기록](Documentation/IMPROVEMENT_LOOP_2026-10-28.md#ocr-좌표-경계-보정과-99개-회귀)에 구분했습니다.
 
 실기기 32개 통과와 과거 대용량 기록은 이전 동기 OCR 코드의 결과입니다. 최신 실기기 검증은 아직 하지 않았습니다. [Release 배치·URL/Data·QoS 검증](Documentation/RELEASE_MEMORY_2026-10-28.md)에 앞선 메모리·QoS 비교를 기록했습니다. 대용량 URL 입력의 footprint 절감은 확인했지만 작은 배치의 추가 메모리 절감은 확보하지 못했습니다. [입력 Reader의 앞선 Debug 검증](Documentation/BATCH_MEMORY_2026-10-28.md), [오픈소스 후속 검증과 65문서 대조](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md), 과거 [대용량 기록](Documentation/LOCAL_REVIEW_2026-10-27.md)·[RTF 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)·[XLS 전환](Documentation/XLS_CHART_FIX.md)은 당시 결과로 보존합니다.
 

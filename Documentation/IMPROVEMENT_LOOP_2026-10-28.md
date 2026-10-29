@@ -606,6 +606,36 @@ wall은 명령 또는 stage의 경과 시간이다. 테스트 명령에는 빌�
 
 원자료는 같은 2026-10-29 루트의 `Corpus65D2Preparation-01/Run-01`·`Reviewer-01`, `SmallTextRotationPreparation-01`, `SmallTextRotationCorrected-02`, `MainSmallTextRotation94-01`, `NextMemoryRouteAudit-01`에 보존했다. 이전 생성기 실패와 수정본 성공을 덮어쓰지 않았고 실제 테스트 수에 중복 합산하지 않았다. 푸시·외부 전송·실기기 검증은 하지 않았다.
 
+## OCR 좌표 경계 보정과 99개 회귀
+
+기본 OCR 언어는 `.automatic`을 유지한다. 요청별 `.english`·`.koreanAndEnglish` 옵션과 그림 추출·OCR의 기본값 `false`는 바꾸지 않았다.
+
+자체 생성한 16개 작은 그림 PDF에서 페이지 OCR 8개의 x 좌표가 조금 음수로 반환됐다. 공통 Vision 변환 단계에서 유효한 사각형을 `0...1` 영역과 교차시키고 좌상단 원점으로 변환하도록 수정했다. 이미 유효한 좌표는 재계산하지 않아 부동소수점 값도 보존한다. null·infinite·NaN·음수 크기·합계 overflow·빈 교차 영역은 위치 미상으로 처리하며 이 변환 단계에서는 문구·신뢰도를 버리지 않는다.
+
+단위 회귀 5개를 추가했다. 최초 후보는 실제 4개 통과·1개 실패였고 원래 로그로는 무효 입력 배열의 실패 항목을 특정할 수 없었다. null/infinite sentinel과 원시 좌표 합계의 유한성 검사를 보완한 뒤 같은 기대 조건의 5개가 모두 통과했다. 원본 실행·수정 전후 소스·핀을 보존했다.
+
+같은 자체 PDF를 공개 API로 한 번 처리한 독립 검사에서는 좌표 8개만 보정됐고 기존 유효 좌표 56개·전체 본문·순서·신뢰도 비트·원문·위치 메타데이터와 PNG 16개가 유지됐다. PNG는 실제 파일 바이트까지 같았다. 작은 그림의 숫자는 여전히 16개 중 6개만 `12`, 나머지 10개는 `1:`로 읽혔다. 페이지 OCR의 오인식·중복도 남아 있다. 따라서 최초 strict stress는 실패 상태이며 이후 한도 4개·혼합 배치 단계는 실행하지 않았다. 좌표 진단 성공을 정확도 해결로 바꾸지 않는다.
+
+`ec0aa8c` 기준과 수정 후보를 같은 65문서·옵션·공통 테스트로 새로 비교했다. 양쪽 실제 XCTest 1개가 65개를 모두 처리했고 실패/skip/runtime warning은 0건이었다. 전체 본문·경고·이미지 픽셀과 **2,709개 블록의 문구·순서·신뢰도·보완 원문은 모두 동일**했다. 제공된 bounds 358개 중 범위 밖 좌표는 기준 1개에서 수정본 0개가 됐다. `ss-features`의 한 OCR 블록은 x가 `-0.0001250932`에서 `0`으로, 폭은 그만큼 줄었으며 y·높이는 같았다.
+
+canonical 의미 비교는 의도한 좌표 변경으로 64/65, PNG 원시 바이트 비교도 64/65다. 다른 문서 `baseball` PNG는 각 287,245바이트이며 22개 청크 중 iCCP만 다르다. 압축 해제한 544바이트 프로필의 날짜·시각 필드 offset 33·35 두 바이트만 달랐고, 다른 21개 청크·IDAT·CRC는 같았다. 날짜 필드는 A `(2026,10,29,16,30,25)`, D `(2026,10,29,16,31,58)`이며 timezone·생성 단계는 확정하지 않는다. 기존 예외나 기대값 완화 없이 `COMPLETED_WITH_DIFFERENCES_REVIEW_REQUIRED` 상태와 원본 차이를 보존했다.
+
+작은 영문·한영 그림의 페이지 회귀는 0/90도에서 0/90/180/270도로 확장했다. 총 8번의 공개 parse에서 PDF 회전을 상쇄해 최종 글자가 정방향인 입력의 문구·페이지 위치를 검사한다. 임의로 옆으로 누운 글자의 OCR 정확도나 여백 fallback의 실제 실행 횟수를 입증한 것은 아니다.
+
+최종 main 전체 **Release 99개 통과·실패/skip/runtime warning 0건**, generic Simulator 빌드 통과, SwiftLint strict **67파일·위반 0건**이다. 고정 입력 166개와 의존성·바이너리 핀이 실행 전후 같았고 Swift 5·`-O`·WMO·iOS 27.1 SDK로 검증했다. 시간은 단위 검사 명령 19.405초, 자체 PDF 진단 70.249초, 65문서 기준 100.599초·수정본 91.614초, 최종 전체 테스트 명령 123.252초·빌드 7.163초·린트 0.416초다. 모두 빌드 등을 포함한 명령 wall이며 OCR 속도 개선 비교가 아니다. 테스트 빌드 로그의 기존 sysroot·AppIntents 경고 2개와 CoreML 진단은 runtime warning 0건과 구분한다.
+
+원자료는 2026-10-29 루트의 `OCRUnitBoundsPreparation-01`, `ManySmallImagesPreparation-01`, `OCRUnitBoundsStressDiagnostic-01/Run-01`·`Reviewer-01`, `Corpus65UnitBoundsPreparation-01/Run-01`·`Reviewer-01`, `RotationAllAnglesPreparation-01`, `MainOCRUnitBounds99-01`에 보존했다. 최초 stress 명령의 잘못된 `-test-iterations 1`로 실행 전 실패한 기록과 실제 stress 실패도 구분한다. 추가 peak 메모리 절감·실기기·푸시는 이번 검증에 포함하지 않았다.
+
+## 같은 small3 프로세스의 호출 전후 잔류 메모리
+
+기존 `ec0aa8c` 소스와 같은 PDF·JPEG·DOCX 세 입력을 별도 XCTest 프로세스에서 한 번 처리했다. 공개 `parseBatch` 1회·동시 문서 2·그림 반환 off·OCR on·`.automatic`을 유지했다. 첫 OCR 전 P0와 async helper가 결과 대신 SHA만 반환한 뒤 P2에서 PID·시작 시각·실행파일·실제 로드된 테스트 번들 SHA를 확인하고 메모리 그래프를 캡처했다. 기존 semantic SHA·69블록·경고 0과 실제 XCTest 1개 통과·runtime warning 0건을 확인했다. 전체 명령 wall 66.891초는 빌드·캡처를 포함하며 속도 비교에 사용하지 않는다.
+
+`leaks --outputGraph` 종료 코드 0은 파일 저장 성공이며 무누수 판정이 아니다. 최초 캡처 metadata의 `leakDetected: false`는 종료 코드에서 추정한 부정확한 이름이어서 후속 분석 기록에서 바로잡았고 원본도 보존했다. 오프라인 `leaks --noContent --groupByType`은 P0 11개/352바이트, P2 284개/28,400바이트를 누수 후보로 보고했다. 주요 추가 분류는 Simulator의 CoreVideo·Metal 순환 참조였다. 도구 판정을 앱의 확정 누수로 간주하지 않는다.
+
+P2에는 TextRecognition 전역 root로 이어지는 `NLLanguageRecognizer` 48바이트·`MontrealTensor` 96바이트와 Vision 전역 session 경로가 보였지만 앱의 `DocumentOCRSessionPool`·Session을 붙잡는 경로는 입증하지 못했다. 이 수치는 해당 객체의 shallow 크기이며 내부 버퍼 전체 크기가 아니다. 호출 종료 뒤 잔류 검사로 과거 peak 버퍼 소유자나 작은 배치의 추가 절감을 증명할 수 없어 제품 메모리 패치는 적용하지 않았다.
+
+원자료는 같은 2026-10-29 루트의 `Small3ResidualIdentityPreparation-01/Run-01`과 `Analysis-01`에 있다. 그래프는 로컬에만 보관했고 본문 내용을 출력하지 않는 옵션으로 분석했다. 실제 source·fixture·44 binary·cache revision 4개 핀도 전후 같았다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
