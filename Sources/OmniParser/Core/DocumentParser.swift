@@ -161,10 +161,10 @@ nonisolated public enum DocumentParser {
   }
 
   private struct PreparedInput {
-    var data: Data
-    var fileName: String?
-    var baseDirectory: URL?
-    var image: (CGImage, CGImagePropertyOrientation)?
+    let data: Data
+    let fileName: String?
+    let baseDirectory: URL?
+    let image: (CGImage, CGImagePropertyOrientation)?
   }
 
   /// URL 입력만 기준 디렉터리를 보존한다. Data의 파일명은 로컬 참조 그림을 읽을 권한이 아니다.

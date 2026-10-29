@@ -15,7 +15,8 @@ nonisolated enum DocumentTextParser {
       throw DocumentParsingError.malformedDocument
     }
     var structureWarnings: [DocumentWarning] = []
-    let blocks: [DocumentBlock] = switch format {
+    var content: (blocks: [DocumentBlock], images: [DocumentEmbeddedImage]) = ([], [])
+    content.blocks = switch format {
     case .csv:
       DocumentCSVParser.parseCSV(text)
     case .json:
@@ -30,30 +31,31 @@ nonisolated enum DocumentTextParser {
     default:
       DocumentStructuredTextParser.parsePlainText(text)
     }
-    var result = DocumentParseResult(format: format, blocks: blocks, warnings: [])
-    let warnings = try await appendReferencedImages(
-      to: &result, text: text, baseDirectory: baseDirectory, options: options)
+    let referenceWarnings = try await appendReferencedImages(
+      to: &content, format: format, text: text, baseDirectory: baseDirectory, options: options)
+    // 본문과 참조 그림을 모두 모은 뒤 읽기 순서와 전체 텍스트를 한 번만 확정한다.
     return DocumentParseResult(
-      format: format, blocks: result.blocks, warnings: structureWarnings + warnings,
-      images: result.images)
+      format: format, blocks: content.blocks, warnings: structureWarnings + referenceWarnings,
+      images: content.images)
   }
 
   /// 그림 하나의 실패는 본문을 버리지 않고 위치 경고로 남긴다. 취소 오류는 계속 전파한다.
   private static func appendReferencedImages(
-    to output: inout DocumentParseResult,
+    to output: inout (blocks: [DocumentBlock], images: [DocumentEmbeddedImage]),
+    format: DocumentFormat,
     text: String,
     baseDirectory: URL?,
     options: DocumentParserOptions
   ) async throws -> [DocumentWarning] {
     guard options.extractImages || options.performOCR,
-      output.format == .html || output.format == .markdown
+      format == .html || format == .markdown
     else { return [] }
-    let references = DocumentReferencedImageParser.references(in: text, format: output.format)
+    let references = DocumentReferencedImageParser.references(in: text, format: format)
     guard !references.isEmpty else { return [] }
     var warnings = [DocumentWarning(
       code: .uncertainReadingOrder,
       message: "Referenced image OCR blocks follow text blocks; inline order may differ.",
-      location: DocumentLocation(part: output.format.rawValue))]
+      location: DocumentLocation(part: format.rawValue))]
     var imageBytes = 0
     for (index, reference) in references.enumerated() {
       try Task.checkCancellation()
@@ -95,5 +97,4 @@ nonisolated enum DocumentTextParser {
     }
     return warnings
   }
-
 }
