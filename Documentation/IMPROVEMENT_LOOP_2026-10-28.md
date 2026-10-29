@@ -586,6 +586,26 @@ wall은 명령 또는 stage의 경과 시간이다. 테스트 명령에는 빌�
 
 원자료는 같은 2026-10-29 루트의 **실제 중첩 경로** `R29/PDFPaddingFallbackPreparation-01/`에 있다. `FINAL_PIN-02.json`·`EXECUTION_INPUTS-02.json`, `FirstPublicRun-01`, `FullRun-01`을 사용했다. 중첩 폴더는 준비 경로 해석 오류로 생겼고 기존 자료를 이동·삭제하지 않았다. `PDFPaddingSmall3Preparation-01/Reviewer-01`에는 독립 재검산과 실행 종료 후 main 반영 상태를 구분한 기록이 있다. 이후 main 반영으로 baseline 비교가 false인 사실을 실행 중 drift로 해석하지 않는다. main 반영은 네 stage 종료 후 이뤄졌다. 새 PDF와 provenance는 자체 테스트 자산이며 소비 앱의 런타임 리소스에 추가되지 않는다. 푸시·외부 전송·실기기 검증은 하지 않았다.
 
+## 최신 PDF 수정의 65문서 대조와 회전 회귀
+
+`78efdc3`와 `e59ae25`의 제품 소스를 외부 A/D 사본에서 비교했다. 같은 Manifest 65개·fixture 94개와 공통 테스트를 사용했고, 그림 추출·OCR을 켠 명시적 `.automatic` 설정을 고정했다. 각 변형의 실제 XCTest 1개가 65문서를 모두 처리했으며 실패/skip/runtime warning은 0건이었다. 입력 순서·SHA·옵션·소스·cache·44 binary pin과 두 모듈의 실제 단일 compiler 명령을 독립 대조했다. 전체 wall은 175.095초이며 성능 개선 비교가 아니다.
+
+**65/65 문서에서 전체 텍스트·구조화 블록·위치·읽기 순서·신뢰도·보완 이력·경고·canonical 그림 픽셀과 메타데이터가 같았다.** 원시 PNG까지 포함한 엄격 비교는 64/65였다. `real-png-02-baseball.png`의 출력은 양쪽 287,245바이트이고, 22개 PNG 청크 중 iCCP만 달랐다. 압축을 푼 544바이트 ICC 프로필에서는 날짜·시각 필드에 해당하는 offset 33·35 두 바이트만 달랐고 나머지 프로필과 다른 21개 PNG 청크의 길이·데이터·CRC, IDAT가 같았다. 각 청크 CRC는 모두 유효했다.
+
+날짜 필드 값은 A `(2026,10,29,15,5,3)`, D `(2026,10,29,15,6,31)`이며 실제 timezone 해석은 확정하지 않는다. 최초 분석 JSON의 `profileDatesUTC` 이름은 후속 `PROFILE_REVIEW-02.json`에서 오해를 바로잡았고 원본도 보존했다. 어느 프레임워크 단계가 이 필드를 생성했는지 직접 입증하지는 않았다. 기존 예외를 적용하거나 기대값·PNG를 정규화해 엄격 비교를 성공으로 바꾸지 않았으며, runner 상태는 `COMPLETED_WITH_DIFFERENCES_REVIEW_REQUIRED` 그대로다.
+
+### 작은 영문·한영 그림과 PDF 회전
+
+자체 CoreText 그림 두 종류에 대해 `.english`·`.koreanAndEnglish`와 PDF 회전 0/90도를 조합해 네 입력을 만들었다. 최초 생성기의 회전 방향을 잘못 지정해 90도 입력이 실제로 180도 뒤집혔다. 첫 실행은 영어 0도 통과 후 영어 90도에서 중단했으며 한영 두 입력은 실행하지 않았다. 실제 실패 1개·두 parse 반환·56.223초 wall과 당시 PDF·표시 PNG·소스를 보존했다. 이는 제품 결함으로 판정한 결과가 아니다.
+
+새 준비본에서 생성기 CTM 두 줄만 고쳤다. `translate(180,0)`·`rotate(+π/2)`로 문서의 시계 방향 90도 회전을 상쇄했고 기대값·검사 기준·제품 코드는 유지했다. 수정된 표시 PNG도 직접 확인했다. 실제 XCTest 1개 통과·실패/skip/runtime warning 0건, 네 공개 parse에서 문구·본문 일관성·정방향 그림 배치·페이지 좌표·신뢰도·순서·PNG 개수·경고 검사가 모두 통과했다. 같은 언어의 0/90도 fullText SHA도 같았다. wall은 59.260초다. 옆으로 누운 글자의 일반 인식 성능이나 여백 fallback 실행을 입증한 검사가 아니며 실제 Vision 요청 수는 미계측이다.
+
+진단 로그·첨부용 코드는 제외하고 `PDFSmallTextRotationTests`에 재현 가능한 회귀 1개를 추가했다. 이후 main 전체 **94개 통과·실패/skip/runtime warning 0건**, generic Simulator 빌드·SwiftLint strict **66파일·위반 0건**을 확인했다. wall은 테스트 명령 115.654초·빌드 4.808초·린트 0.373초다. 테스트 명령에는 빌드가 포함되고 순수 OCR 시간과 구분한다. 이번 라운드에서 제품 소스·API·기본값·의존성은 바꾸지 않았다.
+
+메모리 조사는 기존 SharedRequest·NoIdleCache·legacy VN·bitmap 복사·workItem·childtask·near-full 후보의 미채택 기록부터 확인했다. 새로 실행할 만한 근거가 있는 후보는 0개였으며, 작은 Swift 문자열 임시 할당을 CoreML의 큰 native 할당 원인으로 확대하지 않았다. 로컬 SDK27.1 Swift interface에서도 `RecognizeTextRequest.Revision`에는 현재 사용하는 `revision3`만 선언돼 있어 새 revision 전환을 후보로 삼지 않았다. 추가 메모리 절감 목표가 달성됐다는 뜻은 아니다.
+
+원자료는 같은 2026-10-29 루트의 `Corpus65D2Preparation-01/Run-01`·`Reviewer-01`, `SmallTextRotationPreparation-01`, `SmallTextRotationCorrected-02`, `MainSmallTextRotation94-01`, `NextMemoryRouteAudit-01`에 보존했다. 이전 생성기 실패와 수정본 성공을 덮어쓰지 않았고 실제 테스트 수에 중복 합산하지 않았다. 푸시·외부 전송·실기기 검증은 하지 않았다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
