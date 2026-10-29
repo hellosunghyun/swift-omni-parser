@@ -13,7 +13,7 @@ final class PDFSmallTextRotationTests: XCTestCase {
     ]
     for (language, lines) in cases {
       let image = try bitmap(lines)
-      for rotation in [0, 90] {
+      for rotation in [0, 90, 180, 270] {
         let result = try await DocumentParser.parse(
           .data(try pdf(image, rotation: rotation), fileName: "small-text.pdf"),
           options: .init(extractImages: true, performOCR: true, ocrLanguage: language))
@@ -71,14 +71,22 @@ final class PDFSmallTextRotationTests: XCTestCase {
   private func pdf(_ image: CGImage, rotation: Int) throws -> Data {
     let data = NSMutableData()
     let consumer = try XCTUnwrap(CGDataConsumer(data: data))
-    var box = rotation == 0 ? CGRect(x: 0, y: 0, width: 300, height: 180)
+    var box = rotation % 180 == 0 ? CGRect(x: 0, y: 0, width: 300, height: 180)
       : CGRect(x: 0, y: 0, width: 180, height: 300)
     let context = try XCTUnwrap(CGContext(consumer: consumer, mediaBox: &box, nil))
     context.beginPDFPage(nil)
-    if rotation == 90 {
-      // PDF의 시계 방향 회전을 상쇄해 최종 표시와 글자는 정방향으로 유지한다.
+    // PDF의 시계 방향 회전을 상쇄해 최종 표시와 글자는 정방향으로 유지한다.
+    switch rotation {
+    case 90:
       context.translateBy(x: 180, y: 0)
       context.rotate(by: .pi / 2)
+    case 180:
+      context.translateBy(x: 300, y: 180)
+      context.rotate(by: .pi)
+    case 270:
+      context.translateBy(x: 0, y: 300)
+      context.rotate(by: -.pi / 2)
+    default: break
     }
     context.draw(image, in: CGRect(x: 30, y: 65, width: 240, height: 64))
     context.endPDFPage()
