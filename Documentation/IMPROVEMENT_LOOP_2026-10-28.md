@@ -710,6 +710,37 @@ FIFO·사전 취소·대기 취소·100회 획득 직후 취소 경합·오류 �
 
 원자료는 10월 29일 검증 루트의 `TinyPaddingPerformancePreparation-01` 아래 최초 `Run-01`·`Revision-02/HostSelfcheck-03`·`Revision-02/Run-01`과 `TinyPaddingIntegrationPreparation-01/Reviewer-01`에 보존했다.
 
+## 실제 crop의 적응형 여백 후보 — 정확도 개선과 성능 미달
+
+같은 고정 PDF의 실제 `DocumentPDFPageParser.prepare` crop 22개에 여백 0·4·8·16픽셀을 적용해 직접 OCR 88회를 실행했다. PNG를 재디코딩한 그림은 입력으로 쓰지 않았다. 원래 픽셀·크기·위치 비트와 흰 테두리를 검사했으며 직접 정답은 각각 13/17/19/21개였다. 단색 대조군 2개를 포함한다. 4픽셀은 기존 직접 정답 1개를 잃었고, 8픽셀→원본 조합도 현행 원본→16픽셀 복구가 맞히던 2개를 잃어 단순 교체를 제외했다. 실제 테스트 1개·22회 준비·88회 직접 OCR, wall 78.388초이며 내부 Vision perform 횟수는 기록하지 않았다.
+
+빈 결과를 서로 보완하는 8→16→원본 후보를 별도로 만들었다. 작은 PDF 그림에서만 최대 3회 시도하고, 취소는 즉시 전파하며 일반 오류 뒤에는 다음 복구 기회를 남긴다. 페이지 면적·1M픽셀 한도와 넘침 검사를 할당 전에 적용하고, 나머지 그림의 원본 우선 정책과 PNG 준비 경로는 유지했다. 순서·복구·예산·취소·좌표·언어 풀 mock 8개가 통과했다. wall 66.587초·실제 Vision 0회이며 정확도 검증과 구분한다. 테스트 스타일 위반 8개는 원본을 보존한 별도 사본에서 고쳤고 그 파일의 strict lint가 통과했다.
+
+새 후보의 공개 API A/B는 같은 22페이지를 세 언어로 읽어 총 6회·132페이지를 처리했다. 그림 part 정답은 automatic 16→22, english 17→21, koreanAndEnglish 17→22였고 최종 페이지 본문은 17→22/18→21/18→22였다. 기존 정답 손실·새 단색 오인식은 0개, native 본문·위치·상대순서·경고와 원시 PNG 66쌍은 같았다. OCR 블록 수가 달라져 전역 readingOrder 값의 차이는 원자료에 남겼다. 영어의 작은 `1` 누락 1개는 남았다. 실제 테스트는 A/B 각 1개·wall 164.989초이며 범위는 자체 숫자·문장부호 샘플에 한정한다.
+
+65문서 A/B에서는 본문 지문·2,709개 블록 기록·순서·Float 신뢰도 비트·경고와 38이미지 픽셀이 같았다. 위치는 원 harness의 `String(describing: DocumentLocation)` 기록을 비교했으며 원래 CGRect의 비트 직접 검증으로 확대하지 않는다. raw PNG는 64/65로, baseball 그림의 ICC 544바이트 중 날짜 offset 33/35만 달랐다. 나머지 21개 chunk·IDAT는 같고 실제 PNG 76개의 CRC 2,622개가 모두 유효했다. **엄격 비교의 REVIEW 상태·exit1은 보존했다.** 실제 테스트는 각 1개·wall 217.879초다.
+
+앞선 16픽셀 우선 후보에서 같은 변형의 단계별 시간이 24.66% 달랐던 점을 반영해 새 후보의 성능 순서를 사전에 A1/B1/B2/A2/B3/A3/A4/B4로 고정했다. 새 프로세스 8개에서 각각 예열 1회·측정 3회, 총 32배치·96문서·2,112페이지를 처리했다. 통계는 예열을 제외한 24개 측정이다. 기존 5ms sampler·parse 경계·동시 문서 2/PDF 페이지 2·256MiB 설정을 유지했고, 각 변형의 고정 공개 결과와 원래 위치 비트 서명이 32회 모두 같았다.
+
+| 지표 | 기준 | 8→16→원본 후보 |
+| --- | ---: | ---: |
+| 시간 중앙값 | 21.9656초 | 26.3688초 (+20.05%) |
+| 관측 footprint 중앙값 | 145,533,400B | 145,623,488B (+0.0619%) |
+| 관측 footprint 최대 | 149,211,608B | 149,391,856B (+0.1208%) |
+| 관측 RSS 최대 | 408,682,496B | 404,258,816B (-1.08%) |
+
+**사전 시간·footprint 중앙값·최대값 조건 3개를 모두 충족하지 못해 미채택했다.** 작은 footprint 차이를 유의한 악화로 단정하지 않으며 감소 입증 실패로 판단한다. 인접한 네 A/B 쌍에서도 후보의 시간 중앙값이 모두 높았다(+28.48/+37.19/+2.13/+0.86%). 실제 테스트 8개·실패/skip/expected failure/runtime warning 0건, compiler의 Swift 5·-O·WMO·SDK27.1과 입력 가드 19개를 확인했다. 전체 wall은 996.676초다. 공유 Mac의 swap 8,908~10,011MiB·Simulator 2대와 thermal 0이 관측됐고 코드만의 인과는 미확정이다. host 시계와 target uptime의 bridge도 검증하지 않았다.
+
+제품·테스트·README/API는 기존 상태를 유지한다. 최종 Debug 108개·generic 양쪽 아키텍처·lint 69파일 명령과 반영 5파일 계획은 준비만 했으며 미채택으로 실행·적용하지 않았다. 실제 성능 배치의 Vision perform 횟수도 기록하지 않았다. 원자료는 10월 29일 루트의 `TinyPaddingSizeMatrixPreparation-01`, `TinyAdaptivePaddingPreparation-01`, `TinyAdaptivePaddingPublicPreparation-01`, `TinyAdaptivePaddingCorpus65Preparation-01`, `TinyAdaptivePaddingPerformancePreparation-01/Run-01/Reviewer-01`에 보존했다.
+
+## 실제 perform 진단과 입력 표현의 경계
+
+앞선 16픽셀 우선 후보의 지연 원인을 좁히려고 별도 계측 사본에서 automatic 모드로 공개 parse를 A/B 각 1회, 총 44페이지 실행했다. 비어 있는 계측이 통과하지 않게 host fake 9개로 가드를 보강한 뒤 실제 primary는 A 50회(원본 그림 22·여백 복구 6·페이지 22), B 47회(여백 그림 22·원본 복구 3·페이지 22)였고 Numeric은 양쪽 0회였다. 모든 이벤트가 성공 종료됐고 실제 동시 primary 최대는 2였다. 원래 공개 기대 결과·정답 수를 유지했으며 테스트 2개와 입력 가드 17개가 통과했다.
+
+이 고정 진단은 추가 perform·Numeric 증가·페이지 OCR 생략이 앞선 지연의 원인이라는 가설을 뒷받침하지 않는다. 이전 배치의 실제 횟수와 모델 내부 경로는 여전히 미관측이며 계측 실행 시간을 비계측 성능 수치로 사용하지 않는다. 근거는 `TinyPaddingLatencyAudit-01`·`TinyPaddingPerformTracePreparation-01/GuardRevision-02/Run-01/Reviewer-01`에 있다.
+
+별도 Mac 호스트의 작은 색상 대조에서는 bitmapInfo 1↔16385만 바꾼 4쌍과 같은 provider 재포장 8개의 원시 바이트·sRGB/P3 픽셀·프로필·흰 테두리가 같았다. 실제 Swift 실행 1회·1.326초이며 iOS/UIKit/Vision의 동등성이나 속도·메모리를 검증한 결과는 아니다. `TinyPaddingBitmapFlagHostProbe-01`에 다음 단일 변수 후보의 근거로만 보존했다. 기존 수명·Numeric·crop 경계를 읽은 `OCRLifetimeBoundaryReadOnlyAudit-01`에서는 추가 실행을 권고할 새 메모리 후보를 찾지 못했다.
+
 ## PDF 중간 래스터 후보 미채택
 
 PDFKit의 전체 thumbnail과 비트맵 사본을 만들던 경로를 직접 그리기로 바꾸는 후보를 제품 밖에서 비교했다. 첫 후보는 P3 색상을 바꿔 제외했다. 16×16 이하 thumbnail에서 색공간만 조회하는 수정본은 같은 PDF 6개의 sRGB/P3 정규화 픽셀·PNG 디코드 픽셀·원시 PNG가 모두 같았다. 줄바꿈을 정리한 최종 소스도 같은 6개 입력을 통과했고 OCR은 실행하지 않았다. 기능 재검증 wall은 76.051초다.
