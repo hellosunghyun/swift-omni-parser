@@ -50,13 +50,22 @@ final class MixedLanguageOCRRegressionTests: XCTestCase {
     let image = try image(page: false, lines: lines)
     let before = try await DocumentParser.parse(.image(image, orientation: .up),
       options: .init(performOCR: true))
+    let englishLines = ["RESEARCH REPORT", "INVOICE TOTAL 125.00", "RESULTS 2026"]
+    let englishImage = try self.image(page: false, lines: englishLines)
+    let englishBefore = try await DocumentParser.parse(.image(englishImage, orientation: .up),
+      options: .init(performOCR: true, ocrLanguage: .english))
+    try assertResult(englishBefore, expected: englishLines, markers: ["RESEARCH", "TOTAL", "2026"])
     async let automatic = DocumentParser.parse(.image(image, orientation: .up),
       options: .init(performOCR: true, ocrLanguage: .automatic))
     async let korean = DocumentParser.parseBatch([.image(image, orientation: .up)],
       options: .init(performOCR: true, ocrLanguage: .koreanAndEnglish))
-    let (during, batch) = try await (automatic, korean)
+    async let english = DocumentParser.parse(.image(englishImage, orientation: .up),
+      options: .init(performOCR: true, ocrLanguage: .english))
+    let (during, batch, englishDuring) = try await (automatic, korean, english)
     XCTAssertTrue(during == before, "동시에 실행한 다른 언어 정책이 자동 요청에 섞였습니다.")
     TestFixtures.assertTextConsistency(during)
+    XCTAssertTrue(englishDuring == englishBefore, "동시에 실행한 다른 언어 정책이 영어 요청에 섞였습니다.")
+    try assertResult(englishDuring, expected: englishLines, markers: ["RESEARCH", "TOTAL", "2026"])
     guard batch.count == 1, case .success(let result) = batch[0] else {
       return XCTFail("한영 배치의 결과가 보존되지 않았습니다.")
     }

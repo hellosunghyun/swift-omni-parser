@@ -443,6 +443,14 @@ near profile의 시간 중앙값은 47.04%, footprint 중앙값은 1.53% 줄었�
 
 독립 정적 검토는 실행 GO 이후, 실행 도중 완료됐다. 테스트는 각 프로세스의 자기 예열 기준과 즉시 비교하지만 A1과의 교차 비교는 runner가 해당 단계 종료 후 수행한다. 따라서 교차 불일치 시 다음 trial까지 즉시 차단한다는 보장은 없다. 이번 48회에는 교차 불일치가 없었으며 최초 runner·로그·manifest를 수정하지 않고 이 한계를 추가 기록했다. 후속 실행 도구를 재사용할 때는 A1 기준을 예열 직후 검사하도록 먼저 보완해야 한다.
 
+## 언어 설정과 영어 동시 호출 회귀 보강
+
+세 언어 정책의 언어 목록·순서, 자동 감지, accurate·언어 보정·작은 글자 기준과 기본 `.automatic`을 실제 요청 getter로 고정했다. 기존 동시 격리 회귀에는 영어 전용 자료의 기준 결과를 추가하고 automatic·한영 배치·영어 parse를 함께 실행해 영어 결과도 기준과 같은지 확인했다. 제품 소스·공개 API·기본 설정은 바꾸지 않았다. 이 테스트는 비기본 공개 parse의 자연 숫자 보완 분기 검증을 대신하지 않는다.
+
+최종 줄바꿈 정리 후 전체 Release XCTest **81개 통과·실패/skip/runtime warning 0건**, wall 71.868초였다. 새 getter와 확장한 동시 호출도 실제 xcresult에서 통과를 확인했다. 소스·테스트·샘플·패키지·lint 설정 159개 지문은 실행 전후 같았다. 제품 컴파일은 캐시를 재사용해 실제 명령 0개였고, 새 테스트 컴파일에서는 Swift 5·`-O`·WMO·testability·arm64 Simulator를 확인했다. 빌드의 sysroot·AppIntents 경고 2건은 런타임 경고와 구분한다.
+
+일반 Simulator 빌드는 6.286초에 arm64·x86_64 경로를 통과했고 해당 로그의 경고는 0건이었다. SwiftLint 0.65.1 strict는 62파일·위반 0건이다. 초기에 발견한 tuple 크기·줄 길이 lint 실패와 정리 전 81개 통과 기록도 보존했으며, 테스트 수를 합산하거나 이 wall을 파싱 성능 개선으로 해석하지 않는다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -502,5 +510,7 @@ near profile의 시간 중앙값은 47.04%, footprint 중앙값은 1.53% 줄었�
 10월 29일 루트의 `PDFIntegralCoveragePreparation-01/Run-01/COMPARISON.json`·`RUNTIME_AUDIT.json`에는 자체 PDF의 실제 정수 crop·OCR 인수·반환 전체 필드·PNG와 경계 18사례 비교를 보존했다. 후보 diff와 진단 diff를 분리했으며 기능 검증 단계의 성공을 성능/peak 검증이나 제품 반영으로 바꾸지 않는다.
 
 같은 루트의 `PDFIntegralCoverageBenchmarkPreparation-01/Run-01/`에는 진단 훅 없는 ABBA 네 프로세스의 명령·xcresult·실제 컴파일·48회 지문·40개 측정·환경 관측이 있다. `COMPARISON.json`과 `RESULT.json`의 완료 상태는 실행·대조 완료이며 제품 채택을 뜻하지 않는다. 교차 지문 gate 시점의 한계와 미채택 판단도 원자료와 분리해 남겼다.
+
+`MainLanguageIsolation81FormatFollowup/`에는 최종 언어 회귀 81개·실제 발견 수·컴파일 범위·159개 지문·strict lint·일반 빌드의 명령과 결과가 있다. `MainLanguageIsolation81/`은 마지막 줄바꿈 정리 전의 실행이며 두 결과를 구분한다. 앞선 lint 실패는 같은 날짜 루트의 `LanguageIsolation81-swiftlint-01.log`와 첫 실행 폴더의 `swiftlint.log`에 보존했다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.

@@ -14,6 +14,28 @@ final class ImageAndPDFRegressionTests: XCTestCase {
                    VNRecognizeTextRequest().minimumTextHeight)
   }
 
+  func testOCRLanguagePoliciesPreserveRequestDefaults() {
+    XCTAssertEqual(DocumentParserOptions().ocrLanguage, .automatic)
+    let policies: [DocumentOCRLanguage: (languages: [Locale.Language], detectsLanguage: Bool)] = [
+      .automatic: ([.init(identifier: "ko-KR"), .init(identifier: "en-US")], true),
+      .koreanAndEnglish: ([.init(identifier: "ko-KR"), .init(identifier: "en-US")], false),
+      .english: ([.init(identifier: "en-US")], false)
+    ]
+    let legacySmallTextHeight = VNRecognizeTextRequest().minimumTextHeight
+    for (language, policy) in policies {
+      let request = DocumentOCR.makeRequest(language: language)
+      XCTAssertEqual(request.recognitionLanguages, policy.languages, language.rawValue)
+      XCTAssertEqual(request.automaticallyDetectsLanguage, policy.detectsLanguage,
+                     language.rawValue)
+      XCTAssertEqual(request.recognitionLevel, .accurate, language.rawValue)
+      XCTAssertTrue(request.usesLanguageCorrection, language.rawValue)
+      XCTAssertEqual(request.minimumTextHeightFraction, legacySmallTextHeight, language.rawValue)
+    }
+    let defaults = DocumentOCR.makeRequest()
+    XCTAssertEqual(defaults.recognitionLanguages, policies[.automatic]?.languages)
+    XCTAssertTrue(defaults.automaticallyDetectsLanguage)
+  }
+
   func testCancellationDuringVisionRequestDiscardsSession() async throws {
     let context = try XCTUnwrap(CGContext(data: nil, width: 2048, height: 4096,
       bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
