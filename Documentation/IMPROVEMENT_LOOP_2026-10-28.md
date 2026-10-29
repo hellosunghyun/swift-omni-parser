@@ -394,6 +394,8 @@ OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내�
 
 기존 작은 배치 원자료도 요청 수의 집계 단위를 재확인했다. PeakTimeline은 배치당 JPEG 1회·PDF 그림 1회·PDF 페이지 1회이며 DOCX의 OCR은 0회다. warmup과 measured 한 번씩을 합친 6회와 배치당 호출을 혼동하지 않는다. 반환 그림 두 개의 canonical 지문은 다르지만 실제 OCR 직전 입력의 지문이 아니므로 세 요청의 입력 중복 유무까지 입증하지 않는다. 추가 캐시를 적용할 근거로 쓰지 않는다.
 
+후속으로 기존 NativeLifetime 기록의 phase10/stage1에서 실제 pool 인수의 크기를 확인했다. JPEG 780×326, PDF 그림 1440×403, PDF 페이지 1584×1224로 배치 안의 세 크기가 모두 다르며 다음 measured 배치도 같은 크기였다. 이 값은 이후 `request.perform`에 전달한 같은 CGImage 인수에서 읽었고 반환 PNG의 크기가 아니다. 해당 기록의 source와 현재 코드에서 관련 runtime 27파일·Package 2파일, 세 fixture 지문도 같았다. 이 입력들의 배치 내 정확한 CGImage 반복은 배제할 수 있어 새 SHA 계측 준비를 중단했고 빌드·OCR은 실행하지 않았다. 준비 파일과 초기 과도한 clean 가드의 실행 전 실패는 보존했다. 시각 내용·리사이즈 동등성·배치 간 픽셀 동일성이나 캐시 효과까지 판정한 것은 아니다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -445,5 +447,7 @@ OS 네트워크 차단 안의 Xcode는 consumer manifest를 해석하면서 내�
 같은 날짜 루트의 `NativeLifetimeUI-02/`에는 직접 UI 관찰과 원본 trace 보존, 조건부 POI 대조를 분리했다. `NumericLanguageBranch/`에는 자연 숫자 분기의 기준/trace 실제 실행·언어별 요청 getter·시각 전사 지문·단계 시간과 제품 미변경 근거가 있다. 해당 진단의 테스트 수와 `NumericRegression/`의 제품 회귀 실행 수는 합치지 않는다. `MainNumeric80/`에는 후속 전체 80개 실행의 명령·xcresult·소스 지문이, `NativeLifetimeUI-03/RESULT.json`에는 POI 트랙 선택과 실제 표 전환 실패를 구분한 후속 관찰이 있다.
 
 `NumericNondefaultPreparation-01/Run-01/`의 `contract-gate.json`·`FINAL_REPORT.json`에는 내부 비기본 숫자 요청의 실제 getter·분기·관찰/픽셀 불변·컴파일·7회 호출 상한을 보존했다. root의 앞선 문서 변경을 과도한 clean 가드가 거부한 준비 실패는 실행 전 상태로 별도 보존했다. 실제 진단 실행은 한 번이며 자동 재시도하지 않았다.
+
+`OCRInputFingerprintPreparation-01/EXISTING_NATIVE_INPUT_RECHECK.json`·`STOPPED.md`에는 기존 실제 입력 크기와 관련 소스·fixture 대조, 새 지문 계측의 비실행·중단 이유를 기록했다. 미완성 runner를 검증된 실행 도구로 사용하지 않는다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
