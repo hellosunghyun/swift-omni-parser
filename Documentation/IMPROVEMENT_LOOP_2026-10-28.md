@@ -451,6 +451,32 @@ near profile의 시간 중앙값은 47.04%, footprint 중앙값은 1.53% 줄었�
 
 일반 Simulator 빌드는 6.286초에 arm64·x86_64 경로를 통과했고 해당 로그의 경고는 0건이었다. SwiftLint 0.65.1 strict는 62파일·위반 0건이다. 초기에 발견한 tuple 크기·줄 길이 lint 실패와 정리 전 81개 통과 기록도 보존했으며, 테스트 수를 합산하거나 이 wall을 파싱 성능 개선으로 해석하지 않는다.
 
+## PDF executor의 작업별 autorelease 후보 — 미채택
+
+새 후보는 기존 PDF concurrent 큐에 `autoreleaseFrequency: .workItem` 인자 하나만 추가했다. 로컬 SDK의 `dispatch/queue.h`는 수동 큐의 기본값이 target의 동작을 상속하며, workItem은 비동기 블록마다 autorelease pool을 만든다고 설명한다. 입력 Reader에는 이미 이 설정이 있지만 현재 Swift Vision의 PDF executor만 독립 변경한 앞선 기록은 찾지 못했다. 큐의 Swift job 실행 구간에서 생긴 미소유 임시 객체를 정리할 가능성을 시험했으며, 강하게 보유한 래스터·세션이나 Vision 내부의 별도 큐·native 모델 저장소까지 해제한다고 가정하지 않았다. OCR 엔진·언어·픽셀·QoS·동시성·작업 예산·API·의존성은 유지했다.
+
+먼저 동일한 기존 회귀 12개를 기준→후보로 실행해 **24개 통과·실패/skip/runtime warning 0건**을 확인했다. PDF의 오류/빈 결과 후 재시도·취소·성공 재사용, PNG 부분 결과·위치, 실제 Vision 취소 후 세션 폐기, PDF 예약/대기자 반환이 포함된다. 양쪽 제품 45개·테스트 4개와 생성 accessor의 실제 컴파일 파일 집합, Swift 5·`-O`·WMO·testability·arm64 Simulator·SDK27.1을 확인했다. 기준/후보 명령 wall은 70.868초/68.503초이며 기능 검증의 wall을 성능 개선으로 해석하지 않는다. 각 빌드의 기존 sysroot·AppIntents 경고 2건은 따로 보존했다.
+
+### small3 단독 비교와 실제 조기 gate
+
+기존 near profile을 앞서 실행하지 않고 PDF/JPEG/DOCX small3 하나만 A1→B1→B2→A2 네 독립 프로세스에서 비교했다. URL·OCR on·images off·automatic·문서 동시성 2와 다른 기본 옵션을 고정했다. 각 프로세스의 예열 1·측정 5로 총 **24회 중 20개 측정**, 실제 XCTest 4개 통과·실패/skip/runtime warning 0건이다. 기존 5ms sampler와 계측 밖 지문 생성 순서를 유지했다.
+
+앞선 지연 교차 검사를 보완했다. 원본 xctestrun을 보존하고 같은 Products 디렉터리에 새 사본을 만들어 환경 키 하나로 control을 전달했다. 실제 Simulator 프로세스의 payload·nonce·전체 A1 reference SHA 수신과 HEADER/GATE/TRIAL의 stage·PID·runID 연결을 확인했다. 후속 프로세스는 실제 A1 reference를 받아 예열 직후 비교하며 통과 전 측정에 들어가지 않는다. 매 측정 뒤에도 다음 trial 전에 비교한다. 네 실행 모두 이 경계와 전체 공개 필드·semantic 지문이 같았다. runner의 실행 종료 후 추가 감사와 테스트 안의 측정 전 검사를 구분했다.
+
+도구 자체는 무OCR로 먼저 확인했다. 최초 호스트 Swift 컴파일은 Gate 초기화 누락으로 실패했고 소스·로그를 보존했다. 대입 두 줄을 수정한 별도 02 실행에서 실제 Gate 21사례와 Reference·정확한 옵션 14개의 Swift/Python canonical bytes·SHA 일치를 확인했다. Python fake 31검사도 별도이며 이 수를 제품 XCTest나 OCR 측정에 합산하지 않는다. 두 호스트 컴파일 중 성공은 1회, 실제 호스트 실행은 1회이고 자동 재시도하지 않았다.
+
+| 관측값 | 기준 A, 측정 10개 | 후보 B, 측정 10개 | 변화 |
+| --- | ---: | ---: | ---: |
+| 파싱 시간 중앙값, 초 | 1.2730 | 1.1814 | −7.20% |
+| 파싱 시간 최대, 초 | 1.8355 | 2.3401 | +27.49% |
+| trial별 footprint 관측 최고점의 중앙값, MiB | 190.917 | 195.127 | +2.21% |
+| footprint 관측 최대, MiB | 200.112 | 203.799 | +1.84% |
+| RSS 관측 최대, MiB | 474.938 | 471.859 | −0.65% |
+
+RSS가 줄어도 footprint 중앙값·최대값은 늘어 **작은 배치의 추가 메모리 절감을 확인하지 못했고 후보는 제품에 적용하지 않았다.** 같은 기준 코드의 A1/A2 시간 중앙값도 1.1084초/1.5181초로 차이가 있어 합산 시간 중앙값의 감소를 확정 속도 개선으로 보지 않는다. 공유 Mac 부하와 swap, 5ms 관측 최고점의 한계를 유지한다. 단일 profile 분리는 같은 프로세스에서 near를 먼저 실행하는 조건을 없앴으며, 다른 환경·문서·실기기로 일반화하는 근거는 아니다.
+
+단계별 빌드/테스트 wall은 A1 55.415/12.129초, B1 55.193/12.104초, B2 56.593/12.158초, A2 63.006/14.887초다. 후처리 포함 전체 wall은 283.888초다. 최대 4회 build-for-testing과 4회 test-without-building을 한 번의 controller에서 실행했고 추가 변형·재시도·제품 반영은 하지 않았다. main은 언어 회귀 커밋 `9f6f3da`의 제품 소스를 유지한다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -512,5 +538,9 @@ near profile의 시간 중앙값은 47.04%, footprint 중앙값은 1.53% 줄었�
 같은 루트의 `PDFIntegralCoverageBenchmarkPreparation-01/Run-01/`에는 진단 훅 없는 ABBA 네 프로세스의 명령·xcresult·실제 컴파일·48회 지문·40개 측정·환경 관측이 있다. `COMPARISON.json`과 `RESULT.json`의 완료 상태는 실행·대조 완료이며 제품 채택을 뜻하지 않는다. 교차 지문 gate 시점의 한계와 미채택 판단도 원자료와 분리해 남겼다.
 
 `MainLanguageIsolation81FormatFollowup/`에는 최종 언어 회귀 81개·실제 발견 수·컴파일 범위·159개 지문·strict lint·일반 빌드의 명령과 결과가 있다. `MainLanguageIsolation81/`은 마지막 줄바꿈 정리 전의 실행이며 두 결과를 구분한다. 앞선 lint 실패는 같은 날짜 루트의 `LanguageIsolation81-swiftlint-01.log`와 첫 실행 폴더의 `swiftlint.log`에 보존했다.
+
+작업별 autorelease 기능 검증은 실제 생성 위치인 `R29/PDFExecutorWorkItemFunctionalPreparation-01/Run-01/`에 있다. 같은 날짜 루트 안의 추가 `R29` 디렉터리를 이동하지 않았으며 `RESULT.json`·`RUNTIME_AUDIT_FINAL.json`·두 xcresult·실제 compiler file list와 최초 준비 제어 파일을 보존했다.
+
+`Small3IsolatedPreparation-01/`에는 새 단일 profile의 고정 manifest, 실제 Swift Gate·두 사본 동기화, `HostSwiftSelfCheck-01` 실패와 `02` 성공, Python fake·canonical 비교가 있다. `Run-01/`에는 실제 control 수신·예열 조기 gate·24회 전체 공개 지문·20개 관측·환경·명령별 wall·원본/주입 xctestrun이 있다. `FINAL_REPORT.md`·`RUNTIME_AUDIT.json`에서 미채택 판단과 원시 로그 재검산을 확인할 수 있다. 앞선 두 profile ABBA와 통계를 합산하지 않는다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
