@@ -487,6 +487,36 @@ Office 임시 문자열·async frame은 현재 small3 peak 후보에서 제외�
 
 향후 새 후보용 timing patch는 기존 uptime 호출 두 번의 시작/끝을 보존하고 UTC bracket은 시간·peak 창 밖에 둔다. observer에는 서브명령별 시각과 PID/PPID·허용 실행파일 이름을 추가하며 argv·개인 경로·오류 원문은 저장하지 않는다. 무OCR fake 검사 12개가 통과했다. 최초 검사의 문자열 패턴 횟수 기대값 오류 1건을 정정했으며 실패와 원문을 보존했다. Swift 컴파일·실제 observer·새 benchmark runner 연결은 아직 하지 않았고 과거 통계와 합산하지 않는다.
 
+## 공개 숫자 분기와 primary 오독
+
+비기본 언어의 자연 숫자 보완 분기를 공개 parse로 확인하려고 기존 JPEG 1개·자체 통화 4개·비통화 2개를 고정했다. 원본의 3정책과 생성 입력의 한영/영어를 합쳐 최대 15 parse·60 Vision perform으로 제한했다. 관찰·신뢰도·픽셀·대상 임계값은 조작하지 않았으며 실제 refine 인자 픽셀을 별도 decode 참조와 구분해 전후 비교했다.
+
+실제 XCTest 1개는 **실패 1·skip/runtime warning 0건**으로 중단했다. 14번째 공개 parse는 정상 반환했으나 자체 검사에서 인쇄 의도 `S123.45`와 다른 `$123.45` primary를 발견했다. 보완 이력과 숫자 요청은 0이고 신뢰도는 1.0이었다. source PNG의 S 글리프도 확인했으며 renderer의 인쇄 의도·assistant 시각 확인을 human-gold로 부르지 않는다. 현재 결과를 먼저 보존한 뒤 다음 parse 전에 중단해 실제 반환 14회·검사 정상 완료 목록 13개이며 마지막 영어 parse는 미실행이다.
+
+| 실행 정책 | 공개 parse 반환 | 자연 target 합계 | 숫자 요청 | 비기본 자연 분기 |
+| --- | ---: | ---: | ---: | --- |
+| automatic 원본 대조 | 1 | 3 | 3 | 기존 대조군 |
+| koreanAndEnglish | 7 | 0 | 0 | 미검증 |
+| english | 6 | 0 | 0 | 미검증 |
+
+실제 primary 14회·숫자 3회로 Vision 17회였다. automatic의 보완 2개는 기존 인쇄 금액과 같았고 실제 `5123.45` 대조는 한영·영어 모두 정확 일치·보완 0이었다. 한영 S 오독은 숫자 보완 결함으로 바꾸어 설명하지 않는다. 요청 실패·관찰 지문 위반은 runner의 사후 검사라는 한계도 유지한다. 실제 한 compiler 명령 안의 Swift 5·`-O`·WMO·testability·arm64 Simulator·SDK27.1과 pre/post 9개 가드·main 216개 지문 보존을 확인했다. 빌드·후처리 포함 wall은 77.327초다.
+
+### 같은 픽셀의 언어·언어 보정 분리 비교
+
+이 오독의 후속 진단으로 S14gray·통화14gray 두 입력만 같은 renderer로 다시 만들고 이전 실제 픽셀 지문과 대조했다. 기존 internal request 생성자를 사용해 3언어×보정 on/off의 직접 primary 12회를 고정 순서로 수집했다. 공개 parse·내부 refine를 호출하거나 새 API를 추가하지 않았다. 오독은 이 진단의 측정 대상이며 source·픽셀·getter·호출 실패만 중단 조건이다. 따라서 앞선 실패를 재실행해 성공으로 바꾼 결과가 아니다.
+
+| 직접 primary 언어 | 보정 on/off의 S 관측 | 보정 on/off의 통화 정확 일치 |
+| --- | --- | ---: |
+| automatic | S123.45 | 4/4 |
+| koreanAndEnglish | $123.45 | 3/4 |
+| english | S123.45 | 4/4 |
+
+표의 on/off 일치는 S 관측과 정확 일치 개수에 한정한다. 한영 통화의 미일치 토큰 SHA는 on/off에서 달라 전체 관찰이 같다고 주장하지 않는다.
+
+실제 XCTest 1개 통과·실패/skip/runtime warning 0건, 12요청 모두 성공했다. 이 성공은 측정·보존 완료이지 모든 문구가 정확했다는 뜻이 아니다. 모든 관찰의 신뢰도는 1.0이었다. 한영·보정 on의 두 입력은 이전 공개 primary의 top1·신뢰도·좌표·순서를 UUID 제외하고 정확히 재현했다. 해당 픽셀에서는 보정 off가 오독을 없애지 못해 보정 제어 API를 추가하거나 기본 정책을 바꾸지 않았다. 다른 문서의 정확도·속도·메모리로 일반화하지 않는다. 직접 영어 primary 성공으로 앞선 미실행 공개 영어 parse나 자연 숫자 분기 공백을 닫지도 않는다.
+
+두 모듈의 실제 단일 compiler 명령 조건과 pre/post 10개 가드·main 216개 지문을 확인했고 wall은 108.820초다. 제품 소스·의존성·요청 기본값은 그대로이며 기존 전체 81개 회귀와 외부 진단 수를 합산하지 않는다. `ocrOriginalText == nil`과 높은 `ocrConfidence`는 primary 정확성의 보증이 아니므로 API 문서에도 이 의미를 명확히 했다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -554,5 +584,7 @@ Office 임시 문자열·async frame은 현재 small3 peak 후보에서 제외�
 `Small3IsolatedPreparation-01/`에는 새 단일 profile의 고정 manifest, 실제 Swift Gate·두 사본 동기화, `HostSwiftSelfCheck-01` 실패와 `02` 성공, Python fake·canonical 비교가 있다. `Run-01/`에는 실제 control 수신·예열 조기 gate·24회 전체 공개 지문·20개 관측·환경·명령별 wall·원본/주입 xctestrun이 있다. `FINAL_REPORT.md`·`RUNTIME_AUDIT.json`에서 미채택 판단과 원시 로그 재검산을 확인할 수 있다. 앞선 두 profile ABBA와 통계를 합산하지 않는다.
 
 `EnvironmentAudit-01/REPORT.md`·`AUDIT.json`은 기존 A1/A2 suite와 환경 관측·VM counter·시각 복원 불가의 근거를 남긴다. `TrialTimingPreparation-01/`의 patch는 향후 새 후보용 준비이며 `FakeChecks-01` 실패·`Review-01` 원문·`FIX-01.json`·`FakeChecks-02` 12개 통과를 보존했다. 실제 observer나 benchmark 실행 완료로 해석하지 않는다.
+
+`NumericPublicBranchPreparation-01/Run-01/`에는 첫 이상에서 중단한 실제 XCTest·14 parse·17 perform·원본/생성 PNG·실패한 현재 parse의 JSON과 `branch-gate.json`이 있다. `NumericPrimaryPolicyComparisonPreparation-01/Run-01/`은 같은 두 픽셀의 직접 primary 12설정과 이전 관찰 재현·getter·source 보존 근거다. 두 실행의 `FINAL_REPORT.md`와 실패/성공 영수증을 구분하며 기존 실패를 덮어쓰거나 두 결과를 합산하지 않는다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.

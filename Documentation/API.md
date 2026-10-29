@@ -63,6 +63,12 @@ let english = try await DocumentParser.parse(
 
 본문 OCR과 작은 숫자 보완은 같은 모드를 사용한다. 언어는 각 파싱 호출의 요청 풀에 고정하고 다른 동시 호출과 섞지 않는다. `parseBatch`에서는 전달한 모드를 모든 입력에 적용한다. 서로 다른 모드가 필요한 입력은 각각 `parse`를 호출하고 호출 측에서 동시 수를 제한한다. 문서의 네이티브 본문·표 추출과 PNG 반환 설정에는 영향을 주지 않는다.
 
+## OCR 신뢰도와 보완 이력
+
+`ocrConfidence`는 Vision이 제공한 점수이며 정답 보증이 아니다. 자체 생성한 `S123.45`를 한영 primary OCR이 `$123.45`로 읽으면서 신뢰도 1.0을 반환한 [실제 사례](IMPROVEMENT_LOOP_2026-10-28.md#공개-숫자-분기와-primary-오독)가 있다. 수치·식별자를 사용할 때는 원본과 대조한다.
+
+`ocrOriginalText`는 라이브러리가 통화 기호를 보완한 경우의 primary 문자열만 기록한다. `nil`은 해당 보완이 없었다는 뜻이며 primary가 정확했다는 뜻은 아니다. 언어 모드가 지원하는 문자와 특정 문서의 인식 정확도도 구분해야 한다.
+
 ## Office 추출 경로
 
 - XLS·XLSX는 OpenDocument.core의 셀 좌표 API로 읽는다. HTML 화면용 행·열 눈금과 인쇄용 중복 출력을 본문에 섞지 않는다.
