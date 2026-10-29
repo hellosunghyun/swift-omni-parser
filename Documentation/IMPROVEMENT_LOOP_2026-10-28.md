@@ -477,6 +477,16 @@ RSS가 줄어도 footprint 중앙값·최대값은 늘어 **작은 배치의 추
 
 단계별 빌드/테스트 wall은 A1 55.415/12.129초, B1 55.193/12.104초, B2 56.593/12.158초, A2 63.006/14.887초다. 후처리 포함 전체 wall은 283.888초다. 최대 4회 build-for-testing과 4회 test-without-building을 한 번의 controller에서 실행했고 추가 변형·재시도·제품 반영은 하지 않았다. main은 언어 회귀 커밋 `9f6f3da`의 제품 소스를 유지한다.
 
+## 작은 배치 환경 감사와 후보 제외 근거
+
+앞선 workItem 비교의 같은 기준 코드 A2는 측정 5개 모두 A1보다 느렸다. A2 최소 1.394103초도 A1 최대 1.151981초보다 길어 단일 이상치만의 차이가 아니다. A2의 XCTest suite 안에서 시작한 환경 row에는 XCTest 424.5%와 별도의 Swift compiler 90.6%·36.3%, WatchOS 경로 plugin 30.6%, nettop 63.3%가 기록됐다. A1 suite 안에서 시작한 row에는 선택된 compiler·nettop이 없다. 구체적인 자원 경쟁 후보이지만 comm만 있는 자료로 프로젝트·작업 소유자를 식별하거나 특정 trial 지연의 원인을 확정하지 않는다. 예열·검사를 포함한 suite와 실제 parse 구간도 구분한다.
+
+전체 관측 구간 swapout 증가는 오히려 A1이 컸고, 측정 인접 bracket의 swapout은 두 실행 모두 0이었다. A2의 swap 용량 증가는 테스트 시작 전이다. host 전역 VM counter나 누적 swap 용량을 해당 parse의 디스크 IO로 해석하지 않는다. 과거 trial에는 UTC·uptime 시작/끝이 없어 시각을 사후 복원하지 않았다. workItem 미채택을 유지하며 동일 후보의 재시도 근거로 사용하지 않는다. 다른 Simulator·QA·RoamRun도 중단하지 않았다.
+
+Office 임시 문자열·async frame은 현재 small3 peak 후보에서 제외했다. 기존 계측 12회에서 DOCX는 관측 최고점 281~907ms 뒤에 시작했고 당시 Office 두 파일은 현재와 같다. 해당 DOCX의 본문 XML은 2,478바이트·텍스트 노드 6개·합계 17 UTF-8바이트·그림 0개다. 큰 할당 근거나 peak와의 겹침 없이 트리 순회를 바꾸지 않았다. PDF `page` 인자가 예약 반환의 await까지 보유되는지는 기존 SIL에 해당 함수가 없어 미확인이다. 12개 최고점 모두 PDF OCR 진행 중이어서 필요한 래스터를 OCR 종료 후 조금 일찍 해제하는 변경으로 이 최고점이 낮아진다는 근거도 없다.
+
+향후 새 후보용 timing patch는 기존 uptime 호출 두 번의 시작/끝을 보존하고 UTC bracket은 시간·peak 창 밖에 둔다. observer에는 서브명령별 시각과 PID/PPID·허용 실행파일 이름을 추가하며 argv·개인 경로·오류 원문은 저장하지 않는다. 무OCR fake 검사 12개가 통과했다. 최초 검사의 문자열 패턴 횟수 기대값 오류 1건을 정정했으며 실패와 원문을 보존했다. Swift 컴파일·실제 observer·새 benchmark runner 연결은 아직 하지 않았고 과거 통계와 합산하지 않는다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
@@ -542,5 +552,7 @@ RSS가 줄어도 footprint 중앙값·최대값은 늘어 **작은 배치의 추
 작업별 autorelease 기능 검증은 실제 생성 위치인 `R29/PDFExecutorWorkItemFunctionalPreparation-01/Run-01/`에 있다. 같은 날짜 루트 안의 추가 `R29` 디렉터리를 이동하지 않았으며 `RESULT.json`·`RUNTIME_AUDIT_FINAL.json`·두 xcresult·실제 compiler file list와 최초 준비 제어 파일을 보존했다.
 
 `Small3IsolatedPreparation-01/`에는 새 단일 profile의 고정 manifest, 실제 Swift Gate·두 사본 동기화, `HostSwiftSelfCheck-01` 실패와 `02` 성공, Python fake·canonical 비교가 있다. `Run-01/`에는 실제 control 수신·예열 조기 gate·24회 전체 공개 지문·20개 관측·환경·명령별 wall·원본/주입 xctestrun이 있다. `FINAL_REPORT.md`·`RUNTIME_AUDIT.json`에서 미채택 판단과 원시 로그 재검산을 확인할 수 있다. 앞선 두 profile ABBA와 통계를 합산하지 않는다.
+
+`EnvironmentAudit-01/REPORT.md`·`AUDIT.json`은 기존 A1/A2 suite와 환경 관측·VM counter·시각 복원 불가의 근거를 남긴다. `TrialTimingPreparation-01/`의 patch는 향후 새 후보용 준비이며 `FakeChecks-01` 실패·`Review-01` 원문·`FIX-01.json`·`FakeChecks-02` 12개 통과를 보존했다. 실제 observer나 benchmark 실행 완료로 해석하지 않는다.
 
 공유 Mac의 swap·OS cache·계측 오버헤드를 배제하지 못하며 5ms도 순간 최고점을 보장하지 않는다. 실기기는 검증하지 않았다. 작은 일반 배치의 추가 메모리 절감은 목표 미달이며, 원시 표본의 증가 구간·잔류량과 후속 후보를 계속 분석한다.
