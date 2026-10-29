@@ -636,6 +636,53 @@ P2에는 TextRecognition 전역 root로 이어지는 `NLLanguageRecognizer` 48�
 
 원자료는 같은 2026-10-29 루트의 `Small3ResidualIdentityPreparation-01/Run-01`과 `Analysis-01`에 있다. 그래프는 로컬에만 보관했고 본문 내용을 출력하지 않는 옵션으로 분석했다. 실제 source·fixture·44 binary·cache revision 4개 핀도 전후 같았다.
 
+## 작은 그림 여백 비교와 실제 문자 대조 — 새 정책 미채택
+
+기존 자체 PDF의 그림 16개는 흰 경계 한 행을 제외하면 같은 97×56 RGB 픽셀이다. 57픽셀 높이 6개는 기존 공개 결과에서 `12`, 경계 여백이 없는 56픽셀 높이 10개는 `1:`로 읽혔다. 글리프 잘림은 확인되지 않았으며 이 상관만으로 여백의 인과 효과를 확정하지 않았다.
+
+같은 PNG 16개의 직접 비교에서는 기본 OCR이 모두 비었고 white16은 기존과 같은 6개 정답·10개 오인식이었다. 32회 직접 호출·실제 XCTest 1개·픽셀 보존 검사는 통과했지만 정확도 목표 통과를 뜻하지 않는다. 실제 PDF 준비 경로의 16개 crop도 원본 PNG와 canonical 픽셀이 같았다. 대표 0·3번의 live RGB 32bpp·stride 4,800 입력은 모두 기본 결과가 비었고 white16은 각각 `12`·`1:`였다. 따라서 PNG grayscale 디코딩이나 stride만을 오인식 원인으로 볼 근거는 없다. 실제 대표 OCR은 4회이며 16개 전체의 live OCR을 실행한 것으로 합산하지 않는다.
+
+시스템 글꼴 8문구를 별도 대조했다. 같은 글리프의 tight crop·white16을 자동 언어 정책으로 각각 인식한 16회 직접 호출에서 정답은 6/8→7/8이었다. 유일한 개선은 실제 `1:`의 기본 결과 `1`이 `1:`로 복원된 것이다. `1;`은 양쪽 모두 비었고 나머지 6개는 같은 문구를 유지했다. 실제 콜론이 `12`로 바뀐 경우는 없었다. 8개 픽셀·흰 테두리와 비어 있지 않은 OCR 14블록의 finite/unit 좌표도 확인했다. 현재 empty-only PDF 보완을 일괄 padded-primary로 바꾸는 근거는 부족해 제품 정책은 유지했다.
+
+이 진단의 통과는 입력·픽셀·호출 수·관측 기록의 검사를 뜻하며 모든 문구의 정답 보장이 아니다. 명령 wall은 PNG 32회 진단 59.975초, live 대표 4회 진단 165.612초, 문자 대조 수정본 10.805초다. 빌드·첨부·환경 간섭이 포함돼 OCR 속도 비교로 사용하지 않는다. 문자 대조 최초 빌드의 colorSpace optional 오류는 테스트·OCR 0회로 보존하고, colorSpace unwrap만 수정한 후 같은 8문구·기준으로 실행했다.
+
+원자료는 2026-10-29 루트의 `SmallDigitBorderReview-01`, `SmallDigitPaddingDiagnosticPreparation-01`, `LiveSmallDigitPaddingPreparation-01`, `SmallOCRPaddingControlsPreparation-01/Run-02`·`Reviewer-01`에 있다.
+
+## 할당·해제 이력과 수집 출력 상한 실패 정정
+
+현재 제품 소스 `c0f104a`와 기존 small3 입력·옵션·semantic SHA를 고정했다. 별도 테스트 프로세스에만 `MallocStackLoggingNoCompact=1`을 적용하고 P0·P2의 PID·시작 시각·실행파일·테스트 번들을 확인했다. 첫 시도는 `.xctestrun` 상대 경로 오류로 테스트·OCR 시작 전 중단됐다. 원본 빌드 산출물은 유지하고 별도 실행 파일의 경로만 정규화한 다음 실제 XCTest 1개가 기존 69블록·경고 0·같은 semantic SHA로 통과했다. 제품·기본 설정은 바꾸지 않았다.
+
+수집기 메타데이터는 부모 도구 종료 시 105,684,992바이트·상한 초과 STOP을 기록했지만 실제 출력은 이후에도 증가했다. 최종 파일은 **10,394,898,121바이트**이며 초기 크기·SHA는 최종 핀이 아니다. 최종 4MiB 블록 스트리밍 SHA는 `c858abbc2222307883cbb1f9b94151c2b23d61901f2b9ed4e5cc15547669aa6c`다. 부모만 종료한 뒤 별도 helper가 공유 출력 FD에 썼을 가능성이 있으나 과거 PID 관계의 직접 증거는 없다. 현재 기록 프로세스·열린 writer는 없고 파일은 로컬에 보존했다. 도구 SIGTERM·`STOP_INCOMPLETE_BYTE_LIMIT` 상태를 성공으로 바꾸지 않는다.
+
+관측한 256KiB 이상 malloc 부분집합은 model rebuild 39건·누적 160,727,040바이트와 input configure 152건·누적 573,997,056바이트다. 191건 모두 뒤따르는 같은 주소의 FREE와 해제 스택이 있었고 중간 재할당 모호성은 없었다. 선택 집합의 보고서 순서상 최대 outstanding은 169,709,568바이트이며 끝에서는 0이었다. VM 중복은 제외했다. 이 수치는 전체 프로세스 메모리·footprint peak·과거 다른 PID의 동일 객체가 아니다. 사건별 시각·도구 allocation ID·native 소유 객체와 5ms 메모리 시계의 연결은 입증되지 않았다. 단순 누수로 단정하거나 제품 수정의 인과 근거로 삼지 않았다.
+
+최종 파일 검사 중 한 번의 `read_bytes()`가 예상과 달리 10.4GB를 일시적으로 메모리에 올린 실수도 있었다. 해당 분석 프로세스는 종료됐으며 이 수집·분석 간섭 구간의 시간·메모리는 성능 비교 근거에서 제외한다. 이후 대형 파일은 스트리밍으로만 읽고 새 전체 덤프는 실행하지 않았다.
+
+수집기 수정본은 stdout/stderr PIPE만 도구에 전달하고 부모만 파일에 제한된 바이트를 쓴다. PIPE를 닫고 직접 만든 도구 프로세스 그룹만 정리하는 방식이다. 첫 가짜 도구 4개 회귀에 이어 초기화 정리를 보완한 Revision02의 7개 회귀가 모두 통과했다. 파일·selector 준비 실패 시 자식을 시작하지 않으며, 정상 종료·도구 오류·시간 초과·늦은 helper 출력·두 번째 파일 생성 실패·존재하지 않는 도구·stderr 제한을 확인했다. stdout 8,192바이트와 stderr 4,096바이트 상한 및 0.3초 뒤 크기/SHA 불변을 검증했다. 전체 회귀 명령은 1.891초다. 기존 결과를 덮어쓰지 않았으며 실제 프로파일링 재실행이나 과거 helper 관계의 입증은 아니다. 실제 도구용 최소 wrapper는 새 helper 해시를 사용하지만 실제 수집 통합은 미검증이다.
+
+원자료는 `Small3AllocationEventsPreparation-01/Run-01`·`Run-02/Analysis-01`, `BoundedPipeCollectorRegression-01`, `Small3MemoryCandidateAudit-02`에 보존했다. 제품 코드·언어 기본값·의존성은 유지했으며 추가 peak 메모리 절감은 아직 입증하지 못했다.
+
+## 실제 perform 동시성 제한의 외부 후보
+
+문서 동시성 2와 기존 입력·언어·캐시 정책은 유지하고 실제 Vision `perform` 구간만 호출별 permit 1개로 제한하는 후보를 제품 밖에 만들었다. primary와 NumericOCR의 직접 요청에 같은 제한을 적용하고 `convert` 전에는 예약을 반환해 숫자 보완의 재진입을 허용한다. 제품·공개 API·기본값에는 반영하지 않았다.
+
+FIFO·사전 취소·대기 취소·100회 획득 직후 취소 경합·오류 후 예약 반환의 단위 검사 5개가 통과했다. 실제 대출 계산기 금액 2개의 보완 이력을 검사하는 기존 XCTest 1개도 교착 없이 통과했다. 각각 실패/skip/runtime warning 0건이며 소스·입력 핀은 같았다. 명령 wall은 64.728초와 7.569초로 빌드를 포함하며 성능 개선 수치가 아니다. 후보의 속도·메모리와 큰 PDF 영향은 별도 검증 전이므로 일반적인 속도 보존이나 채택을 주장하지 않는다.
+
+
+이후 실제 대형 파일 분석 프로세스가 종료된 상태에서 별도 비계측 Release small3 ABBA를 실행했다. 문서 동시성 2·같은 PDF/JPEG/DOCX·그림 반환 off·OCR on·automatic·5ms sampler를 고정했다. 독립 프로세스 4개에서 예열 4회·측정 20회·배치 24회(문서 72개)를 처리했다. 모든 예열은 측정 전에 기존 semantic SHA·공개 필드 SHA·69블록 기대값을 통과했으며 전체 24회 결과가 같았다.
+
+| 지표 | 기준 | perform 1개 후보 |
+| --- | ---: | ---: |
+| 처리 시간 중앙값 | 1.0909초 | 1.7581초 (+61.17%) |
+| footprint peak 중앙값 | 177.85MiB | 132.50MiB (−25.50%) |
+| 최대 footprint | 189.78MiB | 136.69MiB (−27.98%) |
+| RSS peak 중앙값 | 477.03MiB | 392.10MiB (−17.80%) |
+| 최대 RSS | 480.33MiB | 395.17MiB (−17.73%) |
+
+**메모리는 줄었지만 속도 유지 조건을 명확히 위반해 미채택했다.** A1/B1/B2/A2 각각의 시간 중앙값도 1.0853/1.7561/1.7602/1.0914초로 같은 방향이었다. 기존 OCR 병렬성과 요청별 언어·기본 설정은 유지한다. 후보를 채택하지 않아 추가 대용량 PDF·두 PDF 배치·실제 Vision 취소 후 같은 풀 재사용 검증은 진행하지 않았다. 작은 배치 통과만으로 모든 PDF 속도 보존을 주장하지 않는다.
+
+실제 XCTest 4개·실패/skip/runtime warning 0건과 단일 실제 compiler 명령의 Swift 5·-O·WMO·testability·arm64·SDK27.1·정확한 소스 목록을 확인했다. 모든 44개 바이너리 핀도 같았다. 전체 controller wall은 256.552초이며 빌드를 포함한다. 공유 Mac의 swap 7,081~7,089MiB·부팅 Simulator 2대가 관측됐고 OS cache·샘플링 한계를 제거한 실험은 아니다. 앞선 10.4GB 프로파일의 수치와 합산하지 않았다. 원자료와 독립 재계산은 `OCRPerformLimitPreparation-01`·`OCRPerformLimitBenchmarkPreparation-01/Run-01`·`Reviewer-01`에 있다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
