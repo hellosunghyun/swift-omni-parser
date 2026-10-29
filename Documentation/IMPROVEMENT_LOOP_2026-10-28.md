@@ -517,6 +517,16 @@ Office 임시 문자열·async frame은 현재 small3 peak 후보에서 제외�
 
 두 모듈의 실제 단일 compiler 명령 조건과 pre/post 10개 가드·main 216개 지문을 확인했고 wall은 108.820초다. 제품 소스·의존성·요청 기본값은 그대로이며 기존 전체 81개 회귀와 외부 진단 수를 합산하지 않는다. `ocrOriginalText == nil`과 높은 `ocrConfidence`는 primary 정확성의 보증이 아니므로 API 문서에도 이 의미를 명확히 했다.
 
+### automatic·영어 공개 API 후속 대조
+
+앞선 실패와 분리한 새 실행에서 같은 픽셀 지문의 S14gray·통화14gray를 `.automatic`과 `.english`로 각각 공개 parse했다. 실제 XCTest 1개 통과·실패/skip/runtime warning 0건, parse 4회가 완료됐다. 식별자·통화 4개·순서·fullText·위치·신뢰도·보완 이력·경고·PNG를 확인했고, 입력별 두 정책의 기록한 공개 필드 지문이 같았다. 두 자체 입력의 결과이며 일반 정확도나 human-gold 평가는 아니다.
+
+Vision의 실제 호출 수는 이 실행에서 계측하지 않았다. 정적 상한 primary 4 + numeric 12 = 16회와 실제 호출 수 미상(null)을 구분하며, 보완 이력 0을 숫자 요청 0으로 해석하지 않는다. 기존 한영 primary 오독과 비기본 언어의 자연 숫자 보완 분기 공백은 남아 있다. 이전 15번째 미실행 parse를 재개하거나 실패를 성공으로 바꾼 기록도 아니다.
+
+빌드·실행·후처리 포함 wall은 68.530초다. 두 모듈의 실제 단일 compiler 명령에서 Swift 5·`-O`·WMO·testability·arm64 Simulator·SDK27.1을 확인했고 전후 14개 guard와 main 216개 지문을 보존했다. 실행 결과 기록 후 담당 에이전트의 보고 과정에 모델 용량 오류가 발생해 root가 xcresult·종료 영수증·공개 행을 재검산했으며 재실행하지 않았다. 제품 소스·기본값·의존성은 바꾸지 않았다.
+
+원자료는 `~/Developer/Codex/OmniParserVerification/2026-10-29/ImprovementLoop-20261029/PublicReferenceVerificationPreparation-01/Run-01/`에 있다. 외부 진단 1개를 기존 전체 81개 회귀와 합산하지 않는다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
