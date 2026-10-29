@@ -555,6 +555,37 @@ Vision의 실제 호출 수는 이 실행에서 계측하지 않았다. 정적 �
 
 원자료 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-29/ImprovementLoop-20261029/`다. `PDFAdjacentTextDedupPreparation-01/`의 `RootUnitRunner-01`, `RootPublicRunner-01`, `RootCOnlyRunner-01`, `RawImageDiagnosticPreparation-01`, `RawPaddingDiagnosticPreparation-01`에 최초 실패·xcresult·PNG·소스 지문을 보존했다. `PDFAdjacentSmall3Preparation-01/Reviewer-02`에는 20개 측정과 독립 재검산을 남겼다. 이 자료를 외부에 전송하거나 푸시하지 않았다.
 
+## 빈 PDF 그림 OCR 보완 적용과 93개 회귀
+
+앞선 C 단독·여백 진단의 미채택 결과를 보존한 뒤, D2 02 후보에서 두 처리를 연결했다. 첫 그림 OCR이 비었을 때만 같은 언어·요청 풀로 흰 테두리 16픽셀을 추가한 입력을 한 번 더 인식한다. 추가 면적은 실제 페이지 래스터와 100만 픽셀 안으로 제한하며 할당 전 크기·오버플로를 검사한다. 좌표는 원래 crop으로 역변환한 뒤 교차 영역만 페이지 좌표로 연결한다. 실제 인식 오류·취소는 기존 부분 결과·위치 경고·취소 경로로 전파한다. PNG 준비·인코딩 경로와 공개 API·기본 옵션·의존성은 바꾸지 않았다.
+
+같은 968바이트 PDF의 최초 공개 회귀가 통과했다. 네이티브 본문과 별도 숫자 `12`·part·신뢰도·실제 비겹침·기존 확장 영역과의 교차·읽기 순서·fullText 일관성을 확인했다. PNG 검증은 1개 반환·비어 있지 않음까지이며 바이트·픽셀 동등성을 새로 측정했다고 주장하지 않는다. 별도 전체 후보 회귀 93개도 통과했다. 기존 81개에 논리 경계 6개·실제 PDF 1개·예산/오버플로/좌표 경계 5개를 더한 수다. 최초 공개 테스트와 전체 suite의 중복 실행 수를 합산하지 않는다.
+
+새 A/D2/D2/A 비교는 각 1회 예열·5회 측정으로 네 XCTest가 모두 통과했고 24회 공개 출력 지문이 같았다. 실제 control 환경·예열 후 조기 gate·각 모듈의 단일 compiler 명령을 독립 대조했다. Swift 5·`-O`·WMO·testability·arm64 Simulator·SDK27.1과 양쪽 동일 coverage 조건을 확인했다. 내부 Vision 호출 수는 미계측이며 반환 결과만으로 실제 보완 요청 횟수를 확정하지 않는다.
+
+| 각 10개 측정 | A | D2 |
+| --- | ---: | ---: |
+| 시간 중앙값 / 최대 | 1.123926 / 1.209526초 | 1.110958 / 1.174006초 |
+| footprint 중앙값 / 최대 | 184.49 / 203.46 MiB | 177.49 / 190.80 MiB |
+| RSS 중앙값 / 최대 | 474.69 / 481.75 MiB | 477.02 / 479.72 MiB |
+
+이 표본에서 출력·시간·최대 메모리의 악화는 관찰하지 않았다. RSS 중앙값은 0.49% 높고 다른 Simulator도 A1/B1 관측에 나타나 인과적인 추가 메모리 절감으로 확정하지 않는다. 일반 문서의 정확도·속도·메모리 보장이나 실기기 결과로 확대하지 않는다.
+
+main 반영 후에도 실제 전체 Release 93개·실패/skip/runtime warning 0건, arm64·x86_64 generic Simulator 빌드와 SwiftLint strict 65파일·위반 0건을 확인했다. 테스트 빌드 로그의 sysroot·AppIntents 경고 2건은 런타임 경고와 구분하며 generic 빌드의 경고는 0건이다. 소스·테스트·fixture·설정 164개 지문이 검증 전후 같았다.
+
+| 단계 | 실제 wall |
+| --- | ---: |
+| 외부 후보 최초 공개 PDF 테스트 | 72.629초 |
+| 외부 후보 전체 93개 | 139.594초 |
+| A/D2 네 stage 합계 | 255.814초 |
+| main 전체 93개 | 112.214초 |
+| main generic Simulator 빌드 | 5.255초 |
+| main SwiftLint | 0.418초 |
+
+wall은 명령 또는 stage의 경과 시간이다. 테스트 명령에는 빌드가 포함되고, 네 stage 합계에는 stage 증거 확인도 포함된다. 순수 OCR 시간이나 작업 전체 경과 시간은 아니다. main 검증 명령은 기존 Release·오프라인 고정 캐시 설정을 유지했고 `MainPDFPadding93-01/xcodebuild.metadata.json`, `generic-build.metadata.json`, `swiftlint.metadata.json`에 전체 argv를 보존했다.
+
+원자료는 같은 2026-10-29 루트의 **실제 중첩 경로** `R29/PDFPaddingFallbackPreparation-01/`에 있다. `FINAL_PIN-02.json`·`EXECUTION_INPUTS-02.json`, `FirstPublicRun-01`, `FullRun-01`을 사용했다. 중첩 폴더는 준비 경로 해석 오류로 생겼고 기존 자료를 이동·삭제하지 않았다. `PDFPaddingSmall3Preparation-01/Reviewer-01`에는 독립 재검산과 실행 종료 후 main 반영 상태를 구분한 기록이 있다. 이후 main 반영으로 baseline 비교가 false인 사실을 실행 중 drift로 해석하지 않는다. main 반영은 네 stage 종료 후 이뤄졌다. 새 PDF와 provenance는 자체 테스트 자산이며 소비 앱의 런타임 리소스에 추가되지 않는다. 푸시·외부 전송·실기기 검증은 하지 않았다.
+
 ## 원자료와 남은 확인
 
 로컬 근거 루트는 `~/Developer/Codex/OmniParserVerification/2026-10-28/ImprovementLoop-20261028/`다.
