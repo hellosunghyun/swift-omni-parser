@@ -12,6 +12,7 @@ extension DocumentRTFPictureReader {
     var warnings: [DocumentWarning] = []
     var index = 0
     var attempts = 0
+    var objectDataBytes = 0
 
     var collecting: Bool {
       let backup = groups.dropLast().last?.destination == "nonshppict"
@@ -52,14 +53,14 @@ extension DocumentRTFPictureReader {
         let parent = groups.lastIndex(where: { $0.destination == "object" }) {
         groups[parent].objectData = group.data
         groups[parent].malformed = group.malformed || group.nibble != nil
-        groups[parent].resourceLimited = group.resourceLimited
+        groups[parent].resourceLimited = groups[parent].resourceLimited || group.resourceLimited
       } else if group.destination == "object" {
         guard objects.count < options.maximumArchiveEntries else {
           throw DocumentParsingError.inputTooLarge
         }
         let range = group.start..<(index + 1)
         let objectPictures = pictures.filter { range.contains($0.range.lowerBound) }
-        let preview = objectPictures.first
+        let preview = objectPreview(objectPictures)
         attempts = max(0, attempts - objectPictures.filter { !$0.fallback }.count)
         objects.removeAll { range.contains($0.range.lowerBound) }
         objects.append(Object(range: range, data: group.objectData,
@@ -88,6 +89,18 @@ extension DocumentRTFPictureReader {
         pictures[last].fallback = group.destination == "nonshppict"
         pictures[last].preferred = group.destination == "shppict"
       }
+    }
+
+    private func objectPreview(_ pictures: [Picture]) -> Picture? {
+      guard var first = pictures.first else { return nil }
+      guard first.preferred, pictures.count > 1 else { return first }
+      let backup = pictures[1]
+      guard backup.fallback, backup.range.lowerBound >= first.range.upperBound,
+        bytes[first.range.upperBound..<backup.range.lowerBound]
+          .allSatisfy({ [9, 10, 13, 32].contains($0) }) else { return first }
+      first.backup = Backup(data: backup.data, offset: backup.range.lowerBound,
+                            malformed: backup.malformed)
+      return first
     }
 
     private mutating func control() throws {
@@ -138,9 +151,12 @@ extension DocumentRTFPictureReader {
       if collecting {
         let slot = groups.count - 1
         if groups[slot].destination == "objdata",
-          count > options.maximumExpandedBytes - groups[slot].data.count {
+          count > options.maximumExpandedBytes - objectDataBytes {
           groups[slot].resourceLimited = true
-        } else { groups[slot].data.append(contentsOf: bytes[index..<(index + count)]) }
+        } else {
+          groups[slot].data.append(contentsOf: bytes[index..<(index + count)])
+          if groups[slot].destination == "objdata" { objectDataBytes += count }
+        }
       }
       index += count
     }
@@ -149,13 +165,14 @@ extension DocumentRTFPictureReader {
       guard collecting else { return }
       let slot = groups.count - 1
       if groups[slot].destination == "objdata",
-        groups[slot].data.count >= options.maximumExpandedBytes {
+        objectDataBytes >= options.maximumExpandedBytes {
         groups[slot].resourceLimited = true
         return
       }
       if let value = hex(byte) {
         if let high = groups[slot].nibble {
           groups[slot].data.append(high * 16 + value)
+          if groups[slot].destination == "objdata" { objectDataBytes += 1 }
           groups[slot].nibble = nil
         } else { groups[slot].nibble = value }
       } else if ![9, 10, 13, 32].contains(byte) { groups[slot].malformed = true }

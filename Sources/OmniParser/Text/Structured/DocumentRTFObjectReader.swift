@@ -82,7 +82,13 @@ nonisolated enum DocumentRTFObjectReader {
       if (try? DocumentCompoundFile.identify(native)) != nil { return (native, nil) }
       let streams = try DocumentCompoundFile.streams(native, options: options)
       if let package = streams["\u{1}Ole10Native"] {
-        return try packagePayload(package)
+        var reader = Reader(data: package)
+        let count = try reader.word()
+        let native = try reader.bytes(count)
+        if DocumentBinaryReader(data: native).uint16(0) == 2 {
+          return try packagePayload(native)
+        }
+        return (native, nil)
       }
       if let contents = streams["CONTENTS"] { return (contents, nil) }
       throw DocumentParsingError.unsupportedFormat
@@ -94,10 +100,8 @@ nonisolated enum DocumentRTFObjectReader {
   /// Ole10Native의 파일명은 판별 힌트로만 사용하고 원래 경로·임시 경로는 읽지 않는다.
   private static func packagePayload(_ data: Data) throws -> (data: Data, name: String?) {
     var reader = Reader(data: data)
-    let size = try reader.word()
-    guard size <= data.count - 4 else { throw DocumentParsingError.malformedDocument }
-    reader = Reader(data: try reader.bytes(size))
-    _ = try reader.short()
+    // OLE1 Package는 native 길이가 바깥 헤더에 있고 이 본문에는 2-byte flags부터 온다.
+    guard try reader.short() == 2 else { throw DocumentParsingError.malformedDocument }
     let name = try reader.string().split { $0 == "/" || $0 == "\\" }.last
     _ = try reader.string()
     _ = try reader.word()
