@@ -76,7 +76,9 @@ nonisolated enum DocumentRasterParser {
   /// 직접 입력·이미지 프레임·로컬 참조 그림이 같은 추출/OCR 설정을 사용한다.
   static func parseImage(
     _ image: CGImage, orientation: CGImagePropertyOrientation, format: DocumentFormat,
-    location: DocumentLocation, options: DocumentParserOptions, remainingBytes: Int? = nil
+    location: DocumentLocation, options: DocumentParserOptions, remainingBytes: Int? = nil,
+    recognize: (CGImage, CGImagePropertyOrientation, DocumentLocation) throws -> [DocumentBlock]
+      = DocumentOCR.recognize
   ) throws -> DocumentParseResult {
     try Task.checkCancellation()
     var blocks: [DocumentBlock] = []
@@ -97,8 +99,7 @@ nonisolated enum DocumentRasterParser {
     }
     if options.performOCR {
       do {
-        blocks.append(contentsOf: try DocumentOCR.recognize(
-          image: image, orientation: orientation, location: location))
+        blocks.append(contentsOf: try recognize(image, orientation, location))
       } catch is CancellationError {
         throw CancellationError()
       } catch {

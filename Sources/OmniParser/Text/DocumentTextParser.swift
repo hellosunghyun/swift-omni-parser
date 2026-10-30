@@ -10,22 +10,23 @@ nonisolated enum DocumentTextParser {
     options: DocumentParserOptions
   ) async throws -> DocumentParseResult {
     try Task.checkCancellation()
+    if format == .rtf { return try DocumentRTFParser.parse(data, options: options) }
     guard let text = DocumentFormatDetector.decodeText(data) else {
       throw DocumentParsingError.malformedDocument
     }
+    var structureWarnings: [DocumentWarning] = []
     let blocks: [DocumentBlock] = switch format {
     case .csv:
       DocumentCSVParser.parseCSV(text)
     case .json:
-      DocumentStructuredTextParser.parseJSON(text)
+      DocumentStructuredTextParser.parseJSON(text, warnings: &structureWarnings)
     case .xml:
-      DocumentStructuredTextParser.parseXML(data, fallbackText: text)
+      DocumentStructuredTextParser.parseXML(
+        data, fallbackText: text, warnings: &structureWarnings)
     case .html:
       try DocumentHTMLParser.parseHTML(text)
     case .markdown:
       DocumentMarkdownParser.parseMarkdown(text)
-    case .rtf:
-      DocumentStructuredTextParser.parseRTF(data, fallbackText: text)
     default:
       DocumentStructuredTextParser.parsePlainText(text)
     }
@@ -33,7 +34,8 @@ nonisolated enum DocumentTextParser {
     let warnings = try appendReferencedImages(
       to: &result, text: text, baseDirectory: baseDirectory, options: options)
     return DocumentParseResult(
-      format: format, blocks: result.blocks, warnings: warnings, images: result.images)
+      format: format, blocks: result.blocks, warnings: structureWarnings + warnings,
+      images: result.images)
   }
 
   /// 그림 하나의 실패는 본문을 버리지 않고 위치 경고로 남긴다. 취소 오류는 계속 전파한다.

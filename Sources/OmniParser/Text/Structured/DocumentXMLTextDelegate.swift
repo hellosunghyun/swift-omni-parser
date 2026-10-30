@@ -6,6 +6,15 @@ nonisolated final class XMLTextDelegate: NSObject, XMLParserDelegate {
   private var stack: [String] = []
   private var buffer = ""
   private(set) var blocks: [DocumentBlock] = []
+  private(set) var blockedEntity = false
+
+  /// 선언 시점에 중단해 재귀 엔티티가 본문 크기를 증폭시키기 전에 원문 복구로 전환한다.
+  func parser(
+    _ parser: XMLParser, foundInternalEntityDeclarationWithName name: String, value: String?
+  ) {
+    blockedEntity = true
+    parser.abortParsing()
+  }
 
   func parser(
     _ parser: XMLParser,
