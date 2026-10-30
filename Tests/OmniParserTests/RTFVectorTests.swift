@@ -22,14 +22,28 @@ final class RTFVectorTests: XCTestCase {
     for (data, format) in vectors() {
       let rendered = try await render(data)
       let image = try XCTUnwrap(rendered)
+      let svg = try DocumentVectorScript.convert(data)
+      XCTContext.runActivity(named: "Generated vector: \(format)") { activity in
+        activity.add(XCTAttachment(string: svg))
+        if let png = DocumentImageEncoder.png(image, orientation: .up) {
+          activity.add(XCTAttachment(data: png, uniformTypeIdentifier: "public.png"))
+        }
+      }
       let result = try await DocumentParser.parse(.image(image, orientation: .up),
-        options: .init(performOCR: true))
+        options: .init(performOCR: true, ocrLanguage: .koreanAndEnglish))
       XCTAssertTrue(result.fullText.contains("VECTOR"), "\(format): 영문 벡터 OCR 누락")
-      XCTAssertTrue(result.fullText.contains("한글"), "\(format): 한글 벡터 OCR 누락")
+      XCTAssertTrue(result.fullText.contains("한글"), "\(format): 합성 벡터 OCR 결과 \(result.fullText)")
       XCTAssertTrue(result.fullText.contains("TEST"), "\(format): 마지막 벡터 OCR 누락")
       XCTAssertTrue(result.images.isEmpty)
       TestFixtures.assertTextConsistency(result)
     }
+  }
+
+  func testOddLengthWMFTextRetainsItsCoordinates() throws {
+    let svg = try DocumentVectorScript.convert(RTFVectorFixtures.wmf(textSuffix: "!"))
+    XCTAssertTrue(svg.contains("VECTOR 한글 TEST!"))
+    XCTAssertTrue(svg.contains("x=\"40\""))
+    XCTAssertTrue(svg.contains("y=\"60\""))
   }
 
   func testRTFVectorPictureKeepsLocationAndFourOptionCombinations() async throws {
@@ -74,6 +88,23 @@ final class RTFVectorTests: XCTestCase {
     }
   }
 
+  func testOLENativeVectorRespectsOptionsAndRetainsObjectScope() async throws {
+    for (data, _) in vectors() {
+      let source = RTFVectorFixtures.rtfNativeObject(data)
+      let skipped = try await DocumentParser.parse(.data(source, fileName: "native.rtf"),
+        options: .init(maximumImagePixels: 1))
+      XCTAssertTrue(skipped.images.isEmpty)
+      XCTAssertTrue(skipped.warnings.isEmpty)
+      let result = try await parse(source, images: true, ocr: false)
+      let image = try XCTUnwrap(result.images.first)
+      XCTAssertEqual(result.images.count, 1)
+      XCTAssertTrue(image.location.part?.contains("/object[1]/metafile") == true)
+      XCTAssertTrue(result.fullText.hasPrefix("Before"))
+      XCTAssertTrue(result.fullText.hasSuffix("After"))
+      TestFixtures.assertTextConsistency(result)
+    }
+  }
+
   func testVectorPreferredOverPNGDoesNotDuplicateOCR() async throws {
     let png = try Data(contentsOf: TestFixtures.url("LegacyImage.png"))
     for (data, format) in vectors() {
@@ -106,7 +137,7 @@ final class RTFVectorTests: XCTestCase {
                                     encoding: .utf8))
     let second = try XCTUnwrap(String(data: RTFVectorFixtures.rtf(RTFVectorFixtures.wmf(),
       format: "wmetafile8"), encoding: .utf8))
-    let body = first.dropFirst(7).dropLast() + second.dropFirst(7).dropLast()
+    let body = "{" + first.dropFirst(7).dropLast() + "}{" + second.dropFirst(7).dropLast() + "}"
     let source = Data(("{\\rtf1 " + body + "Final marker}").utf8)
     let result = try await parse(source, images: true, ocr: false)
     XCTAssertEqual(result.images.count, 1)

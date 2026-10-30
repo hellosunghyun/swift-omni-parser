@@ -5,7 +5,7 @@ import Foundation
 enum RTFVectorFixtures {
   static let text = "VECTOR 한글 TEST"
 
-  static func wmf(extraRecords: Int = 0) -> Data {
+  static func wmf(extraRecords: Int = 0, textSuffix: String = "") -> Data {
     var records = [wmfRecord(0x020B, word(0) + word(0)),
                    wmfRecord(0x020C, word(384) + word(1024))]
     records += [wmfRecord(0x02FC, word(0) + dword(0x00FF_FFFF) + word(0)),
@@ -21,7 +21,7 @@ enum RTFVectorFixtures {
     records += [wmfRecord(0x02FB, font), wmfRecord(0x012D, word(2)),
                 wmfRecord(0x0209, dword(0)), wmfRecord(0x0102, word(1))]
     // WMF TextOut은 Unicode record가 없으므로 charset129의 CP949로 한글을 저장한다.
-    let text = Data("VECTOR ".utf8) + Data([0xC7, 0xD1, 0xB1, 0xDB]) + Data(" TEST".utf8)
+    let text = Data("VECTOR ".utf8) + Data([0xC7, 0xD1, 0xB1, 0xDB]) + Data((" TEST" + textSuffix).utf8)
     var output = word(text.count) + text
     if !output.count.isMultiple(of: 2) { output.append(0) }
     output.append(word(60) + word(40))
@@ -78,6 +78,14 @@ enum RTFVectorFixtures {
       picture = "{\\object\\objemb{\\*\\objdata 00}{\\result\(picture)}}"
     }
     return Data("{\\rtf1 Before\\par \(picture) After\\par}".utf8)
+  }
+
+  static func rtfNativeObject(_ data: Data) -> Data {
+    let name = Data("StaticMetafile\0".utf8)
+    let native = join([dword(0x501), dword(2), dword(name.count), name,
+                       dword(0), dword(0), dword(data.count), data])
+    let object = "{\\object\\objemb{\\*\\objdata \(hex(native))}}"
+    return Data("{\\rtf1 Before\\par \(object) After\\par}".utf8)
   }
 
   static func rtfWithFallback(_ primary: Data, format: String, png: Data) -> Data {
