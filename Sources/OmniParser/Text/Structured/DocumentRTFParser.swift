@@ -169,28 +169,6 @@ nonisolated enum DocumentRTFParser {
       } else { blocks.appendBlock(.paragraph, text: value, location: location) }
     }
 
-    /// 정상 원본을 우선 사용하고, 디코딩 실패일 때만 연결된 호환본을 시도한다.
-    private mutating func decode(
-      _ picture: DocumentRTFPictureReader.Picture, location: inout DocumentLocation,
-      fallbackPart: String?
-    ) throws -> (image: CGImage, orientation: CGImagePropertyOrientation) {
-      do {
-        guard !picture.malformed else { throw DocumentParsingError.malformedDocument }
-        return try DocumentImageDecoder.decode(
-          picture.data, maximumPixels: options.maximumImagePixels)
-      } catch {
-        guard let backup = picture.backup, !backup.malformed else { throw error }
-        let decoded = try DocumentImageDecoder.decode(
-          backup.data, maximumPixels: options.maximumImagePixels)
-        warnings.append(DocumentWarning(
-          code: .extractionFailed,
-          message: "RTF preferred image failed; its fallback was retained.",
-          location: location))
-        location.part = "\(fallbackPart ?? part)/byte[\(backup.offset)]"
-        return decoded
-      }
-    }
-
     /// native 데이터 추출이 성공하면 result 미리보기는 생략해 본문·OCR 중복을 막는다.
     private mutating func appendObject(
       _ object: DocumentRTFPictureReader.Object, index: Int, location: DocumentLocation
@@ -242,7 +220,10 @@ nonisolated enum DocumentRTFParser {
           throw DocumentParsingError.inputTooLarge
         }
         imageAttempts += 1
-        let decoded = try decode(picture, location: &located, fallbackPart: sourcePart)
+        let decoded = try await DocumentRTFImageDecoder.decode(
+          picture, location: located, fallbackPart: sourcePart ?? part, options: options)
+        located = decoded.location
+        warnings.append(contentsOf: decoded.warnings)
         let result = try await DocumentRasterParser.parseImage(
           decoded.image, orientation: decoded.orientation, format: .rtf, location: located,
           options: options,

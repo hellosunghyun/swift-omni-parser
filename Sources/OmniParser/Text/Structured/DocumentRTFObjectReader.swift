@@ -13,7 +13,8 @@ nonisolated enum DocumentRTFObjectReader {
       throw DocumentParsingError.inputTooLarge
     }
     let payload = try payload(data, options: options)
-    if DocumentDIBDecoder.hasHeader(payload.data) {
+    let vector = DocumentVectorRenderer.matches(payload.data)
+    if DocumentDIBDecoder.hasHeader(payload.data) || vector {
       guard data.count < options.maximumExpandedBytes,
         payload.data.count <= options.maximumInputBytes else {
         throw DocumentParsingError.inputTooLarge
@@ -22,13 +23,24 @@ nonisolated enum DocumentRTFObjectReader {
         return DocumentParseResult(format: .rtf, blocks: [], warnings: [])
       }
       guard options.maximumEmbeddedImages > 0 else { throw DocumentParsingError.inputTooLarge }
-      guard let image = try DocumentDIBDecoder.decode(
-        payload.data, maximumPixels: options.maximumImagePixels) else {
+      let rendered = vector ? try await DocumentVectorRenderer.renderDetailed(
+        payload.data, maximumPixels: options.maximumImagePixels) : nil
+      let decoded = vector ? rendered?.image
+        : try DocumentDIBDecoder.decode(payload.data, maximumPixels: options.maximumImagePixels)
+      guard let image = decoded else {
         throw DocumentParsingError.unsupportedFormat
       }
-      return try await DocumentRasterParser.parseImage(
-        image, orientation: .up, format: .rtf, location: DocumentLocation(part: "dib"),
+      let location = DocumentLocation(part: vector ? "metafile" : "dib")
+      var result = try await DocumentRasterParser.parseImage(
+        image, orientation: .up, format: .rtf, location: location,
         options: options, remainingBytes: options.maximumExpandedBytes - data.count)
+      if rendered?.hasUnsupportedElements == true {
+        result.warnings.append(DocumentWarning(
+          code: .unsupportedElement,
+          message: "Some metafile drawing records were omitted; the partial image was retained.",
+          location: location))
+      }
+      return result
     }
     let format = try DocumentFormatDetector.detect(
       data: payload.data, fileName: payload.name, options: options)
