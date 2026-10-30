@@ -4,9 +4,17 @@ import SwiftSoup
 /// 브라우저 렌더링 없이 DOM 순서대로 제목·본문·목록·표를 추출한다.
 /// 스크립트와 스타일은 실행하지 않으며 CSS로 배치된 시각적 순서는 복원하지 않는다.
 nonisolated enum DocumentHTMLParser {
-  static func parseHTML(_ html: String) throws -> [DocumentBlock] {
+  static func parseHTML(
+    _ html: String, warnings: inout [DocumentWarning]
+  ) throws -> [DocumentBlock] {
     let document = try SwiftSoup.parse(html)
     try document.select("script, style, noscript, template").remove()
+    for (index, _) in try document.select("svg").enumerated() {
+      warnings.append(DocumentWarning(
+        code: .unsupportedElement,
+        message: "Inline SVG graphics were not rendered; available text was retained.",
+        location: DocumentLocation(part: "html/svg[\(index + 1)]")))
+    }
     var blocks: [DocumentBlock] = []
     if let body = document.body() {
       try appendContent(body, to: &blocks)

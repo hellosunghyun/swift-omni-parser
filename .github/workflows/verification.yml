@@ -1,0 +1,91 @@
+name: Verification
+
+# 공개 저장소의 일회용 GitHub-hosted runner만 사용한다.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    if: github.event.repository.private == false
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select installed Xcode 27.1
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob, os, pathlib, subprocess
+          for app in sorted(glob.glob('/Applications/Xcode*.app'), reverse=True):
+              developer = str(pathlib.Path(app) / 'Contents/Developer')
+              env = dict(os.environ, DEVELOPER_DIR=developer)
+              try:
+                  version = subprocess.check_output(['xcodebuild', '-version'], env=env, text=True)
+                  sdk = subprocess.check_output(['xcrun', '--sdk', 'iphonesimulator', '--show-sdk-version'], env=env, text=True)
+              except subprocess.CalledProcessError:
+                  continue
+              if version.splitlines()[0] == 'Xcode 27.1' and sdk.strip() == '27.1':
+                  with open(os.environ['GITHUB_ENV'], 'a') as output:
+                      output.write('DEVELOPER_DIR=' + developer + '\n')
+                  print(version)
+                  break
+          else:
+              raise SystemExit('::error::Xcode 27.1 / iOS 27.1 SDK가 있는 runner가 필요합니다. OS 설정을 낮추거나 검사를 건너뛰지 않습니다.')
+          PY
+      - name: Install verified SwiftLint 0.65.1
+        shell: bash
+        run: |
+          tool_dir="$RUNNER_TEMP/swiftlint-0.65.1"
+          mkdir "$tool_dir"
+          curl --fail --location --silent --show-error --proto '=https' --tlsv1.2 \
+            --retry 3 --max-time 120 \
+            https://github.com/realm/SwiftLint/releases/download/0.65.1/portable_swiftlint.zip \
+            --output "$tool_dir/portable.zip"
+          echo "c1e429b0599cf1b516f369a2d9ec04eaf0e436f3c12b637df8851fa52ff694d0  $tool_dir/portable.zip" \
+            | shasum -a 256 -c -
+          ditto -x -k "$tool_dir/portable.zip" "$tool_dir/bin"
+          echo "$tool_dir/bin" >> "$GITHUB_PATH"
+      - name: Lint
+        run: |
+          command -v swiftlint
+          swiftlint version
+          test "$(swiftlint version)" = '0.65.1'
+          swiftlint lint --strict
+      - name: Select iPhone 17 Simulator
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          data = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '--json'], text=True))
+          devices = [d for runtime, values in data['devices'].items() if runtime.endswith('iOS-27-0')
+                     for d in values if d['name'] == 'iPhone 17']
+          if not devices:
+              raise SystemExit('::error::iOS 27.0 iPhone 17 Simulator가 필요합니다.')
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('OMNI_SIMULATOR_ID=' + devices[0]['udid'] + '\n')
+          PY
+      - name: Build and test
+        run: |
+          xcodebuild test -scheme OmniParser -jobs 2 \
+            -destination "platform=iOS Simulator,id=$OMNI_SIMULATOR_ID" \
+            -packageAuthorizationProvider netrc -skipMacroValidation -parallel-testing-enabled NO \
+            -collect-test-diagnostics never CODE_SIGNING_ALLOWED=NO
+          xcodebuild build -scheme OmniParser -jobs 2 \
+            -destination 'generic/platform=iOS Simulator' \
+            -packageAuthorizationProvider netrc -skipMacroValidation CODE_SIGNING_ALLOWED=NO
+      - name: Verify versioned consumer
+        run: bash .github/verify-consumer.sh "$RUNNER_TEMP/OmniParserConsumer"
+      - name: Verify distributed archive checksums
+        run: bash ThirdParty/OfficeOxide/build.sh --verify

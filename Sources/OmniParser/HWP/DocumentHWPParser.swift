@@ -8,7 +8,7 @@ nonisolated enum DocumentHWPParser {
     data: Data,
     format: DocumentFormat,
     options: DocumentParserOptions
-  ) throws -> DocumentParseResult {
+  ) async throws -> DocumentParseResult {
     let file = try loadFile(data, format: format, options: options)
     var context = DocumentHWPParseContext(options: options)
     context.binaryItems = file.binaryDataArray
@@ -25,8 +25,8 @@ nonisolated enum DocumentHWPParser {
           location: DocumentLocation(part: "Contents")))
       }
     }
-    try context.appendSections(file.displaySectionArray)
-    try context.appendEmbeddedImages(file.binaryDataArray)
+    try await context.appendSections(file.displaySectionArray)
+    try await context.appendEmbeddedImages(file.binaryDataArray)
     context.appendDiagnostics(file.parseDiagnostics())
 
     return DocumentParseResult(

@@ -1,6 +1,10 @@
 # 회귀 테스트 실행 및 현재 결과
 
-현재 상태: 2026-10-30 RTF·복구·자원 검사까지 포함한 전체 **34개 테스트가 iPhone 17 Simulator(iOS 27.0)와 실기기(iOS 27.2)에서 모두 통과**했다. generic Simulator 빌드와 strict lint도 통과했다. [최종 기능·검증 기록](COMPLETION_VERIFICATION.md)이 최신 결과다. 아래는 upstream 7.5.2를 사용하던 전환 전 2026-10-26의 기록이다.
+> 후속 최종 상태: [32개 테스트·대용량·QoS 검증](LOCAL_REVIEW_2026-10-27.md). 아래는 각 작업 당시의 기록입니다.
+
+> 최신 RTF·복구 보완 검증은 [후속 검증 기록](RTF_COMPLETION_VERIFICATION.md)을 참고하세요. 아래의 과거 실행 결과와 구분합니다.
+
+현재 상태: 2026-10-27 공개 포크 Release를 기본 의존성에 연결한 전체 16개 테스트가 Simulator와 iPhone 17 실기기에서 통과했다. [XLS 수정·전환 결과](XLS_CHART_FIX.md)가 최신 기록이다. 아래는 upstream 7.5.2를 사용하던 전환 전 2026-10-26의 검증 기록이다.
 
 2026-10-26. 운영 패키지에 XCTest 타깃 OmniParserTests를 추가했다. 제품·기존 엔진·런타임 의존성·iOS 27.0·Swift 언어 모드 5.0·tools 6.2는 유지한다. 테스트용 리소스는 소비 앱 제품에 포함하지 않는다.
 

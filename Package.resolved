@@ -24,7 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/hellosunghyun/OpenDocument.core.git",
       "state" : {
-        "revision" : "b302cc85311490676986a2b731971473ad21efac"
+        "revision" : "b302cc85311490676986a2b731971473ad21efac",
+        "version" : "7.5.2-omni.1"
       }
     },
     {

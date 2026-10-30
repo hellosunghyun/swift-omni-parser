@@ -12,7 +12,7 @@ let package = Package(
     .package(url: "https://github.com/scinfu/SwiftSoup.git", exact: "2.14.3"),
     .package(
       url: "https://github.com/hellosunghyun/OpenDocument.core.git",
-      revision: "b302cc85311490676986a2b731971473ad21efac"
+      exact: "7.5.2-omni.1"
     ),
     .package(url: "https://github.com/sboh1214/hwp-swift.git", exact: "0.19.0"),
     .package(url: "https://github.com/CoreOffice/OLEKit.git", exact: "0.3.1")
@@ -36,6 +36,7 @@ let package = Package(
         .product(name: "OLEKit", package: "OLEKit"),
         "OfficeOxide"
       ],
+      resources: [.process("PrivacyInfo.xcprivacy")],
       linkerSettings: [.linkedLibrary("z"), .linkedLibrary("c++")]
     )
   ],

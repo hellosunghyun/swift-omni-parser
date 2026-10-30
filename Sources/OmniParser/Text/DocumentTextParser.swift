@@ -10,7 +10,7 @@ nonisolated enum DocumentTextParser {
     options: DocumentParserOptions
   ) async throws -> DocumentParseResult {
     try Task.checkCancellation()
-    if format == .rtf { return try DocumentRTFParser.parse(data, options: options) }
+    if format == .rtf { return try await DocumentRTFParser.parse(data, options: options) }
     guard let text = DocumentFormatDetector.decodeText(data) else {
       throw DocumentParsingError.malformedDocument
     }
@@ -24,14 +24,14 @@ nonisolated enum DocumentTextParser {
       DocumentStructuredTextParser.parseXML(
         data, fallbackText: text, warnings: &structureWarnings)
     case .html:
-      try DocumentHTMLParser.parseHTML(text)
+      try DocumentHTMLParser.parseHTML(text, warnings: &structureWarnings)
     case .markdown:
       DocumentMarkdownParser.parseMarkdown(text)
     default:
       DocumentStructuredTextParser.parsePlainText(text)
     }
     var result = DocumentParseResult(format: format, blocks: blocks, warnings: [])
-    let warnings = try appendReferencedImages(
+    let warnings = try await appendReferencedImages(
       to: &result, text: text, baseDirectory: baseDirectory, options: options)
     return DocumentParseResult(
       format: format, blocks: result.blocks, warnings: structureWarnings + warnings,
@@ -44,18 +44,16 @@ nonisolated enum DocumentTextParser {
     text: String,
     baseDirectory: URL?,
     options: DocumentParserOptions
-  ) throws -> [DocumentWarning] {
+  ) async throws -> [DocumentWarning] {
     guard options.extractImages || options.performOCR,
       output.format == .html || output.format == .markdown
     else { return [] }
     let references = DocumentReferencedImageParser.references(in: text, format: output.format)
     guard !references.isEmpty else { return [] }
-    var warnings = [
-      DocumentWarning(
-        code: .uncertainReadingOrder,
-        message: "Referenced image OCR blocks follow text blocks; inline order may differ."
-      )
-    ]
+    var warnings = [DocumentWarning(
+      code: .uncertainReadingOrder,
+      message: "Referenced image OCR blocks follow text blocks; inline order may differ.",
+      location: DocumentLocation(part: output.format.rawValue))]
     var imageBytes = 0
     for (index, reference) in references.enumerated() {
       try Task.checkCancellation()
@@ -68,7 +66,7 @@ nonisolated enum DocumentTextParser {
       }
       do {
         guard
-          let result = try DocumentReferencedImageParser.parse(
+          let result = try await DocumentReferencedImageParser.parse(
             reference, baseDirectory: baseDirectory, options: options,
             remainingBytes: max(0, options.maximumExpandedBytes - imageBytes)
           )

@@ -70,4 +70,4 @@ swiftlint lint --strict
 
 원래 MPL-2.0과 전이 의존성 조건을 유지한다. Release에 원문 고지 ZIP·Conan 리비전 목록·build manifest·checksum 목록과 uchardet 0.0.8의 대응 소스를 공개했다. 상세 경로는 [서드파티 고지](../THIRD_PARTY_NOTICES.md)에 있다. 자체 MIT와 외부 라이선스를 구분한다.
 
-추가한 native GoogleTest는 이후 upstream 7.5.2와 main 양쪽에서 수정 전 실패·수정 후 11/11 통과를 확인했다. 외부 fixture 검사 3개와 전체 native 테스트 실행은 제외했다. 이 결과를 담은 [upstream PR #1291](https://github.com/opendocument-app/OpenDocument.core/pull/1291)은 2026-10-28 병합됐다. 10월 30일 최신 공식 바이너리 릴리스는 수정 전 v7.6.1이라 포크를 유지한다. 이후 RTF 보완까지 포함한 현재 검사 결과는 [최종 검증](COMPLETION_VERIFICATION.md)을 따른다. 대용량 최대 메모리·배포용 Release 앱·App Store 심사·모든 XLS 변종을 검증했다는 뜻은 아니다.
+추가한 native GoogleTest 자체 중첩 입력 검사는 소스에 포함했으나 native 전체 테스트 타깃은 실행하지 않았다. 실제 문서에 대한 소비자 XCTest는 위와 같이 실행했다. 대용량 최대 메모리·배포용 Release 앱·App Store 심사·모든 XLS 변종을 검증했다는 뜻은 아니다.

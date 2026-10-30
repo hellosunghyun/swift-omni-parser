@@ -14,8 +14,8 @@ nonisolated enum DocumentNumericOCR {
 
   static func refine(
     image: CGImage, orientation: CGImagePropertyOrientation,
-    observations: [VNRecognizedTextObservation]
-  ) throws -> [UUID: Candidate] {
+    observations: [RecognizedTextObservation]
+  ) async throws -> [UUID: Candidate] {
     guard image.width <= 1_000_000 / max(1, image.height) else { return [:] }
     let orientedHeight: Int
     switch orientation {
@@ -30,13 +30,14 @@ nonisolated enum DocumentNumericOCR {
       guard targets.contains(where: { result[$0.uuid] == nil }) else { break }
       try Task.checkCancellation()
       guard let raster = threshold(image, cutoff: cutoff) else { continue }
-      let alternatives = try recognize(raster, orientation: orientation)
+      let alternatives = try await recognize(raster, orientation: orientation)
       for target in targets where result[target.uuid] == nil {
         guard let original = target.topCandidates(1).first else { continue }
         let match = alternatives.max {
-          overlap($0.boundingBox, target.boundingBox) < overlap($1.boundingBox, target.boundingBox)
+          overlap($0.boundingBox.cgRect, target.boundingBox.cgRect)
+            < overlap($1.boundingBox.cgRect, target.boundingBox.cgRect)
         }
-        guard let match, overlap(match.boundingBox, target.boundingBox) >= 0.5,
+        guard let match, overlap(match.boundingBox.cgRect, target.boundingBox.cgRect) >= 0.5,
           let alternative = match.topCandidates(1).first,
           accepts(original.string, confidence: original.confidence,
                   alternative: alternative.string, alternativeConfidence: alternative.confidence)
@@ -49,25 +50,23 @@ nonisolated enum DocumentNumericOCR {
   }
 
   private static func shouldRefine(
-    _ observation: VNRecognizedTextObservation, height: Int
+    _ observation: RecognizedTextObservation, height: Int
   ) -> Bool {
     guard let text = observation.topCandidates(1).first else { return false }
-    return text.confidence <= 0.65 && observation.boundingBox.height * CGFloat(height) <= 24
+    return text.confidence <= 0.65 && observation.boundingBox.cgRect.height * CGFloat(height) <= 24
       && isAmbiguous(text.string)
   }
 
   private static func recognize(
     _ image: CGImage, orientation: CGImagePropertyOrientation
-  ) throws -> [VNRecognizedTextObservation] {
-    let request = DocumentOCR.makeRequest()
+  ) async throws -> [RecognizedTextObservation] {
+    let request = DocumentOCR.makeRequest(language: DocumentOCR.sessions?.language ?? .automatic)
     do {
-      try VNImageRequestHandler(cgImage: image, orientation: orientation).perform([request])
+      return try await request.perform(on: image, orientation: orientation)
     } catch {
       try Task.checkCancellation()
       return []
     }
-    try Task.checkCancellation()
-    return request.results ?? []
   }
 
   /// 대안이 실제로 $를 인식했고 나머지 숫자·구분자와 신뢰도 조건까지 맞는 경우만 보완한다.

@@ -8,7 +8,7 @@ nonisolated enum DocumentOfficeParser {
     data: Data,
     format: DocumentFormat,
     options: DocumentParserOptions
-  ) throws -> DocumentParseResult {
+  ) async throws -> DocumentParseResult {
     if [.docx, .xlsx, .pptx].contains(format) {
       try DocumentArchiveGuard.validate(data, options: options)
     }
@@ -27,7 +27,7 @@ nonisolated enum DocumentOfficeParser {
         [DocumentWarning(code: .uncertainReadingOrder,
           message: "PPT table inline order is approximate.", location: $0.location)]
       } ?? []
-      return try DocumentLegacyOfficeSupplement.extract(
+      return try await DocumentLegacyOfficeSupplement.extract(
         data: data, format: format,
         base: DocumentParseResult(format: format, blocks: blocks, warnings: warnings),
         options: options, inspectedImages: 0)
@@ -37,7 +37,7 @@ nonisolated enum DocumentOfficeParser {
     let root = try document.rootElement()
 
     var context = DocumentOfficeParseContext(options: options)
-    try context.visit(root, part: nil)
+    try await context.visit(root, part: nil)
     if context.blocks.isEmpty, context.images.isEmpty {
       context.warnings.append(
         DocumentWarning(
@@ -49,7 +49,7 @@ nonisolated enum DocumentOfficeParser {
     let result = DocumentParseResult(
       format: format, blocks: context.blocks, warnings: context.warnings, images: context.images)
     if [.doc, .xls, .ppt].contains(format) {
-      return try DocumentLegacyOfficeSupplement.extract(
+      return try await DocumentLegacyOfficeSupplement.extract(
         data: data, format: format, base: result, options: options,
         inspectedImages: context.imageAttempts)
     }

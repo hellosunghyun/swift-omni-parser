@@ -1,6 +1,6 @@
 # OmniParser
 
-> **Draft — 개발·검토 중인 저장소입니다.** API·의존성·패키지 구성이 바뀔 수 있습니다. 현재 자동 CI·안정 버전 릴리스가 없으며, 실서비스 도입 전 기능 검증과 배포 라이선스 검토가 필요합니다.
+> **Draft — 개발·검토 중인 저장소입니다.** API·의존성·패키지 구성이 바뀔 수 있습니다. 현재 프리릴리즈 단계이며, 실서비스 도입 전 기능 검증과 배포 라이선스 검토가 필요합니다.
 
 로컬 문서의 본문·표·삽입 이미지와 OCR 결과를 추출하는 iOS용 Swift Package입니다.
 
@@ -20,7 +20,7 @@
 )
 ```
 
-사용할 타깃의 의존성에 `.product(name: "OmniParser", package: "swift-omni-parser")`를 추가합니다. 초기 공개본에는 버전 태그가 없으므로 소비 프로젝트의 `Package.resolved`로 리비전을 고정합니다.
+사용할 타깃의 의존성에 `.product(name: "OmniParser", package: "swift-omni-parser")`를 추가합니다. 공개 `0.1.0-alpha.1` 태그는 내부 revision 의존성 때문에 버전 설치가 실패합니다. 수정 버전이 발행되기 전에는 `main`을 사용하고 소비 프로젝트의 `Package.resolved`로 커밋을 고정합니다. 이 브랜치도 개발·검토 중이며, 기존 태그를 강제로 변경하지 않습니다.
 
 ## 사용법
 
@@ -49,22 +49,27 @@ let outcomes = try await DocumentParser.parseBatch(
 
 `extractImages`와 `performOCR`은 독립적인 옵션이며 모두 기본값이 `false`입니다. 이미지 단독 입력과 스캔 전용 PDF는 OCR을 켜야 텍스트를 얻을 수 있습니다. 라이브러리는 입력 URL·본문을 로그에 기록하지 않습니다.
 
+한영 혼합 문서에는 `options: .init(performOCR: true, ocrLanguage: .koreanAndEnglish)`, 영어 전용 자료에는 `.english`를 지정할 수 있습니다. 기본 `.automatic`은 기존 동작을 유지합니다. 모드별 정확도·메모리 절충과 배치 적용 방식은 [요청별 OCR 언어](Documentation/API.md#요청별-ocr-언어)를 확인하세요.
+
+기존 초기화와 새 옵션의 소스 호환성은 고정 로컬 미러를 사용한 arm64·x86_64 Simulator 외부 모듈 컴파일로 확인했습니다. 공개 태그 설치·앱 링크·외부 호출의 런타임 검증은 별도이며, [검증 범위](Documentation/IMPROVEMENT_LOOP_2026-10-28.md#외부-소비자-검증의-환경-제약)에 구분했습니다.
+
 ## 형식과 처리 경로
 
 | 형식 | 구현 경로 |
 | --- | --- |
 | TXT·CSV·JSON·XML | Foundation 및 형식별 구조 추출 |
-| HTML·Markdown | SwiftSoup·형식별 구조 추출·내장/로컬 참조 이미지 처리 |
-| RTF | 시스템 RTF 본문·표·셀 좌표·제공된 병합 범위, 내장 래스터 그림 추출·선택적 OCR |
+| HTML | SwiftSoup DOM의 본문·제목·목록·표와 내장/로컬 참조 그림. CSS 조판·스크립트 실행 제외 |
+| Markdown | 줄 단위 제목·본문·파이프 표와 인라인 그림 참조. CommonMark 전체 방언·참조형 그림은 미지원 |
+| RTF | Foundation 문단·표·병합 셀 + 내장 래스터 그림·선택적 OCR. 독립 WMF/EMF/DIB 렌더링 제외 |
 | JPEG·PNG·HEIC·TIFF·CGImage | ImageIO·Vision, 다중 프레임과 방향 처리 |
-| PDF | PDFKit·페이지 좌표·표 추정·삽입 이미지·선택적 OCR |
+| PDF | 페이지 좌표·선/정렬 기반 표 추정·표시된 그림 영역의 래스터 추출·선택적 OCR. 원본 이미지 스트림 반환은 아님 |
 | DOC·PPT | OfficeOxide, OfficeArt 그림 보완 |
 | DOCX·XLS·XLSX·PPTX | OpenDocument.core |
-| HWP·HWPX | hwp-swift의 CoreHwp |
+| HWP·HWPX | CoreHwp 본문·표·문단/셀 그림 앵커. 지원 래스터 BinData 추출·OCR, 페이지 조판 순서는 경고 |
+
+인코딩 판별은 BOM·UTF-16 패턴과 레거시 문자셋 휴리스틱을 사용합니다. JSON 객체 키는 정렬하며 XML은 엔티티 확장을 허용하지 않습니다. Office는 백엔드가 제공하는 문서 요소를 추출하며, 제공하지 않는 헤더·각주·도형 앵커·좌표까지 완전하게 복원하지 않습니다.
 
 표는 기존 구현의 처리 경로를 나타내며 모든 문서의 완전한 복원을 보장하지 않습니다. 위치를 복원하지 못하거나 일부 요소가 실패하면 경고를 반환합니다. 이미지 속 표의 셀 구조 복원, 암호 해제, 파일 형식 변환은 제공하지 않습니다. 구체적인 옵션·위치·읽기 순서 제약은 [API 문서](Documentation/API.md)를 확인하세요.
-
-RTF도 같은 이미지/OCR 옵션을 사용합니다. 표는 시스템이 제공한 셀 구조를 읽고, 내장 `pict` 그림은 문단·셀 위치에서 처리합니다. PNG·JPEG 그림, hex·binary 저장 방식, Word의 원본/호환 그림 중복을 처리하며, 셀 안 그림의 정확한 인라인 순서를 복원하지 못하면 경고를 남깁니다. 지원 범위와 WMF·EMF 등 남은 제약은 [RTF 문서](Documentation/RTF_SUPPORT.md)에 정리했습니다.
 
 ## 빌드
 
@@ -87,9 +92,17 @@ xcodebuild test -scheme OmniParser \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `v7.5.2-omni.1`의 고정 커밋입니다. 의존성 전환 당시 공개 Release ZIP을 새 캐시에서 받아 **iPhone 17 Simulator와 iPhone 17 실기기 모두 16개 테스트가 통과**했습니다. 이후 RTF 구조·내장 그림, 부분 실패 복구, XML 엔티티 방어 검사를 추가했습니다. 현재 전체 **34개 테스트가 iPhone 17 Simulator와 실기기에서 모두 통과**했습니다. [최종 검증 기록](Documentation/COMPLETION_VERIFICATION.md)에서 실행 구성과 남은 제약을 확인하세요.
+기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 최신 전체 **Release 회귀 99개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 67파일·위반 0건·generic Simulator 빌드 통과를 확인했습니다. 요청별 언어·동시 호출·PDF·TIFF·HWPX 회귀에 OCR 좌표 경계와 정방향으로 표시되는 PDF의 0/90/180/270도 페이지 좌표 검사를 포함합니다.
 
-SwiftPM 기본 테스트 명령은 Simulator용입니다. 실기기는 저장소 밖의 임시 호스트 앱에 같은 테스트를 연결해 검증했습니다. 원인·고정 리비전·실행 명령·남은 한계는 [XLS 수정·전환 결과](Documentation/XLS_CHART_FIX.md)를 확인하세요. 기존 upstream 7.5.2에서 발생한 15/16 실패는 전환 전 기록으로 구분합니다.
+최신 65문서 비교에서 본문·2,709개 블록의 문구·순서·신뢰도·이미지 픽셀은 유지됐고, 범위 밖 OCR 좌표 1개를 보정했습니다. PNG 원시 바이트는 64/65 일치하며 나머지는 색상 프로필 날짜·시각 필드 두 바이트만 달랐습니다. 엄격 비교의 차이 상태를 보존했습니다. 작은 숫자 그림의 오인식·페이지 OCR 중복과 추가 peak 메모리 절감은 남아 있습니다. 범위·실행 명령·단계별 시간은 [최신 수정·검증 기록](Documentation/IMPROVEMENT_LOOP_2026-10-28.md#ocr-좌표-경계-보정과-99개-회귀)에 구분했습니다.
+
+실기기 32개 통과와 과거 대용량 기록은 이전 동기 OCR 코드의 결과입니다. 최신 실기기 검증은 아직 하지 않았습니다. [Release 배치·URL/Data·QoS 검증](Documentation/RELEASE_MEMORY_2026-10-28.md)에 앞선 메모리·QoS 비교를 기록했습니다. 대용량 URL 입력의 footprint 절감은 확인했지만 작은 배치의 추가 메모리 절감은 확보하지 못했습니다. [입력 Reader의 앞선 Debug 검증](Documentation/BATCH_MEMORY_2026-10-28.md), [오픈소스 후속 검증과 65문서 대조](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md), 과거 [대용량 기록](Documentation/LOCAL_REVIEW_2026-10-27.md)·[RTF 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)·[XLS 전환](Documentation/XLS_CHART_FIX.md)은 당시 결과로 보존합니다.
+
+[Vision 단독 메모리 재현 예제](Documentation/VISION_MEMORY_REPRODUCTION.md)는 자체 생성 이미지로 OCR 동시성 1·2를 비교합니다. 별도 XCTest 타깃에 복사해 실행하며 제품이나 기본 CI 테스트에는 포함하지 않습니다.
+
+[OCR 정확도·PDF 중복 개선 기록](Documentation/IMPROVEMENT_LOOP_2026-10-28.md)에 요청별 언어 옵션, 같은 위치의 중복 그림 OCR 수정, 실제 시간·메모리 비교를 정리했습니다. 기본 언어 정책은 유지하며, 동일 영역 OCR을 생략한 시간 개선과 추가 peak 메모리 절감 여부를 구분합니다.
+
+PR·main 푸시의 자동 검사에는 `.github/workflows/verification.yml`을 사용합니다. 실제 GitHub 실행은 다음 푸시 이후 확인해야 합니다. [기여 안내](CONTRIBUTING.md)와 [보안 제보](SECURITY.md)에 검증·샘플 제출 기준을 적었습니다.
 
 ## 의존성과 라이선스
 
@@ -111,4 +124,4 @@ OfficeOxide의 iOS·Simulator 정적 XCFramework는 `ThirdParty/OfficeOxide`에 
 
 ## 공개 초안 검토
 
-오픈소스 도입 관점의 확인된 문제와 개선 순서는 [검토 보고서](Documentation/OPEN_SOURCE_REVIEW.md)에 정리했습니다.
+최신 상태는 [후속 수정·검증](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md), 최초 검토 이력은 [공개 초안 검토](Documentation/OPEN_SOURCE_REVIEW.md)에 정리했습니다.

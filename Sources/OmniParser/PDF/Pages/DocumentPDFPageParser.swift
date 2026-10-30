@@ -61,47 +61,71 @@ nonisolated enum DocumentPDFPageParser {
   }
 
   @concurrent static func recognize(
-    _ prepared: DocumentPDFPreparedPage
+    _ prepared: DocumentPDFPreparedPage,
+    recognizeImage:
+      (@Sendable (CGImage, DocumentLocation, CGRect) async throws -> [DocumentBlock])? = nil
   ) async throws -> DocumentPDFPreparedPage {
-    try await withTaskExecutorPreference(DocumentPDFTaskExecutor.shared) {
-      try await performRecognition(prepared)
+    let maximumPixels: Int
+    if let raster = prepared.raster?.image {
+      let (pixels, overflow) = raster.width.multipliedReportingOverflow(by: raster.height)
+      maximumPixels = overflow ? 0 : pixels
+    } else {
+      maximumPixels = 0
+    }
+    let recognizeImage = recognizeImage ?? { image, location, bounds in
+      try await DocumentPDFImageExtractor.recognize(
+        image, location: location, bounds: bounds, maximumPixels: maximumPixels)
+    }
+    return try await withTaskExecutorPreference(DocumentPDFTaskExecutor.shared) {
+      try await performRecognition(prepared, recognizeImage: recognizeImage)
     }
   }
 
   /// 그림 OCR이 페이지 전체와 정확히 같은 픽셀 영역을 읽은 경우에만 전체 페이지 OCR을 재사용한다.
   @concurrent private static func performRecognition(
-    _ prepared: DocumentPDFPreparedPage
+    _ prepared: DocumentPDFPreparedPage,
+    recognizeImage: @Sendable (CGImage, DocumentLocation, CGRect) async throws -> [DocumentBlock]
   ) async throws -> DocumentPDFPreparedPage {
-    try autoreleasepool {
-      var page = prepared
-      let native = page.result.blocks
-      var recognizedFullPage = false
-      for job in page.imageJobs {
-        try Task.checkCancellation()
-        if page.extractImages {
-          page.result.blocks.append(DocumentBlock(
-            kind: .image, text: "", readingOrder: 0, location: job.location))
-        }
-        do {
-          let recognized = try DocumentPDFImageExtractor.recognize(
-            job.raster.image, location: job.location, bounds: job.location.bounds ?? .zero)
-          recognizedFullPage = recognizedFullPage || job.covers(page.raster)
-          page.result.blocks.append(contentsOf: recognized.filter { !duplicate($0, in: native) })
-        } catch is CancellationError {
-          throw CancellationError()
-        } catch {
-          page.result.warnings.append(DocumentWarning(
-            code: .imageOCRFailed, message: "PDF image OCR failed; raster region is preserved.",
-            location: job.location))
-        }
+    var page = prepared
+    let native = page.result.blocks
+    var recognizedFullPage = false
+    // 한 페이지의 같은 래스터를 정확히 같은 bounds로 자르면 같은 픽셀 영역이다.
+    // 성공한 비어 있지 않은 OCR 영역만 보관하며 그림·PNG 배치는 각각 유지한다.
+    var successfulRegions: [CGRect] = []
+    for job in page.imageJobs {
+      try Task.checkCancellation()
+      if page.extractImages {
+        page.result.blocks.append(DocumentBlock(
+          kind: .image, text: "", readingOrder: 0, location: job.location))
       }
-      if let raster = page.raster, !recognizedFullPage {
-        try appendPageOCR(raster.image, index: page.index, result: &page.result)
+      if let bounds = job.location.bounds, !bounds.isNull, !bounds.isEmpty,
+        successfulRegions.contains(bounds) { continue }
+      do {
+        let recognized = try await recognizeImage(
+          job.raster.image, job.location, job.location.bounds ?? .zero)
+        if !recognized.isEmpty, let bounds = job.location.bounds,
+          !bounds.isNull, !bounds.isEmpty {
+          successfulRegions.append(bounds)
+        }
+        recognizedFullPage = recognizedFullPage || job.covers(page.raster)
+        for block in recognized where !duplicate(block, in: native)
+          && !repeatedImageOCR(block, in: page.result.blocks) {
+          page.result.blocks.append(block)
+        }
+      } catch is CancellationError {
+        throw CancellationError()
+      } catch {
+        page.result.warnings.append(DocumentWarning(
+          code: .imageOCRFailed, message: "PDF image OCR failed; raster region is preserved.",
+          location: job.location))
       }
-      page.raster = nil
-      page.imageJobs = []
-      return page
     }
+    if let raster = page.raster, !recognizedFullPage {
+      try await appendPageOCR(raster.image, index: page.index, result: &page.result)
+    }
+    page.raster = nil
+    page.imageJobs = []
+    return page
   }
 
   private static func tables(
@@ -135,9 +159,9 @@ nonisolated enum DocumentPDFPageParser {
 
   private static func appendPageOCR(
     _ image: CGImage, index: Int, result: inout DocumentPDFImageExtractor.Result
-  ) throws {
+  ) async throws {
     do {
-      let recognized = try DocumentOCR.recognize(
+      let recognized = try await DocumentOCR.recognize(
         image: image, orientation: .up, location: DocumentLocation(page: index + 1))
       result.blocks.append(contentsOf: recognized.filter { !duplicate($0, in: result.blocks) })
     } catch is CancellationError {
@@ -150,21 +174,47 @@ nonisolated enum DocumentPDFPageParser {
     }
   }
 
+  /// 겹쳐 표시된 그림의 같은 OCR만 제거한다. 떨어진 위치의 같은 문구는 보존한다.
+  private static func repeatedImageOCR(
+    _ candidate: DocumentBlock, in blocks: [DocumentBlock]
+  ) -> Bool {
+    guard candidate.kind == .imageOCR, let page = candidate.location.page,
+      let bounds = candidate.location.bounds else { return false }
+    return blocks.contains { block in
+      guard block.kind == .imageOCR, block.location.page == page,
+        let other = block.location.bounds
+      else { return false }
+      // 정규화 좌표 변환의 미세한 오차만 허용하며 실제 겹침/포함 여부로 합치지 않는다.
+      let tolerance = CGFloat(0.000001)
+      return abs(bounds.minX - other.minX) <= tolerance
+        && abs(bounds.minY - other.minY) <= tolerance
+        && abs(bounds.width - other.width) <= tolerance
+        && abs(bounds.height - other.height) <= tolerance
+        && normalized(block.text) == normalized(candidate.text)
+    }
+  }
+
   /// 공간적으로 겹치는 기존 블록만 비교해 같은 문구의 중복 OCR을 제거한다.
   private static func duplicate(_ candidate: DocumentBlock, in blocks: [DocumentBlock]) -> Bool {
     guard candidate.kind == .imageOCR, let bounds = candidate.location.bounds else { return false }
     let value = normalized(candidate.text)
     guard !value.isEmpty else { return true }
     var relatedText = ""
+    var intersectingText = ""
     for block in blocks {
       guard !block.text.isEmpty, let other = block.location.bounds,
         other.insetBy(dx: -0.005, dy: -0.005).intersects(bounds)
       else { continue }
-      if normalized(block.text) == value { return true }
+      if other.intersects(bounds) {
+        if normalized(block.text) == value { return true }
+        intersectingText += block.text
+      }
       relatedText += block.text
     }
     // 페이지 OCR 한 줄이 본문 여러 블록에 걸친 경우도 비교하되, 중간 블록 배열은 만들지 않는다.
+    // 여유 영역의 블록을 빼면 새 부분 문자열이 생길 수 있어 기존 연결 조건도 유지한다.
     return normalized(relatedText).contains(value)
+      && normalized(intersectingText).contains(value)
   }
 
   private static func normalized(_ text: String) -> String {

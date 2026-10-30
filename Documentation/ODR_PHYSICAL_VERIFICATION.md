@@ -1,7 +1,5 @@
 # 수정 OdrCore의 iPhone 17 실기기 검증
 
-> 아래는 로컬 수정 엔진을 처음 실기기에서 검증한 이력이다. 현재 기본 의존성과 RTF 보완까지 포함한 34개 결과는 [최종 검증](COMPLETION_VERIFICATION.md)을 따른다.
-
 2026-10-27. **iPhone 17 / iOS 27.0.1 실기기에서 전체 16개 XCTest 통과, 실패·skip·expected failure 모두 0개**다. 이 결과는 로컬 수정 XCFramework 소비 구성에 해당한다. 운영 upstream 7.5.2 의존성을 전환한 결과가 아니다.
 
 ## 실행 구성

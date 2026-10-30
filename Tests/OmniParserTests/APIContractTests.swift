@@ -3,6 +3,17 @@ import OmniParser
 import XCTest
 
 final class APIContractTests: XCTestCase {
+  func testCSVPreservesEmptyQuotedCells() async throws {
+    for (text, count) in [("\"\"", 1), ("\"\"\n", 1), ("\"\",", 2)] {
+      let result = try await DocumentParser.parse(.data(Data(text.utf8), fileName: "empty.csv"))
+      let cells = result.blocks.filter { $0.kind == .tableCell }
+      XCTAssertEqual(cells.count, count)
+      XCTAssertTrue(cells.allSatisfy { $0.text.isEmpty && $0.location.row == 1 })
+      XCTAssertEqual(cells.compactMap(\.location.column), Array(1..<(count + 1)))
+      TestFixtures.assertTextConsistency(result)
+    }
+  }
+
   func testBackendErrorsUseSamePublicCategoryInSingleAndBatch() async throws {
     let input = try TestFixtures.malformedWorkbook()
     let progress = TestProgress()

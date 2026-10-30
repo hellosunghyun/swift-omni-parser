@@ -187,8 +187,49 @@ nonisolated public struct DocumentParseResult: Sendable, Equatable {
   }
 }
 
-/// 파서가 추가한 순서대로 블록을 연결한다. 원본 위치와 OCR 메타데이터는 그대로 유지한다.
+/// 블록을 연결하거나 좌표로 순서를 정리한다. 원본 위치와 OCR 메타데이터는 유지한다.
 extension Array where Element == DocumentBlock {
+  /// 좌상단 좌표로 페이지를 정렬하고 글자 높이가 달라도 같은 행은 왼쪽부터 읽는다.
+  /// 허용 오차를 sort 비교 함수에 섞지 않고 행 기준을 고정해 비교의 추이성을 유지한다.
+  nonisolated mutating func sortInGeometricReadingOrder() {
+    sort {
+      if $0.location.page != $1.location.page {
+        return ($0.location.page ?? 0) < ($1.location.page ?? 0)
+      }
+      let left = $0.location.bounds ?? .zero, right = $1.location.bounds ?? .zero
+      return left.minY == right.minY ? left.minX < right.minX : left.minY < right.minY
+    }
+    var output: [DocumentBlock] = []
+    output.reserveCapacity(count)
+    var row: [DocumentBlock] = []
+    func flush() {
+      row.sort { ($0.location.bounds?.minX ?? 0) < ($1.location.bounds?.minX ?? 0) }
+      output.append(contentsOf: row)
+      row.removeAll(keepingCapacity: true)
+    }
+    for block in self {
+      // 그림·표 영역은 텍스트 행의 기준으로 사용하지 않는다.
+      guard block.kind != .image, block.kind != .table,
+        let bounds = block.location.bounds, !bounds.isEmpty else {
+        flush()
+        output.append(block)
+        continue
+      }
+      if let first = row.first, let anchor = first.location.bounds {
+        let height = Swift.min(anchor.height, bounds.height)
+        let overlap = Swift.min(anchor.maxY, bounds.maxY) - Swift.max(anchor.minY, bounds.minY)
+        if first.location.page != block.location.page
+          || overlap < height * 0.5 || abs(anchor.midY - bounds.midY) > height * 0.5 {
+          flush()
+        }
+      }
+      row.append(block)
+    }
+    flush()
+    self = output
+    for index in indices { self[index].readingOrder = index }
+  }
+
   nonisolated mutating func appendBlock(
     _ kind: DocumentBlockKind, text: String = "", location: DocumentLocation
   ) {
@@ -237,6 +278,16 @@ nonisolated public struct DocumentProgress: Sendable, Equatable {
   }
 }
 
+/// 요청 하나에 적용할 OCR 언어 정책. 파싱 호출마다 독립적으로 설정한다.
+nonisolated public enum DocumentOCRLanguage: String, Sendable {
+  /// 기존 한영 인식과 자동 언어 감지를 유지한다.
+  case automatic
+  /// 자동 감지 없이 한국어·영어 우선순위를 명시한다.
+  case koreanAndEnglish
+  /// 자동 감지 없이 영어만 인식하도록 지정한다.
+  case english
+}
+
 /// 이미지·OCR 활성화와 입력·추출·병렬 작업 제한. 프로세스 전체 메모리의 강제 상한은 아니다.
 nonisolated public struct DocumentParserOptions: Sendable {
   /// 그림을 PNG와 image 블록으로 반환한다. OCR 실행 여부와 독립적이며 기본값은 false다.
@@ -244,6 +295,8 @@ nonisolated public struct DocumentParserOptions: Sendable {
   /// 그림·스캔 페이지의 Vision OCR을 실행한다. false면 네이티브 본문·표만 읽는다.
   /// 이미지 단독 입력이나 스캔 전용 문서는 텍스트가 비어 있을 수 있다.
   public var performOCR: Bool
+  /// OCR을 켰을 때 적용할 언어 정책. 기본값은 기존 동작을 유지하는 automatic이다.
+  public var ocrLanguage: DocumentOCRLanguage
   /// 문서 하나 또는 읽으려는 그림 데이터의 바이트 한도.
   public var maximumInputBytes: Int
   /// 압축 해제·CFB 읽기와 형식별 보관 그림에 적용하는 누적 바이트 제한.
@@ -281,10 +334,12 @@ nonisolated public struct DocumentParserOptions: Sendable {
     maximumPDFOperators: Int = 100_000,
     maximumConcurrentPDFPages: Int = ProcessInfo.processInfo.activeProcessorCount,
     pdfWorkingMemoryTargetBytes: Int = 256 * 1024 * 1024,
-    maximumPDFImageBytes: Int = 500 * 1024 * 1024
+    maximumPDFImageBytes: Int = 500 * 1024 * 1024,
+    ocrLanguage: DocumentOCRLanguage = .automatic
   ) {
     self.extractImages = extractImages
     self.performOCR = performOCR
+    self.ocrLanguage = ocrLanguage
     self.maximumInputBytes = max(1, maximumInputBytes)
     self.maximumExpandedBytes = max(1, maximumExpandedBytes)
     self.maximumArchiveEntries = max(1, maximumArchiveEntries)

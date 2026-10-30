@@ -3,6 +3,20 @@ import OmniParser
 import XCTest
 
 final class FormatRegressionTests: XCTestCase {
+  func testVerticalKoreanTextInHWPImageIsPreserved() async throws {
+    for name in ["RealWorld/hwp/real-hwp-01-noori.hwp",
+                 "RealWorld/hwpx/real-hwpx-02-noori.hwpx"] {
+      let result = try await DocumentParser.parse(TestFixtures.input(name),
+        options: .init(performOCR: true))
+      // 표 셀의 로켓 그림에 실제 인쇄된 세로 글자다. native 본문과 구분해 확인한다.
+      XCTAssertTrue(result.blocks.contains {
+        $0.kind == .imageOCR && $0.location.row == 2 && $0.location.column == 2
+          && $0.text.filter { !$0.isWhitespace }.contains("대한민국")
+      })
+      TestFixtures.assertTextConsistency(result)
+    }
+  }
+
   struct Entry: Decodable {
     let name: String
     let sha256: String
@@ -12,6 +26,47 @@ final class FormatRegressionTests: XCTestCase {
     let minimumTextLength: Int?
     let minimumTableCells: Int?
     let minimumImages: Int?
+  }
+
+  func testJSONPreservesBooleansBesideNumbers() async throws {
+    let source = #"{"enabled":true,"disabled":false,"numbers":[0,1,1.5],"value":null}"#
+    let result = try await DocumentParser.parse(.data(Data(source.utf8), fileName: "values.json"))
+    XCTAssertEqual(result.blocks.map(\.text), [
+      "disabled: false", "enabled: true", "numbers[0]: 0", "numbers[1]: 1",
+      "numbers[2]: 1.5", "value: null"
+    ])
+    XCTAssertTrue(result.warnings.isEmpty)
+    TestFixtures.assertTextConsistency(result)
+  }
+
+  func testInlineSVGKeepsHTMLAndMarkdownBodies() async throws {
+    let html = #"<html><body><p>Kept body</p><svg width="10"><text>Vector label</text></svg>"#
+      + "<p>After icon</p></body></html>"
+    let parsed = try await DocumentParser.parse(.data(Data(html.utf8), fileName: "inline.html"))
+    XCTAssertEqual(parsed.format, .html)
+    XCTAssertTrue(parsed.fullText.contains("Kept body"))
+    XCTAssertTrue(parsed.fullText.contains("After icon"))
+    XCTAssertTrue(parsed.warnings.contains {
+      $0.code == .unsupportedElement && $0.location?.part == "html/svg[1]"
+    })
+    TestFixtures.assertTextConsistency(parsed)
+    let markdown = "# SVG example\n```html\n<svg width='10'></svg>\n```\nKept example"
+    let example = try await DocumentParser.parse(
+      .data(Data(markdown.utf8), fileName: "example.md"))
+    XCTAssertEqual(example.format, .markdown)
+    XCTAssertTrue(example.fullText.contains("Kept example"))
+    TestFixtures.assertTextConsistency(example)
+  }
+
+  func testStandaloneSVGRemainsUnsupported() async {
+    for prefix in ["", "<?xml version='1.0'?>\n<!-- standalone -->\n",
+                   "<!DOCTYPE svg PUBLIC '-//W3C//DTD SVG 1.1//EN' 'example.invalid/svg.dtd'>"] {
+      do {
+        let text = prefix + "<svg xmlns='http://www.w3.org/2000/svg' width='10'/>"
+        _ = try await DocumentParser.parse(.data(Data(text.utf8), fileName: "vector.svg"))
+        XCTFail("독립 SVG 문서를 지원 형식으로 판별했습니다.")
+      } catch { XCTAssertEqual(error as? DocumentParsingError, .unsupportedFormat) }
+    }
   }
 
   func testExistingCorpusAndFixtureHashes() async throws {

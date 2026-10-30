@@ -95,7 +95,8 @@ nonisolated enum DocumentFormatDetector {
     let trimmed = text.drop { $0.isWhitespace || $0 == "\u{FEFF}" }
     if trimmed.hasPrefix("{\\rtf") { return .rtf }
     let lowercased = trimmed.lowercased()
-    if lowercased.hasPrefix("<svg") || lowercased.contains("<svg ") {
+    // 문서 안의 SVG 아이콘·코드 예제는 문서 자체의 형식이 아니다.
+    if lowercased.contains("<svg"), hasSVGRoot(String(trimmed)) {
       throw DocumentParsingError.unsupportedFormat
     }
     if lowercased.hasPrefix("<!doctype html") || lowercased.hasPrefix("<html") { return .html }
@@ -107,6 +108,31 @@ nonisolated enum DocumentFormatDetector {
 
     guard isPlausible(text) else { return nil }
     return extensionFormat ?? .txt
+  }
+
+  /// 선언·주석·DOCTYPE를 건너뛴 실제 첫 요소만 확인하고 본문 해석 전에 중단한다.
+  private static func hasSVGRoot(_ text: String) -> Bool {
+    let delegate = XMLRootDetector()
+    let parser = XMLParser(data: Data(text.utf8))
+    parser.externalEntityResolvingPolicy = .never
+    parser.delegate = delegate
+    _ = parser.parse()
+    return delegate.isSVG
+  }
+
+  private final class XMLRootDetector: NSObject, XMLParserDelegate {
+    var isSVG = false
+
+    func parser(_ parser: XMLParser, didStartElement name: String, namespaceURI: String?,
+                qualifiedName: String?, attributes: [String: String]) {
+      isSVG = name.split(separator: ":").last?.lowercased() == "svg"
+      parser.abortParsing()
+    }
+
+    func parser(_ parser: XMLParser, foundInternalEntityDeclarationWithName name: String,
+                value: String?) {
+      parser.abortParsing()
+    }
   }
 
   private static func isJSON(_ text: Substring, source: String) -> Bool {

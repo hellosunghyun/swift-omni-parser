@@ -4,44 +4,44 @@ import ImageIO
 import Synchronization
 import Vision
 
-/// 호출 하나의 작업창 안에서만 공유한다. 대여한 세션은 한 OCR 호출만 사용한다.
-/// 실행 동시성은 상위 문서/PDF 작업창이 제한하고, 완료한 세션은 최대 2개만 보관한다.
-/// 풀은 parse 또는 parseBatch 호출 범위를 벗어나 전역 캐시로 남지 않는다.
-/// 한 세션의 요청·핸들러는 함께 잠그지만 서로 다른 세션은 병렬로 OCR할 수 있다.
+/// 호출 하나의 작업창에서만 공유하는 비동기 Vision 요청 풀이다.
+/// 대여한 요청은 한 작업만 사용하며, 완료한 요청은 최대 2개만 보관한다.
+/// 동기 Vision 대기를 협력 스레드에 두지 않고 취소·실패한 요청은 재사용하지 않는다.
 nonisolated final class DocumentOCRSessionPool: Sendable {
-  private struct RecognitionState {
-    let handler = VNSequenceRequestHandler()
-    let request = DocumentOCR.makeRequest()
-  }
-
   private final class Session: Sendable {
-    private let state = Mutex(RecognitionState())
+    let request: RecognizeTextRequest
 
-    func perform(
-      image: CGImage, orientation: CGImagePropertyOrientation,
-      convert: ([VNRecognizedTextObservation]) throws -> [DocumentBlock]
-    ) throws -> [DocumentBlock] {
-      try state.withLock { value in
-        try Task.checkCancellation()
-        try value.handler.perform([value.request], on: image, orientation: orientation)
-        try Task.checkCancellation()
-        return try convert(value.request.results ?? [])
-      }
+    init(language: DocumentOCRLanguage) {
+      request = DocumentOCR.makeRequest(language: language)
     }
   }
 
+  /// 풀의 언어는 바꾸지 않아 보관한 요청에 다른 호출의 설정이 섞이지 않는다.
+  let language: DocumentOCRLanguage
   private let idle = Mutex<[Session]>([])
+
+  init(language: DocumentOCRLanguage = .automatic) {
+    self.language = language
+  }
 
   var cachedSessionCount: Int { idle.withLock { $0.count } }
 
-  /// 대여·반환 때만 풀을 잠근다. 인식이 실패하거나 취소되면 세션을 유휴 목록에 돌려놓지 않는다.
   func perform(
     image: CGImage, orientation: CGImagePropertyOrientation,
-    convert: ([VNRecognizedTextObservation]) throws -> [DocumentBlock]
-  ) throws -> [DocumentBlock] {
-    let session = idle.withLock { $0.popLast() } ?? Session()
-    // 실패·취소한 핸들러는 재사용하지 않고 해제한다.
-    let result = try session.perform(image: image, orientation: orientation, convert: convert)
+    convert: ([RecognizedTextObservation]) async throws -> [DocumentBlock]
+  ) async throws -> [DocumentBlock] {
+    try Task.checkCancellation()
+    let session = idle.withLock { $0.popLast() } ?? Session(language: language)
+    let observations: [RecognizedTextObservation]
+    do {
+      observations = try await session.request.perform(on: image, orientation: orientation)
+    } catch {
+      try Task.checkCancellation()
+      throw error
+    }
+    try Task.checkCancellation()
+    let result = try await convert(observations)
+    try Task.checkCancellation()
     idle.withLock { if $0.count < 2 { $0.append(session) } }
     return result
   }

@@ -1,6 +1,6 @@
 --- a/Package.swift
 +++ b/Package.swift
-@@ -24,8 +24,8 @@
+@@ -24,6 +24,6 @@
      ?? Target.binaryTarget(
          name: "OdrCoreObjC",
          url:
@@ -9,8 +9,6 @@
 +            "__ASSET_URL__",
 +        checksum: "__ASSET_SHA256__"
      )
- 
- let package = Package(
 @@ -34,7 +34,6 @@
      // profiles pin the same values.
      platforms: [

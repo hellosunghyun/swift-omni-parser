@@ -10,6 +10,7 @@ nonisolated enum DocumentCSVParser {
     var row: [String] = []
     var field = ""
     var quoted = false
+    var quotedField = false
     // 전체 Character 배열 없이 한 문자만 미리 읽는다. CRLF와 조합 문자 단위를 보존한다.
     var iterator = text.makeIterator()
     var next = iterator.next()
@@ -28,21 +29,26 @@ nonisolated enum DocumentCSVParser {
         }
       } else {
         switch character {
-        case "\"" where field.isEmpty: quoted = true
+        case "\"" where field.isEmpty:
+          quoted = true
+          quotedField = true
         case ",":
           row.append(field)
           field = ""
+          quotedField = false
         case "\n", "\r\n", "\r":
           row.append(field)
           blocks.appendTableRow(row, row: rowIndex)
           rowIndex += 1
           row.removeAll(keepingCapacity: true)
           field = ""
+          quotedField = false
         default: field.append(character)
         }
       }
     }
-    if !field.isEmpty || !row.isEmpty {
+    // 빈 인용 필드도 실제 셀이다. 입력 자체가 비어 있는 경우와 구분한다.
+    if quotedField || !field.isEmpty || !row.isEmpty {
       row.append(field)
       blocks.appendTableRow(row, row: rowIndex)
     }

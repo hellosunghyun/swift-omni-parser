@@ -20,7 +20,9 @@ nonisolated public enum DocumentParser {
     options: DocumentParserOptions = DocumentParserOptions(),
     progress: ProgressHandler? = nil
   ) async throws -> DocumentParseResult {
-    try await DocumentOCR.$sessions.withValue(DocumentOCRSessionPool()) {
+    try await DocumentOCR.$sessions.withValue(
+      DocumentOCRSessionPool(language: options.ocrLanguage)
+    ) {
       try await parseInput(input, index: 0, options: options, progress: progress)
     }
   }
@@ -40,7 +42,9 @@ nonisolated public enum DocumentParser {
     try Task.checkCancellation()
     if inputs.isEmpty { return [] }
     let pool = DocumentPDFWorkPool(options: options)
-    return try await DocumentOCR.$sessions.withValue(DocumentOCRSessionPool()) {
+    return try await DocumentOCR.$sessions.withValue(
+      DocumentOCRSessionPool(language: options.ocrLanguage)
+    ) {
       try await DocumentPDFScheduling.$pool.withValue(pool) {
         try await runBatch(inputs, options: options, progress: progress)
       }
@@ -91,7 +95,9 @@ nonisolated public enum DocumentParser {
 
   /// 외부 백엔드 오류도 단일·배치 호출에서 같은 공개 오류로 반환한다.
   private static func parsingError(_ error: Error) -> DocumentParsingError {
-    error as? DocumentParsingError
+    // 동기 백엔드가 취소와 동시에 다른 오류를 던져도 호출자의 취소 의도를 보존한다.
+    if Task.isCancelled { return .cancelled }
+    return error as? DocumentParsingError
       ?? (error is CancellationError ? .cancelled : .malformedDocument)
   }
 
@@ -135,7 +141,7 @@ nonisolated public enum DocumentParser {
     }
 
     progress?(DocumentProgress(inputIndex: index, phase: .identifying, fractionCompleted: 0))
-    let prepared = try read(input, options: options)
+    let prepared = try await read(input, options: options)
     try Task.checkCancellation()
     let format = try prepared.image != nil ? DocumentFormat.image : DocumentFormatDetector.detect(
       data: prepared.data, fileName: prepared.fileName, options: options)
@@ -162,7 +168,7 @@ nonisolated public enum DocumentParser {
   }
 
   /// URL 입력만 기준 디렉터리를 보존한다. Data의 파일명은 로컬 참조 그림을 읽을 권한이 아니다.
-  private static func read(_ input: DocumentInput, options: DocumentParserOptions) throws
+  private static func read(_ input: DocumentInput, options: DocumentParserOptions) async throws
     -> PreparedInput {
     switch input {
     case .data(let data, let fileName):
@@ -180,15 +186,8 @@ nonisolated public enum DocumentParser {
         data: Data(), fileName: nil, baseDirectory: nil, image: (image, orientation))
     case .url(let url):
       do {
-        let values = try url.resourceValues(forKeys: [.fileSizeKey])
-        guard let size = values.fileSize, size >= 0 else {
-          throw DocumentParsingError.unreadableInput
-        }
-        guard size <= options.maximumInputBytes else { throw DocumentParsingError.inputTooLarge }
-        let data = try Data(contentsOf: url)
-        guard data.count <= options.maximumInputBytes else {
-          throw DocumentParsingError.inputTooLarge
-        }
+        let data = try await DocumentInputReader.read(
+          url, maximumBytes: options.maximumInputBytes)
         return PreparedInput(
           data: data,
           fileName: url.lastPathComponent,
@@ -214,13 +213,13 @@ nonisolated public enum DocumentParser {
         progress?(DocumentProgress(
           inputIndex: 0, phase: .recognizingText, fractionCompleted: 0.25))
       }
-      return try DocumentRasterParser.parseImage(
+      return try await DocumentRasterParser.parseImage(
         image, orientation: orientation, format: .image, location: .init(), options: options)
     }
     let data = prepared.data
     switch format {
     case .jpeg, .png, .heic, .tiff:
-      return try DocumentRasterParser.parse(
+      return try await DocumentRasterParser.parse(
         data, format: format, options: options, progress: progress)
     case .txt, .csv, .json, .xml, .rtf, .html, .markdown:
       return try await DocumentTextParser.parse(
@@ -232,9 +231,9 @@ nonisolated public enum DocumentParser {
     case .pdf:
       return try await DocumentPDFParser.parse(data, options: options, progress: progress)
     case .docx, .xlsx, .pptx, .doc, .xls, .ppt:
-      return try DocumentOfficeParser.parse(data: data, format: format, options: options)
+      return try await DocumentOfficeParser.parse(data: data, format: format, options: options)
     case .hwp, .hwpx:
-      return try DocumentHWPParser.parse(data: data, format: format, options: options)
+      return try await DocumentHWPParser.parse(data: data, format: format, options: options)
     case .image:
       throw DocumentParsingError.unsupportedFormat
     }

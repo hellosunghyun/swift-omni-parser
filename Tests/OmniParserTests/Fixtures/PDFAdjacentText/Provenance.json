@@ -1,0 +1,34 @@
+{
+  "description": "자체 작성한 네이티브 문구와 근접한 별도 비트맵 숫자의 PDF OCR 회귀 입력",
+  "file": "adjacent-native-number.pdf",
+  "sha256": "6dfc5602753157a28d37eeb1c09447d1f9ec411944c90b79f529900d3a25d448",
+  "bytes": 968,
+  "license": "MIT",
+  "externalAssets": false,
+  "nativeText": "ITEM 12",
+  "nativeFont": "PDF standard Helvetica, font program not embedded",
+  "bitmapText": "12",
+  "bitmapDimensions": [
+    96,
+    56
+  ],
+  "bitmapMethod": "자체 작성한 5x7 숫자 패턴을 정수 8배로 확장",
+  "pageSizePoints": [
+    600,
+    800
+  ],
+  "nativeTextOriginPoints": [
+    60,
+    520
+  ],
+  "nativeFontSizePoints": 36,
+  "bitmapPlacementPoints": [
+    196.544,
+    520,
+    48,
+    28
+  ],
+  "generator": "Python 표준 라이브러리와 zlib로 PDF 1.4 객체·xref를 직접 생성",
+  "partOfOriginal65Corpus": false,
+  "referenceKind": "자체 생성 참고문구, human-gold 아님"
+}

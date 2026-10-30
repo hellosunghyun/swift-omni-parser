@@ -14,7 +14,7 @@ nonisolated struct DocumentOfficeParseContext {
   // Swift 바인딩은 셀의 희소 순회 API를 제공하지 않으므로 좌표 조회 수를 문서 전체에서 제한한다.
   private var inspectedCells = 0
 
-  private mutating func appendCells(_ sheet: Sheet) throws {
+  private mutating func appendCells(_ sheet: Sheet) async throws {
     let size = sheet.contentDimensions()
     guard size.rows > 0, size.columns > 0 else { return }
     let location = DocumentLocation(part: sheet.name)
@@ -31,25 +31,25 @@ nonisolated struct DocumentOfficeParseContext {
         }
         inspectedCells += 1
         if let cell = sheet.cell(column: column, row: row) {
-          try visit(cell, part: sheet.name)
+          try await visit(cell, part: sheet.name)
         }
       }
     }
   }
 
-  mutating func visit(_ element: OdrCore.Element, part: String?) throws {
+  mutating func visit(_ element: OdrCore.Element, part: String?) async throws {
     try Task.checkCancellation()
     let currentPart = childPart(element, inherited: part)
     if let sheet = element as? Sheet {
-      try appendCells(sheet)
-      for shape in sheet.shapes { try visit(shape, part: sheet.name) }
+      try await appendCells(sheet)
+      for shape in sheet.shapes { try await visit(shape, part: sheet.name) }
       return
     }
     if let table = element as? Table {
       appendTable(table, part: currentPart)
       for row in table.rows {
         for cell in row.children.compactMap({ $0 as? TableCell }) {
-          try visitImages(in: cell, part: currentPart)
+          try await visitImages(in: cell, part: currentPart)
         }
       }
       return
@@ -68,14 +68,14 @@ nonisolated struct DocumentOfficeParseContext {
             rowSpan: cell.flatMap { $0.span.rows > 1 ? Int($0.span.rows) : nil },
             columnSpan: cell.flatMap { $0.span.columns > 1 ? Int($0.span.columns) : nil }))
       }
-      try visitImages(in: element, part: currentPart)
+      try await visitImages(in: element, part: currentPart)
       return
     }
     if let image = element as? OdrCore.Image {
-      try appendImage(image, part: currentPart)
+      try await appendImage(image, part: currentPart)
       return
     }
-    for child in element.children { try visit(child, part: currentPart) }
+    for child in element.children { try await visit(child, part: currentPart) }
   }
 
   private mutating func appendTable(_ table: Table, part: String?) {
@@ -93,20 +93,20 @@ nonisolated struct DocumentOfficeParseContext {
   }
 
   /// 문단·셀에서 텍스트를 이미 읽었으므로 하위 트리는 그림만 순회해 본문 중복을 피한다.
-  private mutating func visitImages(in element: OdrCore.Element, part: String?) throws {
+  private mutating func visitImages(in element: OdrCore.Element, part: String?) async throws {
     guard options.extractImages || options.performOCR else { return }
     for child in element.children {
       try Task.checkCancellation()
       if let image = child as? OdrCore.Image {
-        try appendImage(image, part: part)
+        try await appendImage(image, part: part)
       } else {
-        try visitImages(in: child, part: part)
+        try await visitImages(in: child, part: part)
       }
     }
   }
 
   /// 문서 내부 그림만 읽는다. 디코딩·OCR 실패는 경고로 남기고 다른 요소의 처리는 계속한다.
-  private mutating func appendImage(_ image: OdrCore.Image, part: String?) throws {
+  private mutating func appendImage(_ image: OdrCore.Image, part: String?) async throws {
     guard options.extractImages || options.performOCR else { return }
     try Task.checkCancellation()
     guard imageAttempts < options.maximumEmbeddedImages else {
@@ -132,7 +132,7 @@ nonisolated struct DocumentOfficeParseContext {
       let decoded = try DocumentImageDecoder.decode(
         data, maximumPixels: options.maximumImagePixels)
       // PNG 보관과 OCR 실패 처리는 다른 이미지 형식과 같은 경로를 사용한다.
-      let result = try DocumentRasterParser.parseImage(
+      let result = try await DocumentRasterParser.parseImage(
         decoded.image, orientation: decoded.orientation, format: .image,
         location: DocumentLocation(part: part ?? image.href), options: options,
         remainingBytes: max(0, options.maximumExpandedBytes - imageBytes))

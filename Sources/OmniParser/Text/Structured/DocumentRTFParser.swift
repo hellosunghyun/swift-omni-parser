@@ -5,7 +5,9 @@ import UIKit
 /// 표·문단은 시스템 RTF importer의 속성을 읽고, pict만 별도로 추출한다.
 /// 그림의 임시 마커를 원래 문단·셀 위치에서 소비해 OCR이 본문 뒤로 밀리지 않게 한다.
 nonisolated enum DocumentRTFParser {
-  static func parse(_ data: Data, options: DocumentParserOptions) throws -> DocumentParseResult {
+  static func parse(
+    _ data: Data, options: DocumentParserOptions
+  ) async throws -> DocumentParseResult {
     try Task.checkCancellation()
     let prepared = try DocumentRTFPictureReader.read(data, options: options)
     let attributed: NSAttributedString
@@ -31,7 +33,7 @@ nonisolated enum DocumentRTFParser {
       try Task.checkCancellation()
       let range = text.paragraphRange(for: NSRange(location: offset, length: 0))
       paragraph += 1
-      try context.appendParagraph(attributed, range: range, number: paragraph,
+      try await context.appendParagraph(attributed, range: range, number: paragraph,
                                   prepared: prepared, pattern: pattern)
       offset = NSMaxRange(range)
     }
@@ -63,7 +65,7 @@ nonisolated enum DocumentRTFParser {
     mutating func appendParagraph(
       _ attributed: NSAttributedString, range: NSRange, number: Int,
       prepared: DocumentRTFPictureReader.Output, pattern: NSRegularExpression
-    ) throws {
+    ) async throws {
       var location = DocumentLocation(part: "rtf", paragraph: number)
       var cellIndex: Int?
       if let style = attributed.attribute(.paragraphStyle, at: range.location,
@@ -102,7 +104,7 @@ nonisolated enum DocumentRTFParser {
         if let index = Int(text.substring(with: match.range(at: 1))),
           prepared.pictures.indices.contains(index) {
           visitedPictures.insert(index)
-          try appendImage(prepared.pictures[index], index: index, location: location)
+          try await appendImage(prepared.pictures[index], index: index, location: location)
         }
         cursor = NSMaxRange(match.range)
       }
@@ -143,12 +145,12 @@ nonisolated enum DocumentRTFParser {
 
     private mutating func appendImage(
       _ picture: DocumentRTFPictureReader.Picture, index: Int, location: DocumentLocation
-    ) throws {
+    ) async throws {
       var located = location
       located.part = "rtf/byte[\(picture.range.lowerBound)]/image[\(index + 1)]"
       do {
         let decoded = try decode(picture, location: &located)
-        let result = try DocumentRasterParser.parseImage(
+        let result = try await DocumentRasterParser.parseImage(
           decoded.image, orientation: decoded.orientation, format: .rtf, location: located,
           options: options, remainingBytes: max(0, options.maximumExpandedBytes - imageBytes))
         imageBytes += result.images.reduce(0) { $0 + $1.pngData.count }

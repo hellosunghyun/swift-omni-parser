@@ -3,6 +3,85 @@ import Foundation
 import XCTest
 
 final class ResourceAndCancellationTests: XCTestCase {
+  func testGeometricRowsDoNotChainAndPreserveMetadata() {
+    let samples = [
+      DocumentBlock(kind: .imageOCR, text: "a", readingOrder: 0,
+        location: .init(part: "sample", bounds: .init(x: 0.6, y: 0.1, width: 0.1, height: 0.04)),
+        ocrConfidence: 0.8, ocrOriginalText: "original-a"),
+      DocumentBlock(kind: .imageOCR, text: "b", readingOrder: 0,
+        location: .init(part: "sample", bounds: .init(x: 0.1, y: 0.115, width: 0.1, height: 0.04)),
+        ocrConfidence: 0.9),
+      DocumentBlock(kind: .imageOCR, text: "c", readingOrder: 0,
+        location: .init(part: "sample", bounds: .init(x: 0.4, y: 0.13, width: 0.1, height: 0.04)))
+    ]
+    // 이웃끼리의 y 차이만 따라가면 다음 행까지 연결될 수 있어 첫 요소를 기준으로 묶는다.
+    for order in [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]] {
+      var blocks = order.map { samples[$0] }
+      blocks.sortInGeometricReadingOrder()
+      XCTAssertEqual(blocks.map(\.text), ["b", "a", "c"])
+      XCTAssertEqual(blocks[1].location, samples[0].location)
+      XCTAssertEqual(blocks[1].ocrConfidence, samples[0].ocrConfidence)
+      XCTAssertEqual(blocks[1].ocrOriginalText, samples[0].ocrOriginalText)
+      let once = blocks
+      blocks.sortInGeometricReadingOrder()
+      XCTAssertEqual(blocks, once)
+    }
+  }
+
+  func testGeometricReadingOrderPreservesRowsPagesAndStructure() {
+    let samples: [(String, CGRect)] = [
+      ("right-1", CGRect(x: 0.5, y: 0.095, width: 0.2, height: 0.05)),
+      ("left-1", CGRect(x: 0.1, y: 0.1, width: 0.2, height: 0.04)),
+      ("right-2", CGRect(x: 0.5, y: 0.175, width: 0.2, height: 0.05)),
+      ("left-2", CGRect(x: 0.1, y: 0.18, width: 0.2, height: 0.04))
+    ]
+    var blocks = samples.reversed().map {
+      DocumentBlock(kind: .imageOCR, text: $0.0, readingOrder: 0,
+        location: .init(page: 1, bounds: $0.1))
+    }
+    blocks.appendBlock(.imageOCR, text: "page-2", location: .init(page: 2,
+      bounds: .init(x: 0.1, y: 0.01, width: 0.2, height: 0.04)))
+    blocks.appendBlock(.image, location: .init(page: 1, bounds: .init(x: 0, y: 0,
+      width: 1, height: 1)))
+    blocks.appendBlock(.table, location: .init(page: 1, bounds: .init(x: 0, y: 0.08,
+      width: 1, height: 0.3)))
+    blocks.sortInGeometricReadingOrder()
+    XCTAssertEqual(blocks.prefix(2).map(\.kind), [.image, .table])
+    XCTAssertEqual(blocks.filter { !$0.text.isEmpty }.map(\.text),
+      ["left-1", "right-1", "left-2", "right-2", "page-2"])
+    XCTAssertEqual(blocks.map(\.readingOrder), Array(blocks.indices))
+  }
+
+  func testSkippedRemoteHTMLImageKeepsBodyAndLocatedWarnings() async throws {
+    let html = "<html><body><p>Kept</p><img src='https://example.invalid/image.png'></body></html>"
+    let result = try await DocumentParser.parse(.data(Data(html.utf8), fileName: "remote.html"),
+      options: .init(performOCR: true))
+    XCTAssertEqual(result.fullText, "Kept")
+    XCTAssertTrue(result.images.isEmpty)
+    XCTAssertTrue(result.warnings.contains { $0.code == .externalImageSkipped })
+    XCTAssertTrue(result.warnings.allSatisfy { $0.location != nil })
+    TestFixtures.assertTextConsistency(result)
+  }
+
+  func testConcurrentOCRPreservesResultsAtUserInitiatedPriority() async throws {
+    let input = TestFixtures.input("LegacyImage.png")
+    let task = Task(priority: .userInitiated) {
+      try await DocumentParser.parseBatch([input, input, input],
+        options: .init(performOCR: true, maximumConcurrentDocuments: 2))
+    }
+    let results = try await task.value
+    XCTAssertEqual(results.count, 3)
+    var texts: [String] = []
+    for outcome in results {
+      guard case .success(let result) = outcome else { return XCTFail("병렬 OCR이 실패했습니다.") }
+      XCTAssertTrue(result.fullText.contains("IMAGE OCR MARKER"))
+      XCTAssertTrue(result.images.isEmpty)
+      TestFixtures.assertTextConsistency(result)
+      texts.append(result.fullText)
+    }
+    XCTAssertEqual(Set(texts).count, 1)
+  }
+
   func testArchiveTraversalIsRejected() async {
     do {
       _ = try await DocumentParser.parse(TestFixtures.input("Generated/Traversal.docx"))
@@ -10,10 +89,10 @@ final class ResourceAndCancellationTests: XCTestCase {
     } catch { XCTAssertEqual(error as? DocumentParsingError, .malformedDocument) }
   }
 
-  func testActualInflationIsLimitedDespiteFalseDeclaredSize() throws {
+  func testZIPRejectsMismatchedLocalAndCentralSizes() throws {
     let bytes = try Data(contentsOf: TestFixtures.url("Generated/LyingSize.docx"))
     XCTAssertThrowsError(try DocumentArchiveReader.xmlEntries(bytes, options: .init())) {
-      XCTAssertEqual($0 as? DocumentParsingError, .inputTooLarge)
+      XCTAssertEqual($0 as? DocumentParsingError, .malformedDocument)
     }
   }
 
@@ -38,10 +117,10 @@ final class ResourceAndCancellationTests: XCTestCase {
     }
   }
 
-  func testSharedImagePathPreservesPNGWhenOCRFails() throws {
+  func testSharedImagePathPreservesPNGWhenOCRFails() async throws {
     let data = try Data(contentsOf: TestFixtures.url("LegacyImage.png"))
     let decoded = try DocumentImageDecoder.decode(data, maximumPixels: 40_000_000)
-    let result = try DocumentRasterParser.parseImage(
+    let result = try await DocumentRasterParser.parseImage(
       decoded.image, orientation: decoded.orientation, format: .image,
       location: .init(part: "test-image"), options: .init(extractImages: true, performOCR: true)
     ) { _, _, _ in throw DocumentParsingError.malformedDocument }
@@ -91,13 +170,18 @@ final class ResourceAndCancellationTests: XCTestCase {
   }
 
   func testPartialImageFailureKeepsBodyAndTable() async throws {
-    let result = try await DocumentParser.parse(TestFixtures.input("LegacySample.doc"),
-      options: .init(extractImages: true, maximumImagePixels: 1))
-    XCTAssertTrue(result.fullText.contains("Legacy body marker"))
-    XCTAssertTrue(result.blocks.contains { $0.kind == .tableCell })
-    XCTAssertTrue(result.images.isEmpty)
-    XCTAssertTrue(result.warnings.contains { $0.location != nil })
-    TestFixtures.assertTextConsistency(result)
+    for (name, marker, hasTable) in [
+      ("LegacySample.doc", "Legacy body marker", true),
+      ("RealWorld/docx/real-docx-03-VariousPictures.docx", "Sheet with various pictures", false)
+    ] {
+      let result = try await DocumentParser.parse(TestFixtures.input(name),
+        options: .init(extractImages: true, maximumImagePixels: 1))
+      XCTAssertTrue(result.fullText.contains(marker))
+      if hasTable { XCTAssertTrue(result.blocks.contains { $0.kind == .tableCell }) }
+      XCTAssertTrue(result.images.isEmpty)
+      XCTAssertTrue(result.warnings.contains { $0.location != nil })
+      TestFixtures.assertTextConsistency(result)
+    }
   }
 
   func testCancellationAtExtractionReportsCancelled() async {
@@ -127,6 +211,180 @@ final class ResourceAndCancellationTests: XCTestCase {
       XCTAssertEqual(error as? DocumentParsingError, .malformedDocument)
     }
     XCTAssertEqual(try directories(), before)
+  }
+
+}
+
+extension ResourceAndCancellationTests {
+  func testCancellationTakesPrecedenceOverConcurrentReadFailure() async {
+    let progress = TestProgress()
+    let task = Task {
+      try await DocumentParser.parse(.data(Data("oversized".utf8), fileName: "note.txt"),
+        options: .init(maximumInputBytes: 1)) { event in
+        progress.append(event)
+        // 읽기가 다른 오류를 던져도 이미 요청한 취소가 최종 상태여야 한다.
+        if event.phase == .identifying { withUnsafeCurrentTask { $0?.cancel() } }
+      }
+    }
+    do {
+      _ = try await task.value
+      XCTFail("읽기 오류와 겹친 취소를 무시했습니다.")
+    } catch { XCTAssertEqual(error as? DocumentParsingError, .cancelled) }
+    XCTAssertEqual(progress.values.filter { $0.phase == .cancelled }.count, 1)
+    XCTAssertEqual(progress.values.last?.phase, .cancelled)
+    XCTAssertFalse(progress.values.contains { $0.phase == .failed || $0.phase == .completed })
+  }
+
+  func testNativeZIPInputsValidateActualInflationBeforeOpening() async throws {
+    let lying = try Data(contentsOf: TestFixtures.url("Generated/LyingSize.docx"))
+    let directory = try DocumentArchiveGuard.readDirectory(lying)
+    let entry = try DocumentArchiveGuard.readEntry(lying, at: directory.start,
+                                                  directoryEnd: directory.end)
+    let offset = entry.localOffset + 30 + entry.name.utf8.count
+    let packed = Data(lying[offset..<(offset + entry.compressedSize)])
+    let names = ["word/document.xml", "xl/workbook.xml", "ppt/presentation.xml",
+                 "Contents/section0.xml"]
+    for name in names {
+      let data = makeZIP(name: name, packed: packed, method: 8, size: 1, checksum: entry.checksum)
+      do {
+        _ = try await DocumentParser.parse(.data(data, fileName: nil),
+          options: .init(maximumExpandedBytes: 64))
+        XCTFail("native 백엔드 진입 전에 실제 해제량을 제한하지 않았습니다.")
+      } catch { XCTAssertEqual(error as? DocumentParsingError, .inputTooLarge) }
+    }
+  }
+
+  func testZIPDescriptorCRCMatchingOptionalSignatureIsNotMisread() throws {
+    // CRC32의 32비트 선형식을 GF(2)에서 풀어 만든 4바이트이며 실제 CRC도 서명 값과 같다.
+    let payload = Data([0xAC, 0x0A, 0x7A, 0xD5])
+    for signature in [false, true] {
+      let archive = makeZIP(name: "magic.bin", packed: payload, method: 0, size: payload.count,
+                            checksum: 0x0807_4B50, descriptorSignature: signature)
+      XCTAssertNoThrow(try DocumentArchiveGuard.validate(archive, options: .init()))
+    }
+  }
+
+  func testZIPChecksBinaryPayloadCRCAndAggregateBudget() async throws {
+    let input = try Data(contentsOf: TestFixtures.url(
+      "RealWorld/docx/real-docx-02-table_footnotes.docx"))
+    do {
+      _ = try await DocumentParser.parse(.data(input, fileName: "document.docx"),
+        options: .init(maximumExpandedBytes: 1))
+      XCTFail("누적 해제량 제한을 무시했습니다.")
+    } catch { XCTAssertEqual(error as? DocumentParsingError, .inputTooLarge) }
+    // 컨테이너 검사는 정상 CRC의 이미지 내용까지 해석하지 않는다. 디코딩 복구는 파서 책임이다.
+    let opaque = makeZIP(name: "image.bin", packed: Data([1, 2, 3]), method: 0,
+                     size: 3, checksum: 0x55BC_801D)
+    XCTAssertNoThrow(try DocumentArchiveGuard.validate(opaque, options: .init()))
+    // XML이 아닌 항목도 버리기 전에 검증한다. 모든 출력 Data를 보관할 필요는 없다.
+    let corrupted = makeZIP(name: "image.bin", packed: Data([1, 2, 3]), method: 0,
+                        size: 3, checksum: 0)
+    XCTAssertThrowsError(try DocumentArchiveGuard.validate(corrupted, options: .init())) {
+      XCTAssertEqual($0 as? DocumentParsingError, .malformedDocument)
+    }
+  }
+
+  func testPDFWorkPoolReleasesWaitersAndCancelledReservations() async throws {
+    let pool = DocumentPDFWorkPool(options: .init(maximumConcurrentPDFPages: 2,
+                                                 pdfWorkingMemoryTargetBytes: 100))
+    let first = try await pool.acquire(estimatedBytes: 60)
+    let next = Task { try await pool.acquire(estimatedBytes: 60) }
+    try await waitForQueuedWork(pool)
+    let limited = await pool.snapshot()
+    XCTAssertEqual(limited.activePages, 1)
+    XCTAssertEqual(limited.reservedBytes, 60)
+    next.cancel()
+    do { _ = try await next.value; XCTFail("대기 예약 취소를 무시했습니다.") } catch is CancellationError { }
+    await pool.release(first)
+    // 목표보다 큰 페이지도 혼자 처리할 수 있으며 다음 예약은 반환까지 대기한다.
+    let oversized = try await pool.acquire(estimatedBytes: 150)
+    let after = Task { try await pool.acquire(estimatedBytes: 10) }
+    try await waitForQueuedWork(pool)
+    await pool.release(oversized)
+    let admitted = try await after.value
+    await pool.resize(admitted, actualBytes: 20)
+    await pool.release(admitted)
+    for _ in 0..<100 {
+      let lease = try await pool.acquire(estimatedBytes: 100)
+      let waiting = Task { try await pool.acquire(estimatedBytes: 1) }
+      waiting.cancel()
+      do {
+        _ = try await waiting.value
+        XCTFail("취소된 예약이 대기열에 남았습니다.")
+      } catch is CancellationError { }
+      await pool.release(lease)
+    }
+    let final = await pool.snapshot()
+    XCTAssertEqual(final.activePages, 0)
+    XCTAssertEqual(final.waitingRequests, 0)
+    XCTAssertEqual(final.reservedBytes, 0)
+  }
+
+  func testOCRSessionReturnsOnlyAfterSuccessfulConversion() async throws {
+    let data = try Data(contentsOf: TestFixtures.url("LegacyImage.png"))
+    let image = try DocumentImageDecoder.decode(data, maximumPixels: 40_000_000)
+    let pool = DocumentOCRSessionPool()
+    _ = try await pool.perform(image: image.image, orientation: image.orientation) { _ in [] }
+    XCTAssertEqual(pool.cachedSessionCount, 1)
+    do {
+      _ = try await pool.perform(image: image.image, orientation: image.orientation) { _ in
+        throw DocumentParsingError.malformedDocument
+      }
+      XCTFail("변환 실패를 무시했습니다.")
+    } catch { XCTAssertEqual(error as? DocumentParsingError, .malformedDocument) }
+    XCTAssertEqual(pool.cachedSessionCount, 0)
+    let cancelled = Task {
+      try await pool.perform(image: image.image, orientation: image.orientation) { _ in
+        withUnsafeCurrentTask { $0?.cancel() }
+        try Task.checkCancellation()
+        return []
+      }
+    }
+    do {
+      _ = try await cancelled.value
+      XCTFail("변환 중 취소를 무시했습니다.")
+    } catch is CancellationError { }
+    XCTAssertEqual(pool.cachedSessionCount, 0)
+  }
+
+  private func waitForQueuedWork(_ pool: DocumentPDFWorkPool) async throws {
+    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+    while await pool.snapshot().waitingRequests == 0, ContinuousClock.now < deadline {
+      try await Task.sleep(for: .milliseconds(1))
+    }
+    let state = await pool.snapshot()
+    XCTAssertEqual(state.waitingRequests, 1)
+  }
+
+  /// ZIP 검증용 바이트를 메모리에서 만든다. 외부 샘플이나 영구 바이너리 자산은 추가하지 않는다.
+  private func makeZIP(
+    name: String, packed: Data, method: Int, size: Int, checksum: Int,
+    descriptorSignature: Bool? = nil
+  ) -> Data {
+    let nameBytes = Data(name.utf8)
+    let flags = descriptorSignature == nil ? 0 : 8
+    func number(_ value: Int, _ count: Int = 4) -> Data {
+      Data((0..<count).map { UInt8(truncatingIfNeeded: value >> ($0 * 8)) })
+    }
+    var local = Data([0x50, 0x4B, 0x03, 0x04])
+    for value in [20, flags, method, 0, 0] { local.append(number(value, 2)) }
+    let sizes = descriptorSignature == nil ? [checksum, packed.count, size] : [0, 0, 0]
+    for value in sizes { local.append(number(value)) }
+    local.append(number(nameBytes.count, 2)); local.append(number(0, 2))
+    local.append(nameBytes); local.append(packed)
+    if let signature = descriptorSignature {
+      if signature { local.append(number(0x0807_4B50)) }
+      for value in [checksum, packed.count, size] { local.append(number(value)) }
+    }
+    var central = Data([0x50, 0x4B, 0x01, 0x02])
+    for value in [20, 20, flags, method, 0, 0] { central.append(number(value, 2)) }
+    for value in [checksum, packed.count, size] { central.append(number(value)) }
+    for value in [nameBytes.count, 0, 0, 0, 0] { central.append(number(value, 2)) }
+    central.append(number(0)); central.append(number(0)); central.append(nameBytes)
+    var end = Data([0x50, 0x4B, 0x05, 0x06])
+    for value in [0, 0, 1, 1] { end.append(number(value, 2)) }
+    end.append(number(central.count)); end.append(number(local.count)); end.append(number(0, 2))
+    return local + central + end
   }
 
   private func directories() throws -> Set<String> {

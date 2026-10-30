@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 
 /// 일반 텍스트·JSON·XML을 공통 문단 블록으로 바꾼다.
@@ -42,6 +43,10 @@ nonisolated enum DocumentStructuredTextParser {
           string = value
         } else if value is NSNull {
           string = "null"
+        } else if let number = value as? NSNumber,
+          CFGetTypeID(number) == CFBooleanGetTypeID() {
+          // JSONSerialization은 Bool도 NSNumber로 전달하므로 숫자 0·1과 구분한다.
+          string = number.boolValue ? "true" : "false"
         } else {
           string = String(describing: value)
         }
