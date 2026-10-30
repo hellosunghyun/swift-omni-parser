@@ -2,7 +2,7 @@ import Foundation
 import ImageIO
 import UIKit
 
-/// 표·문단은 시스템 RTF importer의 속성을 읽고, pict만 별도로 추출한다.
+/// 표·문단은 시스템 RTF importer의 속성을 읽고, 그림·OLE·머리말 범위를 별도로 보존한다.
 /// 그림의 임시 마커를 원래 문단·셀 위치에서 소비해 OCR이 본문 뒤로 밀리지 않게 한다.
 nonisolated enum DocumentRTFParser {
   static func parse(

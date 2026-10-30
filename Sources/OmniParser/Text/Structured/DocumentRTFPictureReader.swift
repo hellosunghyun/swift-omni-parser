@@ -1,6 +1,6 @@
 import Foundation
 
-/// UIKit이 버리는 pict 그룹만 분리한다. 본문·유니코드·표 해석은 시스템 importer에 맡긴다.
+/// UIKit이 버리는 그림·OLE를 분리하고 헤더·푸터를 보존한다. 본문 서식은 importer에 맡긴다.
 /// 마커는 호출마다 새로 만들어 원문 텍스트와 충돌하지 않으며 결과에는 남기지 않는다.
 nonisolated enum DocumentRTFPictureReader {
   struct Backup {

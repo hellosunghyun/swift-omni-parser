@@ -164,16 +164,16 @@ extension DocumentRTFPictureReader {
     private mutating func appendHex(_ byte: UInt8) {
       guard collecting else { return }
       let slot = groups.count - 1
-      if groups[slot].destination == "objdata",
-        objectDataBytes >= options.maximumExpandedBytes {
-        groups[slot].resourceLimited = true
-        return
-      }
       if let value = hex(byte) {
         if let high = groups[slot].nibble {
+          groups[slot].nibble = nil
+          if groups[slot].destination == "objdata",
+            objectDataBytes >= options.maximumExpandedBytes {
+            groups[slot].resourceLimited = true
+            return
+          }
           groups[slot].data.append(high * 16 + value)
           if groups[slot].destination == "objdata" { objectDataBytes += 1 }
-          groups[slot].nibble = nil
         } else { groups[slot].nibble = value }
       } else if ![9, 10, 13, 32].contains(byte) { groups[slot].malformed = true }
     }
