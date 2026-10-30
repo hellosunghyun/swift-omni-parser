@@ -7,18 +7,17 @@ nonisolated enum DocumentHWPXDescriptions {
   /// 외부 엔티티 해석을 끄는 것에 더해 UTF-8·16·32의 DTD·엔티티 선언 자체도 거부한다.
   static func read(_ data: Data, options: DocumentParserOptions) throws -> [UInt32: String] {
     let entries = try DocumentArchiveReader.xmlEntries(data, options: options)
+    let declarationEncodings: [String.Encoding] = [
+      .utf8, .utf16LittleEndian, .utf16BigEndian, .utf32LittleEndian, .utf32BigEndian
+    ]
+    let declarationTokens = ["<!DOCTYPE", "<!ENTITY"].flatMap { keyword in
+      declarationEncodings.compactMap { keyword.data(using: $0) }
+    }
     var result: [UInt32: String] = [:]
     for (_, xml) in entries {
       try Task.checkCancellation()
-      let declarationEncodings: [String.Encoding] = [
-        .utf8, .utf16LittleEndian, .utf16BigEndian, .utf32LittleEndian, .utf32BigEndian
-      ]
-      for keyword in ["<!DOCTYPE", "<!ENTITY"] {
-        for encoding in declarationEncodings {
-          if let token = keyword.data(using: encoding), xml.range(of: token) != nil {
-            throw DocumentParsingError.malformedDocument
-          }
-        }
+      for token in declarationTokens where xml.range(of: token) != nil {
+        throw DocumentParsingError.malformedDocument
       }
       let delegate = DescriptionDelegate()
       let parser = XMLParser(data: xml)
