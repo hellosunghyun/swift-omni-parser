@@ -23,8 +23,11 @@ let ocr = result.blocks.filter { $0.kind == .imageOCR }
 | 본문·유니코드 | 시스템 importer가 읽은 문단 텍스트. 글꼴·페이지 레이아웃 재현 기능은 제공하지 않음 |
 | 목록 | importer가 본문 텍스트로 제공한 목록 내용. 사용자 정의 번호·들여쓰기의 완전한 복원은 보장하지 않음 |
 | 표 | `table` 블록과 `tableCell` 블록, 1부터 시작하는 행·열 번호 |
+| 헤더·푸터 | 원본 바이트 위치와 destination별 part로 텍스트·표·그림을 구분. 페이지별 반복 배치는 복원하지 않음 |
+| 중첩 표 | 바깥 셀 아래 내부 표의 계층 경로. 셀 텍스트를 모으는 순서 차이는 위치 경고 |
 | 병합 셀 | importer가 제공한 `rowSpan`·`columnSpan`. 제공되지 않은 병합 범위를 추측하지 않음 |
-| 그림 | hex·`bin` 저장 방식의 `pict`에서 추출한 PNG·JPEG 등 디코딩 가능한 래스터 |
+| 그림 | hex·`bin` 저장 방식의 `pict`에서 추출한 PNG·JPEG 등 디코딩 가능한 래스터와 무압축 DIB |
+| 내장 OLE | OLE1 embedded native, Package, CFB Ole10Native/CONTENTS의 지원 문서·래스터를 메모리에서 재파싱. 객체 실행·linked object 접근 제외 |
 | OCR | Vision 온디바이스 인식 텍스트·제공 가능한 신뢰도·그림 안 위치와 문서 내 위치 |
 
 표의 `part`는 `rtf/table[n]` 형태다. 문단의 `paragraph`는 importer 결과의 문단 순서이며 원본 RTF 파일 줄 번호가 아니다. 그림의 `part`는 보통 `rtf/byte[offset]/image[n]` 형태로 원본 그룹의 바이트 위치를 가리킨다. 손상 원본 대신 호환본을 복구하면 `rtf/byte[offset]`로 실제 사용한 호환본 위치를 남긴다. 그림이 셀 안에 있으면 행·열 등 제공 가능한 셀 위치도 함께 남긴다. 페이지 번호나 페이지 기하 좌표는 임의로 생성하지 않는다.
@@ -44,7 +47,7 @@ Word가 인접한 `shppict`/`nonshppict` 그룹에 같은 그림의 원본·호�
 - 불균형·잘린 그룹과 importer 실패는 가능한 경우 원문 텍스트와 `malformedContent` 경고로 복구한다. 이 텍스트에는 RTF 제어어가 남을 수 있으므로 정상 구조 추출과 구분해야 한다.
 - importer가 그림의 읽을 수 있는 본문 위치를 제공하지 않으면 원본 바이트 위치와 `unsupportedElement` 경고를 남긴다.
 
-현재 UIKit importer는 `pict`를 버리고, 보완 경로의 ImageIO 디코더로는 단독 WMF·EMF 같은 벡터 `pict`를 래스터화하지 못한다. 별도 온디바이스 벡터 렌더러의 도입은 구현·빌드·의존성 검토가 남아 있어 지원한다고 표시하지 않는다. 원본 래스터와 함께 있는 호환 벡터는 중복 처리를 피하지만, 벡터만 있는 문서에서 같은 그림을 복원할 수 있다는 뜻은 아니다. OLE 객체, 중첩 표의 전체 계층, 헤더·푸터의 완전한 추출도 현재 검증 범위에 포함되지 않는다.
+현재 UIKit importer는 `pict`를 버리고, 보완 경로의 ImageIO 디코더로는 단독 WMF·EMF 같은 벡터 `pict`를 래스터화하지 못한다. 별도 온디바이스 벡터 렌더러의 도입은 구현·빌드·의존성 검토가 남아 있어 지원한다고 표시하지 않는다. 원본 래스터와 함께 있는 호환 벡터는 중복 처리를 피하지만, 벡터만 있는 문서에서 같은 그림을 복원할 수 있다는 뜻은 아니다. 헤더·푸터는 `rtf/header/byte[offset]` 또는 해당 destination 경로로 구분하고, 페이지 레이아웃 대신 원본 순서와 위치 경고를 반환한다. 중첩 표는 `rtf/table[n]/cell[row,column]/table[m]` 계층을 보존하지만 importer가 버린 구조까지 추측하지 않는다. 내장 OLE의 지원 문서는 `rtf/byte[offset]/object[n]/...` 아래에 내부 셀·페이지 위치를 보존한다. native 해석 성공 시 미리보기는 생략하고, 실패 시 가능한 미리보기와 바깥 본문을 반환한다. OLE 실행·매크로 실행·linked object 접근은 하지 않는다. OLE 재귀 깊이는 8이며 누적 objdata 바이트, child 파싱 예산과 문서 전체 그림 한도를 적용한다. 모든 OLE class의 고유 데이터 표현을 복원하는 범용 객체 실행기는 아니다.
 
 ## 검증 범위
 
@@ -59,3 +62,9 @@ Word가 인접한 `shppict`/`nonshppict` 그룹에 같은 그림의 원본·호�
 - 그림 개수·픽셀·PNG 바이트 제한과 위험한 binary 길이 거부.
 
 Office와 공유하는 이미지 경로의 OCR 실패 후 PNG 보존은 `ResourceAndCancellationTests`에서 오류를 주입해 검사한다. 테스트 목록은 검사 의도를 나타내며 전체 문서 형식의 완전한 복원 판정이 아니다. 통과 수치·실행 기기·미실행 항목은 [회귀 검증 기록](REGRESSION_TESTS.md)의 해당 실행 결과를 따른다.
+
+헤더·푸터의 본문·그림·표 위치와 중첩 표 경로는 자체 생성 `RTFCompletionTests` 4개를 iPhone 17 Simulator에서 실행해 확인했다. 해당 기능의 실기기 검증은 아직 하지 않았다. 최신 상태는 [통합 검증](INTEGRATION_VERIFICATION_2026-10-30.md)을 따른다.
+
+`RTFObjectTests` 13개는 기존 DOC를 감싼 내장 객체와 자체 생성 Package·CFB 컨테이너를 사용한다. native 본문·표·그림·위치, 미리보기 중복 생략과 호환본 복구, 외부 링크 거부, 잘못된 길이·누적 바이트·이미지 개수·재귀 깊이·취소를 iPhone 17 Simulator에서 검사했다.
+
+DIB는 BMP 파일 헤더 없이 저장된 BITMAPINFOHEADER 계열을 검사한 뒤 ImageIO에 연결한다. 무압축 BI_RGB 1·4·8비트 팔레트와 24·32비트, top-down·bottom-up 행을 지원하며 RLE·bitfields 등은 지원한다고 표시하지 않는다. 헤더 크기·실제 바이트·행 패딩·팔레트·픽셀 예산을 검사한다. OLE의 이미지/OCR 옵션이 모두 꺼져 있으면 DIB를 비트맵으로 만들지 않는다. `DIBDecoderTests`는 픽셀·방향·손상·한도와 RTF pict/OLE 연결을 검사한다.

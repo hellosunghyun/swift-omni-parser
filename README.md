@@ -60,7 +60,7 @@ let outcomes = try await DocumentParser.parseBatch(
 | TXT·CSV·JSON·XML | Foundation 및 형식별 구조 추출 |
 | HTML | SwiftSoup DOM의 본문·제목·목록·표와 내장/로컬 참조 그림. CSS 조판·스크립트 실행 제외 |
 | Markdown | 줄 단위 제목·본문·파이프 표와 인라인 그림 참조. CommonMark 전체 방언·참조형 그림은 미지원 |
-| RTF | Foundation 문단·표·병합 셀 + 내장 래스터 그림·선택적 OCR. 독립 WMF/EMF/DIB 렌더링 제외 |
+| RTF | 문단·표·병합·중첩 표 경로·헤더/푸터·내장 OLE 문서. 래스터·무압축 DIB 그림과 선택적 OCR. WMF/EMF 제품 지원 제외 |
 | JPEG·PNG·HEIC·TIFF·CGImage | ImageIO·Vision, 다중 프레임과 방향 처리 |
 | PDF | 페이지 좌표·선/정렬 기반 표 추정·표시된 그림 영역의 래스터 추출·선택적 OCR. 원본 이미지 스트림 반환은 아님 |
 | DOC·PPT | OfficeOxide, OfficeArt 그림 보완 |
@@ -92,7 +92,7 @@ xcodebuild test -scheme OmniParser \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 최신 전체 **Release 회귀 99개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 67파일·위반 0건·generic Simulator 빌드 통과를 확인했습니다. 요청별 언어·동시 호출·PDF·TIFF·HWPX 회귀에 OCR 좌표 경계와 정방향으로 표시되는 PDF의 0/90/180/270도 페이지 좌표 검사를 포함합니다.
+기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 통합 전체 **Release 회귀 134개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 74파일·위반 0건을 확인했습니다. RTF 헤더·푸터·중첩 표·내장 OLE·DIB와 옵션·자원 제한 회귀를 포함합니다. [통합 검증](Documentation/INTEGRATION_VERIFICATION_2026-10-30.md)에 최신 실행과 과거 결과를 구분했습니다. 요청별 언어·동시 호출·PDF·TIFF·HWPX 회귀에 OCR 좌표 경계와 정방향으로 표시되는 PDF의 0/90/180/270도 페이지 좌표 검사를 포함합니다.
 
 최신 65문서 비교에서 본문·2,709개 블록의 문구·순서·신뢰도·이미지 픽셀은 유지됐고, 범위 밖 OCR 좌표 1개를 보정했습니다. PNG 원시 바이트는 64/65 일치하며 나머지는 색상 프로필 날짜·시각 필드 두 바이트만 달랐습니다. 엄격 비교의 차이 상태를 보존했습니다. 작은 숫자 그림의 오인식·페이지 OCR 중복과 추가 peak 메모리 절감은 남아 있습니다. 범위·실행 명령·단계별 시간은 [최신 수정·검증 기록](Documentation/IMPROVEMENT_LOOP_2026-10-28.md#ocr-좌표-경계-보정과-99개-회귀)에 구분했습니다.
 
