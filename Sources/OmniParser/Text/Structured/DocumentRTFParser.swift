@@ -26,7 +26,8 @@ nonisolated enum DocumentRTFParser {
     }
     var context = Context(options: options, warnings: prepared.warnings)
     let text = attributed.string as NSString
-    let pattern = try NSRegularExpression(pattern: prepared.marker + "N([0-9]+)END")
+    let pattern = try NSRegularExpression(
+      pattern: prepared.marker + "(?:N([0-9]+)END|S([0-9]+)(BEGIN|END))")
     var offset = 0
     var paragraph = 0
     while offset < text.length {
@@ -53,8 +54,11 @@ nonisolated enum DocumentRTFParser {
     var blocks: [DocumentBlock] = []
     var images: [DocumentEmbeddedImage] = []
     var visitedPictures: Set<Int> = []
-    private var tables: [ObjectIdentifier: Int] = [:]
+    private var tables: [ObjectIdentifier: String] = [:]
+    private var partStack: [String] = []
+    private var part: String { partStack.last ?? "rtf" }
     private var cells: [String: Int] = [:]
+    private var warnedNestedTables: Set<ObjectIdentifier> = []
     private var imageBytes = 0
 
     init(options: DocumentParserOptions, warnings: [DocumentWarning]) {
@@ -66,29 +70,9 @@ nonisolated enum DocumentRTFParser {
       _ attributed: NSAttributedString, range: NSRange, number: Int,
       prepared: DocumentRTFPictureReader.Output, pattern: NSRegularExpression
     ) async throws {
-      var location = DocumentLocation(part: "rtf", paragraph: number)
-      var cellIndex: Int?
-      if let style = attributed.attribute(.paragraphStyle, at: range.location,
-                                          effectiveRange: nil) as? NSParagraphStyle,
-        let cell = style.textBlocks.last as? NSTextTableBlock {
-        let tableID = ObjectIdentifier(cell.table)
-        if tables[tableID] == nil {
-          tables[tableID] = tables.count + 1
-          blocks.appendBlock(.table,
-            location: DocumentLocation(part: "rtf/table[\(tables.count)]"))
-        }
-        location.part = "rtf/table[\(tables[tableID] ?? 1)]"
-        location.row = cell.startingRow + 1
-        location.column = cell.startingColumn + 1
-        location.rowSpan = cell.rowSpan > 1 ? cell.rowSpan : nil
-        location.columnSpan = cell.columnSpan > 1 ? cell.columnSpan : nil
-        let key = "\(location.part ?? "")/\(cell.startingRow)/\(cell.startingColumn)"
-        if cells[key] == nil {
-          cells[key] = blocks.count
-          blocks.appendBlock(.tableCell, location: location)
-        }
-        cellIndex = cells[key]
-      }
+      let style = attributed.attribute(.paragraphStyle, at: range.location,
+                                       effectiveRange: nil) as? NSParagraphStyle
+      let (location, cellIndex) = tableLocation(style, paragraph: number)
       let text = attributed.string as NSString
       let matches = pattern.matches(in: attributed.string, range: range)
       if cellIndex != nil, !matches.isEmpty {
@@ -101,15 +85,72 @@ nonisolated enum DocumentRTFParser {
       for match in matches {
         appendText(text.substring(with: NSRange(location: cursor,
           length: match.range.location - cursor)), location: location, cellIndex: cellIndex)
-        if let index = Int(text.substring(with: match.range(at: 1))),
+        if match.range(at: 1).location != NSNotFound,
+          let index = Int(text.substring(with: match.range(at: 1))),
           prepared.pictures.indices.contains(index) {
           visitedPictures.insert(index)
           try await appendImage(prepared.pictures[index], index: index, location: location)
+        } else if match.range(at: 2).location != NSNotFound,
+          let index = Int(text.substring(with: match.range(at: 2))),
+          prepared.sections.indices.contains(index) {
+          switchSection(prepared.sections[index],
+                        beginning: text.substring(with: match.range(at: 3)) == "BEGIN")
         }
         cursor = NSMaxRange(match.range)
       }
       appendText(text.substring(with: NSRange(location: cursor,
         length: NSMaxRange(range) - cursor)), location: location, cellIndex: cellIndex)
+    }
+
+    /// 바깥 셀부터 경로를 만들어 중첩 표가 같은 행·열의 별도 표와 섞이지 않게 한다.
+    private mutating func tableLocation(
+      _ style: NSParagraphStyle?, paragraph: Int
+    ) -> (DocumentLocation, Int?) {
+      var location = DocumentLocation(part: part, paragraph: paragraph)
+      var parent = part
+      var cellIndex: Int?
+      for cell in style?.textBlocks.compactMap({ $0 as? NSTextTableBlock }) ?? [] {
+        let tableID = ObjectIdentifier(cell.table)
+        if tables[tableID] == nil {
+          let tablePart = "\(parent)/table[\(tables.count + 1)]"
+          tables[tableID] = tablePart
+          blocks.appendBlock(.table, location: DocumentLocation(part: tablePart))
+        }
+        location.part = tables[tableID]
+        location.row = cell.startingRow + 1
+        location.column = cell.startingColumn + 1
+        location.rowSpan = cell.rowSpan > 1 ? cell.rowSpan : nil
+        location.columnSpan = cell.columnSpan > 1 ? cell.columnSpan : nil
+        let cellAddress = "\(cell.startingRow + 1),\(cell.startingColumn + 1)"
+        let key = "\(location.part ?? parent)/cell[\(cellAddress)]"
+        if cells[key] == nil {
+          cells[key] = blocks.count
+          blocks.appendBlock(.tableCell, location: location)
+        }
+        cellIndex = cells[key]
+        parent = key
+      }
+      if (style?.textBlocks.count ?? 0) > 1,
+        let inner = style?.textBlocks.last as? NSTextTableBlock,
+        warnedNestedTables.insert(ObjectIdentifier(inner.table)).inserted {
+        warnings.append(DocumentWarning(
+          code: .uncertainReadingOrder,
+          message: "Nested RTF cells retain their hierarchy; grouped cell text may differ inline.",
+          location: location))
+      }
+      return (location, cellIndex)
+    }
+
+    private mutating func switchSection(
+      _ section: DocumentRTFPictureReader.Section, beginning: Bool
+    ) {
+      if beginning {
+        partStack.append(section.part)
+        warnings.append(DocumentWarning(
+          code: .uncertainReadingOrder,
+          message: "RTF header/footer uses source order; repeated page placement is unavailable.",
+          location: DocumentLocation(part: section.part)))
+      } else if partStack.last == section.part { partStack.removeLast() }
     }
 
     private mutating func appendText(_ text: String, location: DocumentLocation, cellIndex: Int?) {
@@ -138,7 +179,7 @@ nonisolated enum DocumentRTFParser {
           code: .extractionFailed,
           message: "RTF preferred image failed; its fallback was retained.",
           location: location))
-        location.part = "rtf/byte[\(backup.offset)]"
+        location.part = "\(part)/byte[\(backup.offset)]"
         return decoded
       }
     }
@@ -147,7 +188,7 @@ nonisolated enum DocumentRTFParser {
       _ picture: DocumentRTFPictureReader.Picture, index: Int, location: DocumentLocation
     ) async throws {
       var located = location
-      located.part = "rtf/byte[\(picture.range.lowerBound)]/image[\(index + 1)]"
+      located.part = "\(part)/byte[\(picture.range.lowerBound)]/image[\(index + 1)]"
       do {
         let decoded = try decode(picture, location: &located)
         let result = try await DocumentRasterParser.parseImage(

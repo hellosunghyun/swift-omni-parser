@@ -18,16 +18,31 @@ nonisolated enum DocumentRTFPictureReader {
     var backup: Backup?
   }
 
+  struct Section {
+    var destination: String
+    var range: Range<Int>
+    var prefix: Range<Int>
+
+    var part: String { "rtf/\(destination)/byte[\(range.lowerBound)]" }
+  }
+
+  private struct Replacement {
+    var range: Range<Int>
+    var data: Data
+  }
+
   struct Output {
     var data: Data
     var pictures: [Picture]
     var marker: String
     var warnings: [DocumentWarning]
+    var sections: [Section]
   }
 
   private struct Group {
     var start: Int
     var destination: String?
+    var destinationEnd: Int?
     var data = Data()
     var nibble: UInt8?
     var malformed = false
@@ -43,6 +58,7 @@ nonisolated enum DocumentRTFPictureReader {
     let options: DocumentParserOptions
     var groups: [Group] = []
     var pictures: [Picture] = []
+    var sections: [Section] = []
     var warnings: [DocumentWarning] = []
     var index = 0
     var attempts = 0
@@ -81,7 +97,14 @@ nonisolated enum DocumentRTFPictureReader {
 
     private mutating func closeGroup() throws {
       guard let group = groups.popLast() else { warnTruncated(); return }
-      if group.destination == "pict" {
+      if let destination = group.destination, isSection(destination),
+        let end = group.destinationEnd {
+        guard sections.count < options.maximumArchiveEntries else {
+          throw DocumentParsingError.inputTooLarge
+        }
+        sections.append(Section(destination: destination, range: group.start..<(index + 1),
+                                prefix: (group.start + 1)..<end))
+      } else if group.destination == "pict" {
         guard pictures.count < options.maximumArchiveEntries else {
           throw DocumentParsingError.inputTooLarge
         }
@@ -116,6 +139,7 @@ nonisolated enum DocumentRTFPictureReader {
       if index < bytes.count, bytes[index] == 32 { index += 1 }
       if !groups.isEmpty, groups[groups.count - 1].destination == nil {
         groups[groups.count - 1].destination = word
+        groups[groups.count - 1].destinationEnd = index
       }
       if word == "bin" { try appendBinary(number) }
     }
@@ -157,7 +181,7 @@ nonisolated enum DocumentRTFPictureReader {
 
     private func output() -> Output {
       let marker = "OMNIRTF" + UUID().uuidString.replacingOccurrences(of: "-", with: "")
-      var output = Data()
+      var replacements: [Replacement] = []
       var cursor = 0
       var selected: [Picture] = []
       var warnings = warnings
@@ -165,7 +189,6 @@ nonisolated enum DocumentRTFPictureReader {
       for picture in pictures {
         guard picture.range.lowerBound >= cursor else { continue }
         let gap = bytes[cursor..<picture.range.lowerBound]
-        output.append(contentsOf: gap)
         let duplicate = picture.fallback && precedingPreferred != nil
           && gap.allSatisfy { [9, 10, 13, 32].contains($0) }
         if duplicate, let last = selected.indices.last,
@@ -175,16 +198,38 @@ nonisolated enum DocumentRTFPictureReader {
         }
         precedingPreferred = picture.preferred ? picture.range : nil
         // 그림을 생략할 때도 그룹 경계를 남겨 인접 control word와 본문이 합쳐지지 않게 한다.
-        output.append(123)
+        var value = Data([123])
         if !duplicate, options.extractImages || options.performOCR {
-          appendMarker(picture, marker: marker, output: &output,
+          appendMarker(picture, marker: marker, output: &value,
                        selected: &selected, warnings: &warnings)
         }
-        output.append(125)
+        value.append(125)
+        replacements.append(Replacement(range: picture.range, data: value))
         cursor = picture.range.upperBound
       }
+      let orderedSections = sections.sorted { $0.range.lowerBound < $1.range.lowerBound }
+      for (index, section) in orderedSections.enumerated() {
+        replacements.append(Replacement(range: section.prefix,
+          data: Data("\\par \(marker)S\(index)BEGIN\\par ".utf8)))
+        let end = section.range.upperBound - 1
+        replacements.append(Replacement(range: end..<end,
+          data: Data("\\par \(marker)S\(index)END\\par ".utf8)))
+      }
+      return Output(data: compose(replacements), pictures: selected, marker: marker,
+                    warnings: warnings, sections: orderedSections)
+    }
+
+    private func compose(_ replacements: [Replacement]) -> Data {
+      var output = Data()
+      var cursor = 0
+      for replacement in replacements.sorted(by: { $0.range.lowerBound < $1.range.lowerBound }) {
+        guard replacement.range.lowerBound >= cursor else { continue }
+        output.append(contentsOf: bytes[cursor..<replacement.range.lowerBound])
+        output.append(replacement.data)
+        cursor = replacement.range.upperBound
+      }
       output.append(contentsOf: bytes[cursor...])
-      return Output(data: output, pictures: selected, marker: marker, warnings: warnings)
+      return output
     }
 
     private func appendMarker(
@@ -207,6 +252,11 @@ nonisolated enum DocumentRTFPictureReader {
         code: .malformedContent, message: "RTF group is unbalanced or truncated.",
         location: DocumentLocation(part: "rtf/byte[\(index)]")))
     }
+  }
+
+  private static func isSection(_ word: String) -> Bool {
+    ["header", "headerl", "headerr", "headerf", "footer", "footerl", "footerr", "footerf"]
+      .contains(word)
   }
 
   private static func isLetter(_ byte: UInt8) -> Bool {
