@@ -1,0 +1,11 @@
+--- a/Package.swift
++++ b/Package.swift
+@@ -10,7 +10,7 @@
+   ],
+   dependencies: [
+     .package(url: "https://github.com/scinfu/SwiftSoup.git", exact: "2.14.3"),
+-    .package(url: "https://github.com/opendocument-app/OpenDocument.core", exact: "7.5.2"),
++    .package(url: "__FORK_URL__", revision: "__FORK_COMMIT__"),
+     .package(url: "https://github.com/sboh1214/hwp-swift.git", exact: "0.19.0"),
+     .package(url: "https://github.com/CoreOffice/OLEKit.git", exact: "0.3.1")
+   ],
