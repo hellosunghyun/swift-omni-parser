@@ -12,12 +12,13 @@ nonisolated enum DocumentVectorScript {
   static func convert(_ data: Data) throws -> String { try convertDetailed(data).svg }
 
   static func convertDetailed(_ data: Data) throws -> Converted {
-    try Task.checkCancellation()
-    guard let context = JSContext(),
+    guard let context = try makeContext(),
       let url = Bundle.module.url(forResource: "renderer", withExtension: "js",
                                   subdirectory: "Vector") else {
       throw DocumentParsingError.malformedDocument
     }
+    // 예외 JSValue가 JSContext를 계속 보관하지 않게 모든 종료 경로에서 해제한다.
+    defer { context.exception = nil }
     let deadline = Date().addingTimeInterval(10)
     var operations = 0
     var stopped = false
@@ -62,6 +63,11 @@ nonisolated enum DocumentVectorScript {
     return Converted(svg: svg,
       hasUnsupportedElements: context.objectForKeyedSubscript("__omniUnsupported")?
         .toBool() == true)
+  }
+
+  private static func makeContext() throws -> JSContext? {
+    try Task.checkCancellation()
+    return JSContext()
   }
 
   private static func input(_ data: Data, context: JSContext) -> JSValue? {
