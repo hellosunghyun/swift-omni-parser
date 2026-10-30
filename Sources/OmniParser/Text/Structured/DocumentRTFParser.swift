@@ -65,6 +65,34 @@ nonisolated enum DocumentRTFParser {
       _ attributed: NSAttributedString, range: NSRange, number: Int,
       prepared: DocumentRTFPictureReader.Output, pattern: NSRegularExpression
     ) async throws {
+      let (location, cellIndex) = paragraphPlacement(in: attributed, range: range, number: number)
+      let text = attributed.string as NSString
+      let matches = pattern.matches(in: attributed.string, range: range)
+      if cellIndex != nil, !matches.isEmpty {
+        warnings.append(DocumentWarning(
+          code: .uncertainReadingOrder,
+          message: "RTF cell text is grouped; image OCR retains the cell location.",
+          location: location))
+      }
+      var cursor = range.location
+      for match in matches {
+        appendText(text.substring(with: NSRange(location: cursor,
+          length: match.range.location - cursor)), location: location, cellIndex: cellIndex)
+        if let index = Int(text.substring(with: match.range(at: 1))),
+          prepared.pictures.indices.contains(index) {
+          visitedPictures.insert(index)
+          try await appendImage(prepared.pictures[index], index: index, location: location)
+        }
+        cursor = NSMaxRange(match.range)
+      }
+      appendText(text.substring(with: NSRange(location: cursor,
+        length: NSMaxRange(range) - cursor)), location: location, cellIndex: cellIndex)
+    }
+
+    /// 표·셀 블록을 처음 만난 순서대로 등록한 뒤 문단의 삽입 위치를 반환한다.
+    private mutating func paragraphPlacement(
+      in attributed: NSAttributedString, range: NSRange, number: Int
+    ) -> (location: DocumentLocation, cellIndex: Int?) {
       var location = DocumentLocation(part: "rtf", paragraph: number)
       var cellIndex: Int?
       if let style = attributed.attribute(.paragraphStyle, at: range.location,
@@ -88,27 +116,7 @@ nonisolated enum DocumentRTFParser {
         }
         cellIndex = cells[key]
       }
-      let text = attributed.string as NSString
-      let matches = pattern.matches(in: attributed.string, range: range)
-      if cellIndex != nil, !matches.isEmpty {
-        warnings.append(DocumentWarning(
-          code: .uncertainReadingOrder,
-          message: "RTF cell text is grouped; image OCR retains the cell location.",
-          location: location))
-      }
-      var cursor = range.location
-      for match in matches {
-        appendText(text.substring(with: NSRange(location: cursor,
-          length: match.range.location - cursor)), location: location, cellIndex: cellIndex)
-        if let index = Int(text.substring(with: match.range(at: 1))),
-          prepared.pictures.indices.contains(index) {
-          visitedPictures.insert(index)
-          try await appendImage(prepared.pictures[index], index: index, location: location)
-        }
-        cursor = NSMaxRange(match.range)
-      }
-      appendText(text.substring(with: NSRange(location: cursor,
-        length: NSMaxRange(range) - cursor)), location: location, cellIndex: cellIndex)
+      return (location, cellIndex)
     }
 
     private mutating func appendText(_ text: String, location: DocumentLocation, cellIndex: Int?) {

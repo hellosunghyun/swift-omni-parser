@@ -27,7 +27,12 @@ final class RTFRegressionTests: XCTestCase {
           options: .init(extractImages: images, performOCR: ocr))
         XCTAssertEqual(result.images.count, images ? 1 : 0)
         XCTAssertEqual(result.blocks.contains { $0.kind == .imageOCR }, ocr)
-        XCTAssertEqual(result.blocks.filter { $0.kind == .tableCell }.count, 4)
+        let cells = result.blocks.filter { $0.kind == .tableCell }
+        XCTAssertEqual(cells.count, 4)
+        XCTAssertTrue(cells.map(\.text) == ["Name", "Value", "Sample", "42"])
+        XCTAssertEqual(cells.compactMap(\.location.row), [1, 1, 2, 2])
+        XCTAssertEqual(cells.compactMap(\.location.column), [1, 2, 1, 2])
+        XCTAssertTrue(cells.allSatisfy { $0.location.part == "rtf/table[1]" })
         XCTAssertFalse(result.fullText.contains("OMNIRTF"))
         TestFixtures.assertTextConsistency(result)
       }
