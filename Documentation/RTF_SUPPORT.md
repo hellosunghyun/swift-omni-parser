@@ -28,6 +28,7 @@ let ocr = result.blocks.filter { $0.kind == .imageOCR }
 | 병합 셀 | importer가 제공한 `rowSpan`·`columnSpan`. 제공되지 않은 병합 범위를 추측하지 않음 |
 | 그림 | hex·`bin` 저장 방식의 `pict`에서 추출한 PNG·JPEG 등 디코딩 가능한 래스터와 무압축 DIB |
 | 내장 OLE | OLE1 embedded native, Package, CFB Ole10Native/CONTENTS의 지원 문서·래스터를 메모리에서 재파싱. 객체 실행·linked object 접근 제외 |
+| 벡터 그림 | RTF pict·OLE native/미리보기의 WMF·EMF를 로컬 JS→정적 SVG→detached WebKit PDF→PNG로 변환. 미지원 명령은 부분 이미지와 위치 경고 |
 | OCR | Vision 온디바이스 인식 텍스트·제공 가능한 신뢰도·그림 안 위치와 문서 내 위치 |
 
 표의 `part`는 `rtf/table[n]` 형태다. 문단의 `paragraph`는 importer 결과의 문단 순서이며 원본 RTF 파일 줄 번호가 아니다. 그림의 `part`는 보통 `rtf/byte[offset]/image[n]` 형태로 원본 그룹의 바이트 위치를 가리킨다. 손상 원본 대신 호환본을 복구하면 `rtf/byte[offset]`로 실제 사용한 호환본 위치를 남긴다. 그림이 셀 안에 있으면 행·열 등 제공 가능한 셀 위치도 함께 남긴다. 페이지 번호나 페이지 기하 좌표는 임의로 생성하지 않는다.
@@ -47,7 +48,7 @@ Word가 인접한 `shppict`/`nonshppict` 그룹에 같은 그림의 원본·호�
 - 불균형·잘린 그룹과 importer 실패는 가능한 경우 원문 텍스트와 `malformedContent` 경고로 복구한다. 이 텍스트에는 RTF 제어어가 남을 수 있으므로 정상 구조 추출과 구분해야 한다.
 - importer가 그림의 읽을 수 있는 본문 위치를 제공하지 않으면 원본 바이트 위치와 `unsupportedElement` 경고를 남긴다.
 
-현재 UIKit importer는 `pict`를 버리고, 보완 경로의 ImageIO 디코더로는 단독 WMF·EMF 같은 벡터 `pict`를 래스터화하지 못한다. 별도 온디바이스 벡터 렌더러의 도입은 구현·빌드·의존성 검토가 남아 있어 지원한다고 표시하지 않는다. 원본 래스터와 함께 있는 호환 벡터는 중복 처리를 피하지만, 벡터만 있는 문서에서 같은 그림을 복원할 수 있다는 뜻은 아니다. 헤더·푸터는 `rtf/header/byte[offset]` 또는 해당 destination 경로로 구분하고, 페이지 레이아웃 대신 원본 순서와 위치 경고를 반환한다. 중첩 표는 `rtf/table[n]/cell[row,column]/table[m]` 계층을 보존하지만 importer가 버린 구조까지 추측하지 않는다. 내장 OLE의 지원 문서는 `rtf/byte[offset]/object[n]/...` 아래에 내부 셀·페이지 위치를 보존한다. native 해석 성공 시 미리보기는 생략하고, 실패 시 가능한 미리보기와 바깥 본문을 반환한다. OLE 실행·매크로 실행·linked object 접근은 하지 않는다. OLE 재귀 깊이는 8이며 누적 objdata 바이트, child 파싱 예산과 문서 전체 그림 한도를 적용한다. 모든 OLE class의 고유 데이터 표현을 복원하는 범용 객체 실행기는 아니다.
+UIKit importer가 버리는 WMF·EMF 그림은 `wmf-emf-renderer 0.2.1` 소스와 Apple JavaScriptCore·WebKit·CoreGraphics로 온디바이스 변환한다. 앱 window/view controller에 붙이지 않으며 외부 파일·네트워크·스크립트를 실행하지 않는다. 벡터만 있는 그림도 처리하고, 원본·호환본은 기존 한 번 처리 규칙을 따른다. 라이브러리의 알 수 없는 record와 시각 명령 stub는 감지해 부분 이미지와 `unsupportedElement` 위치 경고를 반환한다. 모든 WMF·EMF·EMF+ record의 완전한 재현을 보장하지 않는다. 독립 WMF·EMF·SVG 파일을 새 문서 형식으로 추가한 것은 아니다. 헤더·푸터는 `rtf/header/byte[offset]` 또는 해당 destination 경로로 구분하고, 페이지 레이아웃 대신 원본 순서와 위치 경고를 반환한다. 중첩 표는 `rtf/table[n]/cell[row,column]/table[m]` 계층을 보존하지만 importer가 버린 구조까지 추측하지 않는다. 내장 OLE의 지원 문서는 `rtf/byte[offset]/object[n]/...` 아래에 내부 셀·페이지 위치를 보존한다. native 해석 성공 시 미리보기는 생략하고, 실패 시 가능한 미리보기와 바깥 본문을 반환한다. OLE 실행·매크로 실행·linked object 접근은 하지 않는다. OLE 재귀 깊이는 8이며 누적 objdata 바이트, child 파싱 예산과 문서 전체 그림 한도를 적용한다. 모든 OLE class의 고유 데이터 표현을 복원하는 범용 객체 실행기는 아니다.
 
 ## 검증 범위
 
@@ -68,3 +69,11 @@ Office와 공유하는 이미지 경로의 OCR 실패 후 PNG 보존은 `Resourc
 `RTFObjectTests` 13개는 기존 DOC를 감싼 내장 객체와 자체 생성 Package·CFB 컨테이너를 사용한다. native 본문·표·그림·위치, 미리보기 중복 생략과 호환본 복구, 외부 링크 거부, 잘못된 길이·누적 바이트·이미지 개수·재귀 깊이·취소를 iPhone 17 Simulator에서 검사했다.
 
 DIB는 BMP 파일 헤더 없이 저장된 BITMAPINFOHEADER 계열을 검사한 뒤 ImageIO에 연결한다. 무압축 BI_RGB 1·4·8비트 팔레트와 24·32비트, top-down·bottom-up 행을 지원하며 RLE·bitfields 등은 지원한다고 표시하지 않는다. 헤더 크기·실제 바이트·행 패딩·팔레트·픽셀 예산을 검사한다. OLE의 이미지/OCR 옵션이 모두 꺼져 있으면 DIB를 비트맵으로 만들지 않는다. `DIBDecoderTests`는 픽셀·방향·손상·한도와 RTF pict/OLE 연결을 검사한다.
+
+## 벡터 자원과 한계
+
+변환·WebKit 작업은 전체 호출에 걸쳐 하나씩 처리한다. 벡터 입력 8 MiB·record 10,000개, 단일 JS typed-array 16 MiB·누적 64 MiB, SVG 16 MiB·노드 50,000개, SVG root 400만 픽셀·내장 이미지 누적 400만 픽셀과 요청 `maximumImagePixels` 중 작은 값을 적용한다. JSC 루프 연산·10초 변환 시간 제한과 WebKit 10초 제한도 둔다. 이 값은 앱 전체 메모리 상한이나 실시간 종료 보장이 아니며 WebKit 별도 프로세스 비용은 별도 측정한다.
+
+SVG의 능동 콘텐츠·외부 URI·엔티티·중복 ID·순환 참조를 거부하고, 내장 data 이미지도 ImageIO 메타데이터로 검사한다. 정상 부분 그림과 본문은 보존하지만 손상·한도 초과는 해당 그림의 위치 경고와 다른 결과를 반환한다. 취소는 호환본으로 넘기지 않고 전체 요청으로 전파한다. 이미지/OCR 옵션이 모두 false이면 그림을 렌더링하지 않는다.
+
+WMF TextOut의 CP949·홀수 바이트 WORD 패딩은 고정 라이브러리의 누락 경로를 보완했다. 한영 혼합 인식은 기존 `ocrLanguage: .koreanAndEnglish`를 사용하며 자동 언어 정책은 변경하지 않았다. `RTFVectorTests` 13개와 `VectorSafetyTests` 11개는 생성 도형·텍스트, 실제 기존 WMF 호환본, 옵션·위치·중복·부분 이미지·취소·위험 입력을 검사한다. 최초 Simulator 실행은 24/24 통과했으며 전체 회귀와 메모리 측정은 [벡터 검증 기록](VECTOR_VERIFICATION_2026-10-30.md)에서 구분한다. 이번 실기기 검증은 사용자 요청으로 수행하지 않는다.

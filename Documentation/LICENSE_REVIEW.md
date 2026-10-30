@@ -1,12 +1,12 @@
 # MIT 적용 범위와 의존성 라이선스 검토
 
-검토일: 2026년 10월 26일
+검토일: 2026년 10월 26일. WMF·EMF 소스 자산 후속 검토: 2026년 10월 30일.
 
 ## 결론
 
 **루트 MIT는 별도로 작성한 OmniParser Swift 코드·문서의 라이선스 선언입니다. 직접 의존성의 원래 라이선스 표기는 확인했지만, 전체 배포물의 라이선스 준수 완료로 판정하지 않습니다.** 이 결론을 모든 구성요소가 MIT라거나, 소비 앱이 추가 의무 없이 바이너리를 배포할 수 있다는 의미로 해석하면 안 됩니다.
 
-공개 대상은 자체 Swift 소스와 패키지 연결 코드입니다. SwiftSoup·OLEKit·OpenDocument.core·hwp-swift는 고정 버전의 별도 SwiftPM 의존성으로 가져오며 이 저장소에서 소스를 MIT로 변경하지 않습니다. 별도로 포함하는 OfficeOxide 정적 바이너리에는 원래 MIT·NOTICE와 전이 의존성·Rust 표준 라이브러리 고지를 보존했습니다.
+공개 대상은 자체 Swift 소스·패키지 연결 코드와 아래에 구분한 서드파티 자산입니다. SwiftSoup·OLEKit·OpenDocument.core·hwp-swift는 고정 버전의 별도 SwiftPM 의존성으로 가져오며 이 저장소에서 소스를 MIT로 변경하지 않습니다. 별도로 포함하는 OfficeOxide 정적 바이너리에는 원래 MIT·NOTICE와 전이 의존성·Rust 표준 라이브러리 고지를 보존했습니다.
 
 ## 확인한 버전과 근거
 
@@ -19,6 +19,12 @@
 | OfficeOxide | 0.1.15 / 5d183f4 | MIT OR Apache-2.0 | 이 배포에서는 MIT 선택, 내부 구성요소의 별도 조건은 유지 |
 
 위 다섯 항목의 라이선스 파일은 고정된 커밋의 GitHub 원본과 로컬 사본의 해시가 일치하는지 확인했습니다. 상세 리비전과 라이선스 파일 해시는 `DEPENDENCIES.json`에 기록했습니다.
+
+## WMF·EMF 소스 자산 추가
+
+사용자 승인에 따라 `wmf-emf-renderer 0.2.1`의 MIT JS 소스를 리소스로 포함했다. npm 배포본의 integrity와 원본 JS·LICENSE·package 메타데이터를 대조했고, 원문 MIT는 저장소와 배포 번들에 함께 보존한다. 상업용 비공개 앱 사용을 허용하는 MIT 조건이며 저작권·허가문 유지가 필요하다. JS 루프·할당 제한 및 font-family 이스케이프 수정의 범위와 재생성 방법·해시는 `ThirdParty/wmf-emf-renderer/`에서 확인한다.
+
+이 항목은 SwiftPM 외부 패키지 목록과 별개인 vendored 소스다. Node/Acorn은 패치를 재생성하는 개발 도구이며 소비 앱의 런타임 의존성에 포함하지 않는다. 기존 Office·HWP 라이선스 의무와 네이티브 전이 구성요소의 미완료 검토는 그대로 남는다.
 
 ## MPL·LGPL을 MIT로 바꾸지 않는 이유
 

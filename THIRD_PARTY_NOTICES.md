@@ -10,9 +10,16 @@
 | OLEKit | 0.3.1 / 2cc7a98 | Apache-2.0 | [라이선스](ThirdParty/OLEKit/LICENSE) · [소스](https://github.com/CoreOffice/OLEKit/tree/2cc7a98b4ac4e9ce022336258a3bc4ff6bfc285b) |
 | OpenDocument.core 포크 | v7.5.2-omni.1 / b302cc85 | MPL-2.0 및 전이 의존성별 조건 | [라이선스](ThirdParty/OpenDocument.core/LICENSE) · [수정 소스](https://github.com/hellosunghyun/OpenDocument.core/tree/b302cc85311490676986a2b731971473ad21efac) |
 | hwp-swift / CoreHwp | 0.19.0 / eebe90d | LGPL-2.1 | [라이선스](ThirdParty/hwp-swift/LICENSE) · [소스](https://github.com/sboh1214/hwp-swift/tree/eebe90d160b3d437b97d0bb1ea7a5752f419f225) |
+| wmf-emf-renderer | 0.2.1 / 제한·문자열 이스케이프 패치 | MIT | [라이선스](ThirdParty/wmf-emf-renderer/LICENSE) · [소스](https://github.com/congduan/WmfEmfViewer/tree/434e8b07bcf2ddf3676bc65706ea50e7dc6930c9/packages/wmf-emf-renderer) |
 | office_oxide | 0.1.15 / 5d183f4 | MIT OR Apache-2.0에서 MIT 선택 | [MIT](ThirdParty/OfficeOxide/LICENSE-MIT) · [원래 NOTICE](ThirdParty/OfficeOxide/NOTICE) · [소스](https://github.com/yfedoseev/office_oxide/tree/5d183f4de990de254f32976bf952e548bcd25972) |
 
 SwiftPM으로 가져오는 의존성의 소스와 원래 라이선스는 해당 저장소에서 취득할 수 있습니다. 수정본을 별도로 배포한다면 수정한 소스와 그에 해당하는 고지를 제공해야 합니다. API 연결을 위해 작성한 OmniParser 파일은 외부 라이브러리 자체의 라이선스를 변경하지 않습니다.
+
+## WMF·EMF JavaScript 소스 자산
+
+`wmf-emf-renderer 0.2.1`의 JS 소스를 수정해 SwiftPM 리소스로 포함한다. 원래 MIT 저작권·허가문은 `ThirdParty/wmf-emf-renderer/LICENSE`와 배포 리소스 `Sources/OmniParser/Resources/Vector/LICENSE.txt`에 보존한다. 원본·수정본의 해시와 변경 내용·재생성 방법은 `ThirdParty/wmf-emf-renderer/`에 기록한다. 상업용·비공개 앱에 사용할 수 있으며 원래 MIT 고지는 유지해야 한다.
+
+JS 루프·할당 예산과 문자열 이스케이프 보완은 OmniParser의 수정이며, 원래 구성요소의 MIT 조건을 바꾸지 않는다. 변환은 JavaScriptCore, 래스터화는 Apple WebKit·CoreGraphics를 사용한다. 새 네이티브 바이너리나 원격 렌더링 서비스는 추가하지 않는다.
 
 ## OfficeOxide 바이너리
 
@@ -37,7 +44,7 @@ Conan 레시피에서 확인한 조건은 MIT·BSL-1.0·BSD-2-Clause와 uchardet
 
 ## Apple 프레임워크
 
-Foundation, CoreGraphics, ImageIO, PDFKit, UIKit, Vision, Synchronization 등은 Apple SDK가 제공하는 프레임워크입니다. 이 저장소가 해당 프레임워크를 MIT로 배포하는 것은 아닙니다. 실제 사용·배포에는 Apple SDK의 조건이 적용됩니다.
+Foundation, CoreGraphics, ImageIO, PDFKit, UIKit, Vision, Synchronization, JavaScriptCore, WebKit 등은 Apple SDK가 제공하는 프레임워크입니다. 이 저장소가 해당 프레임워크를 MIT로 배포하는 것은 아닙니다. 실제 사용·배포에는 Apple SDK의 조건이 적용됩니다.
 
 ## 테스트 자산
 

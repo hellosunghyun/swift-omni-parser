@@ -36,6 +36,18 @@
       "repository": "https://github.com/sboh1214/hwp-swift",
       "license_sha256": "20c17d8b8c48a600800dfd14f95d5cb9ff47066a9641ddeab48dc54aec96e331",
       "upstream_license_verified": true
+    },
+    {
+      "name": "wmf-emf-renderer",
+      "version": "0.2.1",
+      "revision": "434e8b07bcf2ddf3676bc65706ea50e7dc6930c9",
+      "license": "MIT",
+      "repository": "https://github.com/congduan/WmfEmfViewer",
+      "distribution": "vendored-js-with-bounded-rendering-patches",
+      "license_sha256": "bcc98d690a7e581cd6b572166d8eb0777980e1c6cf433afff317135c5bec4a1b",
+      "upstream_license_verified": true,
+      "original_js_sha256": "543bb78b70617569f28905e7b2e0c174330f87bfa3cdf38fa828ba093813ecc9",
+      "runtime_js_sha256": "36dea09a79c9d3b2526352e6dc9047152896c64cb0cd088bfdc2f3ebd650fc95"
     }
   ],
   "native_dependency": {

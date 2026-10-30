@@ -60,7 +60,7 @@ let outcomes = try await DocumentParser.parseBatch(
 | TXT·CSV·JSON·XML | Foundation 및 형식별 구조 추출 |
 | HTML | SwiftSoup DOM의 본문·제목·목록·표와 내장/로컬 참조 그림. CSS 조판·스크립트 실행 제외 |
 | Markdown | 줄 단위 제목·본문·파이프 표와 인라인 그림 참조. CommonMark 전체 방언·참조형 그림은 미지원 |
-| RTF | 문단·표·병합·중첩 표 경로·헤더/푸터·내장 OLE 문서. 래스터·무압축 DIB 그림과 선택적 OCR. WMF/EMF 제품 지원 제외 |
+| RTF | 문단·표·병합·중첩 표 경로·헤더/푸터·내장 OLE 문서. 래스터·무압축 DIB·WMF/EMF 그림과 선택적 OCR. 미지원 그리기 명령은 부분 이미지·위치 경고 |
 | JPEG·PNG·HEIC·TIFF·CGImage | ImageIO·Vision, 다중 프레임과 방향 처리 |
 | PDF | 페이지 좌표·선/정렬 기반 표 추정·표시된 그림 영역의 래스터 추출·선택적 OCR. 원본 이미지 스트림 반환은 아님 |
 | DOC·PPT | OfficeOxide, OfficeArt 그림 보완 |
@@ -92,7 +92,7 @@ xcodebuild test -scheme OmniParser \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 통합 전체 **Release 회귀 134개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 74파일·위반 0건을 확인했습니다. RTF 헤더·푸터·중첩 표·내장 OLE·DIB와 옵션·자원 제한 회귀를 포함합니다. [통합 검증](Documentation/INTEGRATION_VERIFICATION_2026-10-30.md)에 최신 실행과 과거 결과를 구분했습니다. 요청별 언어·동시 호출·PDF·TIFF·HWPX 회귀에 OCR 좌표 경계와 정방향으로 표시되는 PDF의 0/90/180/270도 페이지 좌표 검사를 포함합니다.
+기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 통합 전체 **Release 회귀 159개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 84파일·위반 0건을 확인했습니다. RTF 헤더·푸터·중첩 표·내장 OLE·DIB·WMF/EMF와 옵션·자원 제한·WebKit 실행 중 취소 회귀를 포함합니다. [통합 검증](Documentation/INTEGRATION_VERIFICATION_2026-10-30.md)에 최신 실행과 과거 결과를 구분했습니다. 요청별 언어·동시 호출·PDF·TIFF·HWPX 회귀에 OCR 좌표 경계와 정방향으로 표시되는 PDF의 0/90/180/270도 페이지 좌표 검사를 포함합니다.
 
 최신 65문서 비교에서 본문·2,709개 블록의 문구·순서·신뢰도·이미지 픽셀은 유지됐고, 범위 밖 OCR 좌표 1개를 보정했습니다. PNG 원시 바이트는 64/65 일치하며 나머지는 색상 프로필 날짜·시각 필드 두 바이트만 달랐습니다. 엄격 비교의 차이 상태를 보존했습니다. 작은 숫자 그림의 오인식·페이지 OCR 중복과 추가 peak 메모리 절감은 남아 있습니다. 범위·실행 명령·단계별 시간은 [최신 수정·검증 기록](Documentation/IMPROVEMENT_LOOP_2026-10-28.md#ocr-좌표-경계-보정과-99개-회귀)에 구분했습니다.
 
@@ -102,7 +102,9 @@ xcodebuild test -scheme OmniParser \
 
 [OCR 정확도·PDF 중복 개선 기록](Documentation/IMPROVEMENT_LOOP_2026-10-28.md)에 요청별 언어 옵션, 같은 위치의 중복 그림 OCR 수정, 실제 시간·메모리 비교를 정리했습니다. 기본 언어 정책은 유지하며, 동일 영역 OCR을 생략한 시간 개선과 추가 peak 메모리 절감 여부를 구분합니다.
 
-PR·main 푸시의 자동 검사에는 `.github/workflows/verification.yml`을 사용합니다. 실제 GitHub 실행은 다음 푸시 이후 확인해야 합니다. [기여 안내](CONTRIBUTING.md)와 [보안 제보](SECURITY.md)에 검증·샘플 제출 기준을 적었습니다.
+PR·main 푸시의 자동 검사에는 `.github/workflows/verification.yml`을 사용합니다. 실제 실행 결과는 GitHub Actions의 해당 커밋과 각 검증 기록을 기준으로 확인합니다. [기여 안내](CONTRIBUTING.md)와 [보안 제보](SECURITY.md)에 검증·샘플 제출 기준을 적었습니다.
+
+WMF·EMF는 RTF 안 그림만 처리합니다. [벡터 검증 기록](Documentation/VECTOR_VERIFICATION_2026-10-30.md)에 실제 지원·미지원 명령 경고, 한영 OCR, 취소·세션 수명, Simulator 메모리 전후 비교를 구분했습니다. 새 런타임 자산은 JS 322,772바이트와 MIT 원문 1,080바이트이며 네이티브 바이너리를 추가하지 않았습니다. 이 크기를 앱 다운로드·설치 용량 증가량으로 환산하지 않습니다.
 
 ## 의존성과 라이선스
 
@@ -112,6 +114,7 @@ PR·main 푸시의 자동 검사에는 `.github/workflows/verification.yml`을 �
 | --- | --- | --- |
 | SwiftSoup | 2.14.3 | MIT |
 | OLEKit | 0.3.1 | Apache-2.0 |
+| wmf-emf-renderer 소스 자산 | 0.2.1, 제한 패치 | MIT |
 | OpenDocument.core 포크 | v7.5.2-omni.1 / b302cc85 | MPL-2.0, 네이티브 전이 의존성의 별도 조건 |
 | hwp-swift / CoreHwp | 0.19.0 | LGPL-2.1 |
 | OfficeOxide | 0.1.15, 고정 커밋 | MIT 선택, 전이 의존성의 별도 조건 |
