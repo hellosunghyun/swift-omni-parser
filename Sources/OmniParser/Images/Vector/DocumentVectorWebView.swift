@@ -6,6 +6,8 @@ import WebKit
 /// 작업별 WebView를 해제하며 timeout·취소·delegate 응답은 continuation을 한 번만 끝낸다.
 @MainActor
 final class DocumentVectorWebView: NSObject, WKNavigationDelegate {
+  private static var sharedStore: WKWebsiteDataStore?
+  private static var idleCleanup: Task<Void, Never>?
   private var webView: WKWebView?
   private var completion: CheckedContinuation<CGImage, Error>?
   private var timeout: Task<Void, Never>?
@@ -30,7 +32,10 @@ final class DocumentVectorWebView: NSObject, WKNavigationDelegate {
     self.completion = completion
     if cancelled { finish(.failure(CancellationError())); return }
     let configuration = WKWebViewConfiguration()
-    configuration.websiteDataStore = .nonPersistent()
+    Self.idleCleanup?.cancel()
+    let store = Self.sharedStore ?? WKWebsiteDataStore.nonPersistent()
+    Self.sharedStore = store
+    configuration.websiteDataStore = store
     configuration.defaultWebpagePreferences.allowsContentJavaScript = false
     let view = WKWebView(frame: CGRect(origin: .zero, size: size), configuration: configuration)
     webView = view
@@ -61,6 +66,14 @@ final class DocumentVectorWebView: NSObject, WKNavigationDelegate {
     webView?.navigationDelegate = nil
     webView?.stopLoading()
     webView = nil
+    // 연속 처리 중에만 메모리 세션을 재사용하고 idle 뒤에는 캐시 보유를 끝낸다.
+    Self.idleCleanup?.cancel()
+    Self.idleCleanup = Task {
+      do { try await Task.sleep(for: .seconds(1)) } catch { return }
+      guard !Task.isCancelled else { return }
+      Self.sharedStore = nil
+      Self.idleCleanup = nil
+    }
     continuation.resume(with: result)
   }
 
