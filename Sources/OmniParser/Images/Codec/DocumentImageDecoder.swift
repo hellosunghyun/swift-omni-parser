@@ -8,6 +8,9 @@ nonisolated enum DocumentImageDecoder {
   static func decode(_ data: Data, maximumPixels: Int) throws -> (
     image: CGImage, orientation: CGImagePropertyOrientation
   ) {
+    if let image = try DocumentDIBDecoder.decode(data, maximumPixels: maximumPixels) {
+      return (image, .up)
+    }
     guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
       throw DocumentParsingError.malformedDocument
     }

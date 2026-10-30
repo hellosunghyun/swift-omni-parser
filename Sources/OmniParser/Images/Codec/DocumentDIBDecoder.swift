@@ -4,10 +4,15 @@ import Foundation
 /// RTF의 BMP 파일 헤더 없는 DIB를 검사한 뒤 ImageIO가 읽을 BMP로 감싼다.
 /// 무압축 1·4·8비트 팔레트와 24·32비트 BITMAPINFOHEADER 계열만 처리한다.
 nonisolated enum DocumentDIBDecoder {
+  static func hasHeader(_ data: Data) -> Bool {
+    guard let header = DocumentBinaryReader(data: data).uint32(0) else { return false }
+    return [40, 52, 56, 108, 124].contains(header)
+  }
+
   /// 미지원 헤더·압축 방식은 nil, 인식한 DIB의 손상·제한 초과는 오류로 구분한다.
   static func decode(_ data: Data, maximumPixels: Int) throws -> CGImage? {
     let reader = DocumentBinaryReader(data: data)
-    guard let header = reader.uint32(0), [40, 52, 56, 108, 124].contains(header) else {
+    guard hasHeader(data), let header = reader.uint32(0) else {
       return nil
     }
     guard header <= data.count,

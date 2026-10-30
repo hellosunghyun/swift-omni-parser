@@ -13,6 +13,23 @@ nonisolated enum DocumentRTFObjectReader {
       throw DocumentParsingError.inputTooLarge
     }
     let payload = try payload(data, options: options)
+    if DocumentDIBDecoder.hasHeader(payload.data) {
+      guard data.count < options.maximumExpandedBytes,
+        payload.data.count <= options.maximumInputBytes else {
+        throw DocumentParsingError.inputTooLarge
+      }
+      guard options.extractImages || options.performOCR else {
+        return DocumentParseResult(format: .rtf, blocks: [], warnings: [])
+      }
+      guard options.maximumEmbeddedImages > 0 else { throw DocumentParsingError.inputTooLarge }
+      guard let image = try DocumentDIBDecoder.decode(
+        payload.data, maximumPixels: options.maximumImagePixels) else {
+        throw DocumentParsingError.unsupportedFormat
+      }
+      return try await DocumentRasterParser.parseImage(
+        image, orientation: .up, format: .rtf, location: DocumentLocation(part: "dib"),
+        options: options, remainingBytes: options.maximumExpandedBytes - data.count)
+    }
     let format = try DocumentFormatDetector.detect(
       data: payload.data, fileName: payload.name, options: options)
     if [.jpeg, .png, .heic, .tiff].contains(format),

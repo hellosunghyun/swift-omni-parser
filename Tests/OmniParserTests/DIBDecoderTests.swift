@@ -82,6 +82,64 @@ final class DIBDecoderTests: XCTestCase {
     XCTAssertThrowsError(try DocumentDIBDecoder.decode(huge, maximumPixels: Int.max))
   }
 
+  func testRTFPictureRetainsDIBPixelsAndSourcePosition() async throws {
+    let bitmap = dib(width: 1, height: -1, bits: 24, pixels: [0, 0, 255, 0])
+    let source = "{\\rtf1 Before{\\pict\\dibitmap0 " + hex(bitmap) + "}After}"
+    let result = try await parseRTF(source, options: .init(extractImages: true))
+    let image = try XCTUnwrap(result.images.first)
+    XCTAssertEqual(result.images.count, 1)
+    XCTAssertTrue(image.location.part?.hasPrefix("rtf/byte[") == true)
+    XCTAssertEqual(try rgba(DocumentImageDecoder.decode(
+      image.pngData, maximumPixels: 1).image), [255, 0, 0, 255])
+    XCTAssertTrue(result.warnings.isEmpty)
+    XCTAssertTrue(result.fullText.contains("Before"))
+    XCTAssertTrue(result.fullText.contains("After"))
+    TestFixtures.assertTextConsistency(result)
+  }
+
+  func testOLEStaticDIBHonorsExtractionOptionsAndObjectPosition() async throws {
+    let bitmap = dib(width: 1, height: 2, bits: 24, pixels: [0, 0, 255, 0, 0, 0, 255, 0])
+    let name = Data("StaticDIB\0".utf8)
+    let native = word(0x501) + word(2) + word(name.count) + name
+      + word(0) + word(0) + word(bitmap.count) + bitmap
+    let source = "{\\rtf1 Before{\\object\\objemb{\\*\\objdata " + hex(native) + "}}After}"
+    for extract in [false, true] {
+      let result = try await parseRTF(source,
+        options: .init(extractImages: extract, maximumImagePixels: extract ? 2 : 1))
+      XCTAssertEqual(result.images.count, extract ? 1 : 0)
+      XCTAssertTrue(result.images.allSatisfy {
+        $0.location.part?.contains("/object[1]/dib") == true
+      })
+      XCTAssertTrue(result.warnings.isEmpty)
+      XCTAssertTrue(result.fullText.contains("Before"))
+      XCTAssertTrue(result.fullText.contains("After"))
+      TestFixtures.assertTextConsistency(result)
+    }
+  }
+
+  func testRTFDIBPixelLimitKeepsSurroundingText() async throws {
+    let bitmap = dib(width: 1, height: 2, bits: 24, pixels: [UInt8](repeating: 0, count: 8))
+    let source = "{\\rtf1 Before{\\pict\\dibitmap0 " + hex(bitmap) + "}After}"
+    let result = try await parseRTF(source,
+      options: .init(extractImages: true, maximumImagePixels: 1))
+    XCTAssertTrue(result.images.isEmpty)
+    XCTAssertTrue(result.warnings.contains {
+      $0.code == .resourceLimitReached && $0.location?.part?.hasPrefix("rtf/byte[") == true
+    })
+    XCTAssertTrue(result.fullText.contains("After"))
+  }
+
+  private func hex(_ data: Data) -> String {
+    data.map { String(format: "%02x", $0) }.joined()
+  }
+
+  private func parseRTF(
+    _ source: String, options: DocumentParserOptions
+  ) async throws -> DocumentParseResult {
+    try await DocumentParser.parse(.data(Data(source.utf8), fileName: "generated-dib.rtf"),
+                                   options: options)
+  }
+
   private func dib(
     width: Int, height: Int, bits: Int, pixels: [UInt8], palette: [UInt8] = []
   ) -> Data {
