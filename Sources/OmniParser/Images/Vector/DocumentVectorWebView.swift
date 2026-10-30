@@ -90,7 +90,9 @@ final class DocumentVectorWebView: NSObject, WKNavigationDelegate {
     configuration.rect = CGRect(origin: .zero, size: size)
     webView.createPDF(configuration: configuration) { [weak self] result in
       guard let self, self.completion != nil else { return }
-      self.finish(result.flatMap { data in Result { try self.rasterize(data) } })
+      self.finish(result.flatMap { data in
+        Result { try autoreleasepool { try self.rasterize(data) } }
+      })
     }
   }
 

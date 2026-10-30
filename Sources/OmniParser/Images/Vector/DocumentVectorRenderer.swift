@@ -26,7 +26,9 @@ nonisolated enum DocumentVectorRenderer {
     do {
       try Task.checkCancellation()
       let converted = try DocumentVectorScript.convertDetailed(data)
-      let size = try DocumentVectorSVG.validate(converted.svg, maximumPixels: maximumPixels)
+      let size = try autoreleasepool {
+        try DocumentVectorSVG.validate(converted.svg, maximumPixels: maximumPixels)
+      }
       let image = try await DocumentVectorWebView.render(converted.svg, size: size)
       try Task.checkCancellation()
       await gate.release()

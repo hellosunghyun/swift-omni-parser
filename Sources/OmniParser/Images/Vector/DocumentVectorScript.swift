@@ -12,6 +12,11 @@ nonisolated enum DocumentVectorScript {
   static func convert(_ data: Data) throws -> String { try convertDetailed(data).svg }
 
   static func convertDetailed(_ data: Data) throws -> Converted {
+    // JSValue·JSContext의 autorelease 참조를 WebKit 할당 전에 모두 배출한다.
+    try autoreleasepool { try execute(data) }
+  }
+
+  private static func execute(_ data: Data) throws -> Converted {
     try Task.checkCancellation()
     guard let context = JSContext(),
       let url = Bundle.module.url(forResource: "renderer", withExtension: "js",
