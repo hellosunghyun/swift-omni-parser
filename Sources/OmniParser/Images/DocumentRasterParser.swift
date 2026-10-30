@@ -85,7 +85,7 @@ nonisolated enum DocumentRasterParser {
     var images: [DocumentEmbeddedImage] = []
     var warnings: [DocumentWarning] = []
     if options.extractImages {
-      if let png = DocumentImageEncoder.png(image, orientation: orientation),
+      if let png = try await DocumentImageEncoder.pngAsync(image, orientation: orientation),
         png.count <= (remainingBytes ?? options.maximumExpandedBytes) {
         images.append(DocumentEmbeddedImage(
           id: location.part ?? "\(format.rawValue)/frame[\(location.page ?? 1)]",
