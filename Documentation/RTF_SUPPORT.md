@@ -64,7 +64,7 @@ UIKit importer가 버리는 WMF·EMF 그림은 `wmf-emf-renderer 0.2.1` 소스�
 
 Office와 공유하는 이미지 경로의 OCR 실패 후 PNG 보존은 `ResourceAndCancellationTests`에서 오류를 주입해 검사한다. 테스트 목록은 검사 의도를 나타내며 전체 문서 형식의 완전한 복원 판정이 아니다. 통과 수치·실행 기기·미실행 항목은 [회귀 검증 기록](REGRESSION_TESTS.md)의 해당 실행 결과를 따른다.
 
-헤더·푸터의 본문·그림·표 위치와 중첩 표 경로는 자체 생성 `RTFCompletionTests` 4개를 iPhone 17 Simulator에서 실행해 확인했다. 해당 기능의 실기기 검증은 아직 하지 않았다. 최신 상태는 [통합 검증](INTEGRATION_VERIFICATION_2026-10-30.md)을 따른다.
+헤더·푸터의 본문·그림·표 위치와 중첩 표 경로는 자체 생성 `RTFCompletionTests` 4개를 iPhone 17 Simulator에서 실행해 확인했다. 해당 기능은 후속 iPhone 17 전체 159개 회귀에도 포함해 통과했다. 최신 상태는 [통합 검증](INTEGRATION_VERIFICATION_2026-10-30.md)을 따른다.
 
 `RTFObjectTests` 13개는 기존 DOC를 감싼 내장 객체와 자체 생성 Package·CFB 컨테이너를 사용한다. native 본문·표·그림·위치, 미리보기 중복 생략과 호환본 복구, 외부 링크 거부, 잘못된 길이·누적 바이트·이미지 개수·재귀 깊이·취소를 iPhone 17 Simulator에서 검사했다.
 
@@ -76,4 +76,4 @@ DIB는 BMP 파일 헤더 없이 저장된 BITMAPINFOHEADER 계열을 검사한 �
 
 SVG의 능동 콘텐츠·외부 URI·엔티티·중복 ID·순환 참조를 거부하고, 내장 data 이미지도 ImageIO 메타데이터로 검사한다. 정상 부분 그림과 본문은 보존하지만 손상·한도 초과는 해당 그림의 위치 경고와 다른 결과를 반환한다. 취소는 호환본으로 넘기지 않고 전체 요청으로 전파한다. 이미지/OCR 옵션이 모두 false이면 그림을 렌더링하지 않는다.
 
-WMF TextOut의 CP949·홀수 바이트 WORD 패딩은 고정 라이브러리의 누락 경로를 보완했다. 한영 혼합 인식은 기존 `ocrLanguage: .koreanAndEnglish`를 사용하며 자동 언어 정책은 변경하지 않았다. `RTFVectorTests` 13개와 `VectorSafetyTests` 11개는 생성 도형·텍스트, 실제 기존 WMF 호환본, 옵션·위치·중복·부분 이미지·취소·위험 입력을 검사한다. 최초 Simulator 실행은 24/24 통과했으며 전체 회귀와 메모리 측정은 [벡터 검증 기록](VECTOR_VERIFICATION_2026-10-30.md)에서 구분한다. 이번 실기기 검증은 사용자 요청으로 수행하지 않는다.
+WMF TextOut의 CP949·홀수 바이트 WORD 패딩은 고정 라이브러리의 누락 경로를 보완했다. 한영 혼합 인식은 기존 `ocrLanguage: .koreanAndEnglish`를 사용하며 자동 언어 정책은 변경하지 않았다. `RTFVectorTests` 13개와 `VectorSafetyTests` 11개는 생성 도형·텍스트, 실제 기존 WMF 호환본, 옵션·위치·중복·부분 이미지·취소·위험 입력을 검사한다. 최초 Simulator 실행은 24/24 통과했으며 전체 회귀와 메모리 측정은 [벡터 검증 기록](VECTOR_VERIFICATION_2026-10-30.md)에서 구분한다. 후속 [iPhone 17 검증](DEVICE_VERIFICATION_2026-10-30.md)에서 전체 159개 회귀와 앱 자체 메모리를 실제 측정했다. 후속 [메모리·QoS 수정 검증](DEVICE_OPTIMIZATION_2026-10-30.md)에서 163개 전체 회귀와 QoS 경고 0건을 확인했다. WebKit 별도 메모리는 유효한 실기기 측정을 확보하지 못했다.

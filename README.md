@@ -96,7 +96,11 @@ xcodebuild test -scheme OmniParser \
 
 최신 65문서 비교에서 본문·2,709개 블록의 문구·순서·신뢰도·이미지 픽셀은 유지됐고, 범위 밖 OCR 좌표 1개를 보정했습니다. PNG 원시 바이트는 64/65 일치하며 나머지는 색상 프로필 날짜·시각 필드 두 바이트만 달랐습니다. 엄격 비교의 차이 상태를 보존했습니다. 작은 숫자 그림의 오인식·페이지 OCR 중복과 추가 peak 메모리 절감은 남아 있습니다. 범위·실행 명령·단계별 시간은 [최신 수정·검증 기록](Documentation/IMPROVEMENT_LOOP_2026-10-28.md#ocr-좌표-경계-보정과-99개-회귀)에 구분했습니다.
 
-실기기 32개 통과와 과거 대용량 기록은 이전 동기 OCR 코드의 결과입니다. 최신 실기기 검증은 아직 하지 않았습니다. [Release 배치·URL/Data·QoS 검증](Documentation/RELEASE_MEMORY_2026-10-28.md)에 앞선 메모리·QoS 비교를 기록했습니다. 대용량 URL 입력의 footprint 절감은 확인했지만 작은 배치의 추가 메모리 절감은 확보하지 못했습니다. [입력 Reader의 앞선 Debug 검증](Documentation/BATCH_MEMORY_2026-10-28.md), [오픈소스 후속 검증과 65문서 대조](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md), 과거 [대용량 기록](Documentation/LOCAL_REVIEW_2026-10-27.md)·[RTF 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)·[XLS 전환](Documentation/XLS_CHART_FIX.md)은 당시 결과로 보존합니다.
+최신 iPhone 17 / iOS 27.2 실기기에서 **163/163 PASS**, xcresult 런타임 경고 0건을 확인했습니다. 벡터 오류 종료의 JSContext 참조를 정리하고 HEIC PNG 인코딩을 동시성 2의 default-QoS 큐로 옮겼습니다. [메모리·QoS 수정 검증](Documentation/DEVICE_OPTIMIZATION_2026-10-30.md)에 5쌍 비교를 기록했습니다. 앱 자체 peak 중앙값은 **60.85→57.86 MiB(-4.9%)**, 반복·배치 시간 중앙값은 약 0.4~1.6% 증가했습니다. 관측 최고 peak는 줄지 않았으며 모든 실행의 메모리 개선이나 속도 무저하를 보장하지 않습니다. WebKit 별도 프로세스의 peak 메모리는 무선 Instruments 연결 중단으로 미관측입니다.
+
+[앞선 실기기 검증](Documentation/DEVICE_VERIFICATION_2026-10-30.md)은 당시 159개 회귀와 공유 WebKit 저장소 전후 결과로 보존했습니다.
+
+실기기 32개 통과와 과거 대용량 기록은 이전 동기 OCR 코드의 결과입니다. [Release 배치·URL/Data·QoS 검증](Documentation/RELEASE_MEMORY_2026-10-28.md)에 앞선 메모리·QoS 비교를 기록했습니다. 대용량 URL 입력의 footprint 절감은 확인했지만 작은 배치의 추가 메모리 절감은 확보하지 못했습니다. [입력 Reader의 앞선 Debug 검증](Documentation/BATCH_MEMORY_2026-10-28.md), [오픈소스 후속 검증과 65문서 대조](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md), 과거 [대용량 기록](Documentation/LOCAL_REVIEW_2026-10-27.md)·[RTF 검증](Documentation/RTF_COMPLETION_VERIFICATION.md)·[XLS 전환](Documentation/XLS_CHART_FIX.md)은 당시 결과로 보존합니다.
 
 [Vision 단독 메모리 재현 예제](Documentation/VISION_MEMORY_REPRODUCTION.md)는 자체 생성 이미지로 OCR 동시성 1·2를 비교합니다. 별도 XCTest 타깃에 복사해 실행하며 제품이나 기본 CI 테스트에는 포함하지 않습니다.
 

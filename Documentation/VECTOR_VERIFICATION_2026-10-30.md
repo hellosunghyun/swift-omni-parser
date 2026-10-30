@@ -1,6 +1,6 @@
 # WMF·EMF 온디바이스 변환 검증
 
-2026-10-30. `wmf-emf-renderer 0.2.1` 소스 자산 추가를 승인받아 RTF pict·OLE native/미리보기 경로에 연결했다. 사용자가 이번에는 Simulator 검증만 요청했으므로 실기기는 NOT_RUN이며 과거 실기기 결과를 재사용하지 않는다.
+2026-10-30. `wmf-emf-renderer 0.2.1` 소스 자산 추가를 승인받아 RTF pict·OLE native/미리보기 경로에 연결했다. 최초에는 사용자 요청에 따라 Simulator만 검증했다. 이후 같은 제품 소스로 [iPhone 17 실기기 후속 검증](DEVICE_VERIFICATION_2026-10-30.md)을 수행했으며, 두 환경의 수치와 제약을 구분한다.
 
 ## 구현과 범위
 
@@ -24,7 +24,7 @@ SVG 허용 목록·엔티티 차단·외부 URI 차단·중복 ID/순환 참조 
 | 전체 통합 Release 회귀 | **159/159 PASS**, 실패·skip·expected failure 0, XCTest 본문 103.264초, xcresult 런타임 경고 0 |
 | strict lint | **84파일·위반 0** |
 | generic Simulator Release 빌드 | **PASS**, arm64·x86_64 |
-| 실기기 실행 | **NOT_RUN**, 사용자 요청으로 연기 |
+| 실기기 후속 실행 | **159/159 PASS**, [기록](DEVICE_VERIFICATION_2026-10-30.md). QoS 경고 1건·WebKit 별도 메모리 미관측 |
 
 후속 검사는 생성 WMF·EMF의 실제 도형 색상·텍스트·한영 OCR·홀수 텍스트 좌표, 기존 RTF 안 WMF 호환본 2개, 옵션 4조합, RTF/OLE 그림·경고 위치, 원본/호환본 중복, 손상 후 본문 보존, 픽셀·record·byte·point 한도, 취소·재사용·배치 순서를 포함한다. 안전 검사는 스크립트·외부/파일/data-SVG 참조·DTD/엔티티·CSS URL·중복/순환 ID·거대 압축 이미지 메타데이터·내장 이미지 누적 픽셀·unknown/stub의 부분 결과를 확인한다.
 
@@ -73,3 +73,5 @@ swiftlint lint --strict
 MIT 원문은 저장소와 SwiftPM 배포 리소스에 함께 보존했다. 원본 npm integrity·소스 hash, 수정 JS hash와 AST 패치 재생성 명령은 [라이브러리 기록](../ThirdParty/wmf-emf-renderer/README.md)에 있다. 패치는 119개 루프·출력 노드·할당 예산·문자열 이스케이프·미지원 요소 flag·WMF 좌표 보완을 포함한다. Node/Acorn은 개발 시 재생성 도구이며 앱 런타임에 포함하지 않는다. 새 네이티브 바이너리·원격 변환 서비스는 추가하지 않았다.
 
 제품 저장소에는 원시 로그·xcresult·임시 검증 앱을 넣지 않는다. 로컬 증거 루트는 `~/Documents/Codex/OmniParserVerification/2026-10-30/`이며 `vector-fourth.log`/xcresult(후속 24개), `vector-final-159.log`/xcresult(전체), `vector-final-lint.log`, `vector-generic-build.log`, 외부 `VectorMemoryHost/Logs/` 및 `vector-processes-*.jsonl`에서 단계별 실제 기록을 확인한다. 실제 개인 문서 본문은 로그에 넣지 않았다.
+
+후속 [실기기 메모리·QoS 수정 검증](DEVICE_OPTIMIZATION_2026-10-30.md)은 오류 종료의 JSContext 참조 정리와 HEIC PNG 비동기 인코딩, 163개 실제 기기 회귀를 다룬다. 위 Simulator 수치와 앞선 실기기 baseline을 최종 후보 측정에 합산하지 않는다.
