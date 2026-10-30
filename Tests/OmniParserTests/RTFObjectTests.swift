@@ -134,6 +134,11 @@ final class RTFObjectTests: XCTestCase {
       options: .init(extractImages: true, maximumEmbeddedImages: 1))
     XCTAssertEqual(result.images.count, 1)
     XCTAssertTrue(result.warnings.contains { $0.code == .extractionFailed })
+    let image = try XCTUnwrap(result.images.first)
+    XCTAssertTrue(image.location.part?.contains("/object[1]/preview/byte[") == true)
+    XCTAssertTrue(result.blocks.filter { $0.kind == .image }.allSatisfy {
+      $0.location.part == image.location.part
+    })
     XCTAssertTrue(result.fullText.contains("After"))
     TestFixtures.assertTextConsistency(result)
   }

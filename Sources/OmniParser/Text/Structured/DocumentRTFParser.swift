@@ -171,7 +171,8 @@ nonisolated enum DocumentRTFParser {
 
     /// 정상 원본을 우선 사용하고, 디코딩 실패일 때만 연결된 호환본을 시도한다.
     private mutating func decode(
-      _ picture: DocumentRTFPictureReader.Picture, location: inout DocumentLocation
+      _ picture: DocumentRTFPictureReader.Picture, location: inout DocumentLocation,
+      fallbackPart: String?
     ) throws -> (image: CGImage, orientation: CGImagePropertyOrientation) {
       do {
         guard !picture.malformed else { throw DocumentParsingError.malformedDocument }
@@ -185,7 +186,7 @@ nonisolated enum DocumentRTFParser {
           code: .extractionFailed,
           message: "RTF preferred image failed; its fallback was retained.",
           location: location))
-        location.part = "\(part)/byte[\(backup.offset)]"
+        location.part = "\(fallbackPart ?? part)/byte[\(backup.offset)]"
         return decoded
       }
     }
@@ -241,7 +242,7 @@ nonisolated enum DocumentRTFParser {
           throw DocumentParsingError.inputTooLarge
         }
         imageAttempts += 1
-        let decoded = try decode(picture, location: &located)
+        let decoded = try decode(picture, location: &located, fallbackPart: sourcePart)
         let result = try await DocumentRasterParser.parseImage(
           decoded.image, orientation: decoded.orientation, format: .rtf, location: located,
           options: options,
