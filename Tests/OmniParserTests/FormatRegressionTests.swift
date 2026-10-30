@@ -28,6 +28,39 @@ final class FormatRegressionTests: XCTestCase {
     let minimumImages: Int?
   }
 
+  func testLegacyAsianEncodingFixturesArePreserved() async throws {
+    // 외부 자산 없이 자체 문구를 Python의 cp949·euc_kr·shift_jis로 인코딩한 바이트다.
+    let fixtures: [(bytes: [UInt8], text: String)] = [
+      ([0x8C, 0x63, 0xB9, 0xE6, 0xB0, 0xA2, 0xC7, 0xCF], "똠방각하"),
+      ([0xC7, 0xD1, 0xB1, 0xDB, 0x20, 0xB9, 0xAE, 0xBC, 0xAD], "한글 문서"),
+      ([0x83, 0x74, 0x83, 0x40, 0x83, 0x43, 0x83, 0x8B], "ファイル")
+    ]
+    for fixture in fixtures {
+      let result = try await DocumentParser.parse(
+        .data(Data(fixture.bytes), fileName: "legacy.txt"))
+      XCTAssertEqual(result.format, .txt)
+      XCTAssertTrue(result.fullText == fixture.text)
+      XCTAssertTrue(result.warnings.isEmpty)
+      TestFixtures.assertTextConsistency(result)
+    }
+  }
+
+  func testEqualAsianScriptScoresKeepFirstCandidate() async throws {
+    // 자체 경계 시료: CP949의 U+AD87과 Shift_JIS의 U+3042가 각각 점수 1로 동점이다.
+    let result = try await DocumentParser.parse(
+      .data(Data([0x82, 0xA0]), fileName: "equal-scores.txt"))
+    XCTAssertTrue(result.fullText == "\u{AD87}")
+    TestFixtures.assertTextConsistency(result)
+  }
+
+  func testZeroAsianScriptScoreUsesWindows1252() async throws {
+    // 자체 경계 시료: Shift_JIS 반각 문자는 점수 0이므로 CP1252의 U+00A6을 보존한다.
+    let result = try await DocumentParser.parse(
+      .data(Data([0xA6]), fileName: "zero-score.txt"))
+    XCTAssertTrue(result.fullText == "\u{00A6}")
+    TestFixtures.assertTextConsistency(result)
+  }
+
   func testJSONPreservesBooleansBesideNumbers() async throws {
     let source = #"{"enabled":true,"disabled":false,"numbers":[0,1,1.5],"value":null}"#
     let result = try await DocumentParser.parse(.data(Data(source.utf8), fileName: "values.json"))
