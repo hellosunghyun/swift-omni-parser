@@ -64,7 +64,8 @@ final class RTFVectorTests: XCTestCase {
       let offset = try XCTUnwrap(source.range(of: Data("{\\object".utf8))).lowerBound
       let result = try await parse(source, images: true, ocr: true)
       XCTAssertEqual(result.images.count, 1)
-      XCTAssertTrue(result.images[0].location.part?
+      let image = try XCTUnwrap(result.images.first)
+      XCTAssertTrue(image.location.part?
         .hasPrefix("rtf/byte[\(offset)]/object[1]/preview") == true)
       XCTAssertTrue(result.fullText.contains("VECTOR"))
       XCTAssertTrue(result.fullText.hasSuffix("After"))
