@@ -27,7 +27,7 @@ nonisolated enum DocumentRTFParser {
     var context = Context(options: options, warnings: prepared.warnings)
     let text = attributed.string as NSString
     let pattern = try NSRegularExpression(
-      pattern: prepared.marker + "(?:N([0-9]+)END|S([0-9]+)(BEGIN|END))")
+      pattern: prepared.marker + "(?:N([0-9]+)END|S([0-9]+)(BEGIN|END)|O([0-9]+)END)")
     var offset = 0
     var paragraph = 0
     while offset < text.length {
@@ -60,6 +60,8 @@ nonisolated enum DocumentRTFParser {
     private var cells: [String: Int] = [:]
     private var warnedNestedTables: Set<ObjectIdentifier> = []
     private var imageBytes = 0
+    private var objectBytes = 0
+    private var imageAttempts = 0
 
     init(options: DocumentParserOptions, warnings: [DocumentWarning]) {
       self.options = options
@@ -95,6 +97,10 @@ nonisolated enum DocumentRTFParser {
           prepared.sections.indices.contains(index) {
           switchSection(prepared.sections[index],
                         beginning: text.substring(with: match.range(at: 3)) == "BEGIN")
+        } else if match.range(at: 4).location != NSNotFound,
+          let index = Int(text.substring(with: match.range(at: 4))),
+          prepared.objects.indices.contains(index) {
+          try await appendObject(prepared.objects[index], index: index, location: location)
         }
         cursor = NSMaxRange(match.range)
       }
@@ -184,16 +190,62 @@ nonisolated enum DocumentRTFParser {
       }
     }
 
-    private mutating func appendImage(
-      _ picture: DocumentRTFPictureReader.Picture, index: Int, location: DocumentLocation
+    /// native 데이터 추출이 성공하면 result 미리보기는 생략해 본문·OCR 중복을 막는다.
+    private mutating func appendObject(
+      _ object: DocumentRTFPictureReader.Object, index: Int, location: DocumentLocation
     ) async throws {
       var located = location
-      located.part = "\(part)/byte[\(picture.range.lowerBound)]/image[\(index + 1)]"
+      let bytePart = "byte[\(object.range.lowerBound)]/object[\(index + 1)]"
+      located.part = "\(location.part ?? part)/\(bytePart)"
       do {
+        guard !object.linked else { throw DocumentParsingError.unsupportedFormat }
+        guard !object.resourceLimited else { throw DocumentParsingError.inputTooLarge }
+        guard !object.malformed else { throw DocumentParsingError.malformedDocument }
+        var child = options
+        let remaining = options.maximumExpandedBytes - imageBytes - objectBytes
+        child.maximumExpandedBytes = max(0, remaining)
+        child.maximumEmbeddedImages = max(0, options.maximumEmbeddedImages - imageAttempts)
+        let result = try await DocumentRTFObjectReader.parse(object.data, options: child)
+        objectBytes += object.data.count
+        imageAttempts += DocumentRTFObjectReader.imageCount(result)
+        let scoped = DocumentRTFObjectReader.scoped(result, parent: located.part ?? part)
+        blocks.appendInReadingOrder(scoped.blocks)
+        images.append(contentsOf: scoped.images)
+        imageBytes += scoped.images.reduce(0) { $0 + $1.pngData.count }
+        warnings.append(contentsOf: scoped.warnings)
+      } catch {
+        if error is CancellationError || Task.isCancelled
+          || (error as? DocumentParsingError) == .cancelled { throw CancellationError() }
+        warnings.append(DocumentWarning(
+          code: (error as? DocumentParsingError) == .inputTooLarge
+            ? .resourceLimitReached : .unsupportedElement,
+          message: object.linked ? "RTF linked OLE object was not opened."
+            : "RTF OLE native content failed; available preview and other content were retained.",
+          location: located))
+        if let preview = object.preview, options.extractImages || options.performOCR {
+          try await appendImage(preview, index: index, location: location,
+                                sourcePart: located.part.map { $0 + "/preview" })
+        }
+      }
+    }
+
+    private mutating func appendImage(
+      _ picture: DocumentRTFPictureReader.Picture, index: Int, location: DocumentLocation,
+      sourcePart: String? = nil
+    ) async throws {
+      var located = location
+      located.part = sourcePart
+        ?? "\(part)/byte[\(picture.range.lowerBound)]/image[\(index + 1)]"
+      do {
+        guard imageAttempts < options.maximumEmbeddedImages else {
+          throw DocumentParsingError.inputTooLarge
+        }
+        imageAttempts += 1
         let decoded = try decode(picture, location: &located)
         let result = try await DocumentRasterParser.parseImage(
           decoded.image, orientation: decoded.orientation, format: .rtf, location: located,
-          options: options, remainingBytes: max(0, options.maximumExpandedBytes - imageBytes))
+          options: options,
+          remainingBytes: max(0, options.maximumExpandedBytes - imageBytes - objectBytes))
         imageBytes += result.images.reduce(0) { $0 + $1.pngData.count }
         images.append(contentsOf: result.images)
         blocks.appendInReadingOrder(result.blocks)
