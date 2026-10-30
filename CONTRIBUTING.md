@@ -19,10 +19,12 @@
 | 변경 영역 | 기존 테스트 클래스 |
 | --- | --- |
 | 공개 API·옵션·배치 결과 | `APIContractTests` |
-| 텍스트·마크업 본문과 참조 그림 | `APIContractTests`, `FormatRegressionTests` |
+| 텍스트·인코딩·마크업 본문과 참조 그림 | `APIContractTests`, `FormatRegressionTests` |
 | 파일 입력·자원 제한·취소 | `FileInputRegressionTests`, `ResourceAndCancellationTests` |
 | OCR 언어·좌표·PDF 회전 | `MixedLanguageOCRRegressionTests`, `OCRUnitBoundsTests`, `PDFSmallTextRotationTests` |
-| Office·HWP·RTF 추출 | `OfficeSourceTruthTests`, `HWPRepeatedAnchorRegressionTests`, `RTFRegressionTests` |
+| Office 추출 | `OfficeSourceTruthTests` |
+| HWP·HWPX 그림 앵커·설명·XML 검사 | `HWPRepeatedAnchorRegressionTests`, `HWPLogicalAnchorRegressionTests` |
+| RTF 표·그림·부분 복구 | `RTFRegressionTests` |
 
 예를 들어 공개 API 계약만 먼저 확인할 때는 다음과 같이 선택합니다. 이 검사는 README의 전체 회귀를 대체하지 않습니다.
 
