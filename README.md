@@ -64,18 +64,19 @@ let outcomes = try await DocumentParser.parseBatch(
 | JPEG·PNG·HEIC·TIFF·CGImage | ImageIO·Vision, 다중 프레임과 방향 처리 |
 | PDF | 페이지 좌표·선/정렬 기반 표 추정·표시된 그림 영역의 래스터 추출·선택적 OCR. 원본 이미지 스트림 반환은 아님 |
 | DOC·PPT | OfficeOxide, OfficeArt 그림 보완 |
-| DOCX·XLS·XLSX·PPTX | OpenDocument.core |
+| XLS | OpenDocument.core, OfficeArt 그림 보완 |
+| DOCX·XLSX·PPTX | OpenDocument.core |
 | HWP·HWPX | CoreHwp 본문·표·문단/셀 그림 앵커. 지원 래스터 BinData 추출·OCR, 페이지 조판 순서는 경고 |
 
 인코딩 판별은 BOM·UTF-16 패턴과 레거시 문자셋 휴리스틱을 사용합니다. JSON 객체 키는 정렬하며 XML은 엔티티 확장을 허용하지 않습니다. Office는 백엔드가 제공하는 문서 요소를 추출하며, 제공하지 않는 헤더·각주·도형 앵커·좌표까지 완전하게 복원하지 않습니다.
 
 표는 기존 구현의 처리 경로를 나타내며 모든 문서의 완전한 복원을 보장하지 않습니다. 위치를 복원하지 못하거나 일부 요소가 실패하면 경고를 반환합니다. 이미지 속 표의 셀 구조 복원, 암호 해제, 파일 형식 변환은 제공하지 않습니다. 구체적인 옵션·위치·읽기 순서 제약은 [API 문서](Documentation/API.md)를 확인하세요.
 
-통합한 코드는 iPhone 17 Simulator의 **Debug 회귀 171개 통과**로 확인했습니다. 아래 실기기 163개 결과는 병합 전 코드의 검증이며 이번 통합 상태의 실기기 검증과 구분합니다. 작은 숫자 그림의 오인식·페이지 OCR 중복·작은 배치의 추가 peak 메모리 절감은 남아 있습니다. 자세한 범위와 이전 결과는 아래 검증 이력에 구분했습니다.
+병합 커밋 `58edb2d`는 iPhone 17 Simulator의 **Debug 회귀 171개 통과**로 확인했습니다. 해당 커밋의 [GitHub Actions 검증](https://github.com/hellosunghyun/swift-omni-parser/actions/runs/41192613786)도 성공했습니다. 아래 실기기 163개 결과는 병합 전 코드의 검증이며 이번 통합 상태의 실기기 검증과 구분합니다. 작은 숫자 그림의 오인식·페이지 OCR 중복·작은 배치의 추가 peak 메모리 절감은 남아 있습니다. 자세한 범위와 이전 결과는 아래 검증 이력에 구분했습니다.
 
 ## 빌드
 
-CI의 Simulator 회귀·일반 빌드는 Debug 설정을 사용합니다. 로컬에서도 설정을 명시합니다.
+CI는 Xcode 27.1·iOS 27.1 SDK, iPhone 17 / iOS 27.0 Simulator, SwiftLint 0.65.1을 사용합니다. Simulator 회귀·일반 빌드는 Debug 설정이며, 로컬에서도 설정을 명시합니다.
 
 ```bash
 xcodebuild build -configuration Debug -scheme OmniParser \
@@ -112,11 +113,11 @@ xcodebuild test -configuration Release -scheme OmniParser \
 
 병합 전 `089ead2` 작업 브랜치에서는 Debug 회귀 107개를 확인했습니다. 이번 통합 상태의 171개에는 원격 main의 RTF·OLE·DIB·벡터·PNG 회귀와 해당 작업 브랜치의 회귀를 함께 포함합니다.
 
-기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 앞선 `33991ef` 기준의 **Release 회귀 99개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 67파일·위반 0건·generic Simulator 빌드 통과를 확인했습니다. 요청별 언어·동시 호출·PDF·TIFF·HWPX 회귀에 OCR 좌표 경계와 정방향으로 표시되는 PDF의 0/90/180/270도 페이지 좌표 검사를 포함합니다.
+앞선 `33991ef` 기준의 **Release 회귀 99개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 67파일·위반 0건·generic Simulator 빌드 통과를 확인했습니다. 요청별 언어·동시 호출·PDF·TIFF·HWPX 회귀에 OCR 좌표 경계와 정방향으로 표시되는 PDF의 0/90/180/270도 페이지 좌표 검사를 포함합니다.
 
-기본 의존성은 XLS 중첩 차트 수정을 포함한 OpenDocument.core 포크 `7.5.2-omni.1`의 exact 버전이며 기존 b302cc 커밋을 유지합니다. 병합 전 main의 **Release 회귀 159개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 84파일·위반 0건을 확인했습니다. RTF 헤더·푸터·중첩 표·내장 OLE·DIB·WMF/EMF와 옵션·자원 제한·WebKit 실행 중 취소 회귀를 포함합니다. [통합 검증](Documentation/INTEGRATION_VERIFICATION_2026-10-30.md)에 최신 실행과 과거 결과를 구분했습니다. 요청별 언어·동시 호출·PDF·TIFF·HWPX 회귀에 OCR 좌표 경계와 정방향으로 표시되는 PDF의 0/90/180/270도 페이지 좌표 검사를 포함합니다.
+병합 전 main의 **Release 회귀 159개가 iPhone 17 Simulator에서 실패·skip 없이 통과**했고, xcresult 런타임 경고 0건·SwiftLint strict 84파일·위반 0건을 확인했습니다. RTF 헤더·푸터·중첩 표·내장 OLE·DIB·WMF/EMF와 옵션·자원 제한·WebKit 실행 중 취소 회귀를 포함합니다. [통합 검증](Documentation/INTEGRATION_VERIFICATION_2026-10-30.md)에 당시 실행과 과거 결과를 구분했습니다.
 
-앞선 65문서 비교에서 본문·2,709개 블록의 문구·순서·신뢰도·이미지 픽셀은 유지됐고, 범위 밖 OCR 좌표 1개를 보정했습니다. PNG 원시 바이트는 64/65 일치하며 나머지는 색상 프로필 날짜·시각 필드 두 바이트만 달랐습니다. 엄격 비교의 차이 상태를 보존했습니다. 작은 숫자 그림의 오인식·페이지 OCR 중복과 추가 peak 메모리 절감은 남아 있습니다. 범위·실행 명령·단계별 시간은 [최신 수정·검증 기록](Documentation/IMPROVEMENT_LOOP_2026-10-28.md#ocr-좌표-경계-보정과-99개-회귀)에 구분했습니다.
+앞선 65문서 비교에서 본문·2,709개 블록의 문구·순서·신뢰도·이미지 픽셀은 유지됐고, 범위 밖 OCR 좌표 1개를 보정했습니다. PNG 원시 바이트는 64/65 일치하며 나머지는 색상 프로필 날짜·시각 필드 두 바이트만 달랐습니다. 엄격 비교의 차이 상태를 보존했습니다. 작은 숫자 그림의 오인식·페이지 OCR 중복과 추가 peak 메모리 절감은 남아 있습니다. 범위·실행 명령·단계별 시간은 [OCR 수정·검증 기록](Documentation/IMPROVEMENT_LOOP_2026-10-28.md#ocr-좌표-경계-보정과-99개-회귀)에 구분했습니다.
 
 병합 전 `df6b502` 기준 iPhone 17 / iOS 27.2 실기기에서 **163/163 PASS**, xcresult 런타임 경고 0건을 확인했습니다. 벡터 오류 종료의 JSContext 참조를 정리하고 HEIC PNG 인코딩을 동시성 2의 default-QoS 큐로 옮겼습니다. [메모리·QoS 수정 검증](Documentation/DEVICE_OPTIMIZATION_2026-10-30.md)에 5쌍 비교를 기록했습니다. 앱 자체 peak 중앙값은 **60.85→57.86 MiB(-4.9%)**, 반복·배치 시간 중앙값은 약 0.4~1.6% 증가했습니다. 관측 최고 peak는 줄지 않았으며 모든 실행의 메모리 개선이나 속도 무저하를 보장하지 않습니다. WebKit 별도 프로세스의 peak 메모리는 무선 Instruments 연결 중단으로 미관측입니다.
 
@@ -155,4 +156,4 @@ OfficeOxide의 iOS·Simulator 정적 XCFramework는 `ThirdParty/OfficeOxide`에 
 
 ## 공개 초안 검토
 
-최신 상태는 [후속 수정·검증](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md), 최초 검토 이력은 [공개 초안 검토](Documentation/OPEN_SOURCE_REVIEW.md)에 정리했습니다.
+초기 검토와 후속 조치 이력은 [공개 초안 검토](Documentation/OPEN_SOURCE_REVIEW.md)와 [2026-10-27 후속 수정·검증](Documentation/OPEN_SOURCE_FIXES_2026-10-27.md)에 보존했습니다. 현재 지원 범위와 검증 상태는 위의 형식 표·검증 이력을 기준으로 확인하세요.
