@@ -91,8 +91,8 @@ enum HWPRepeatedAnchorFixtures {
     """
   }
 
-  /// CrossFormatLanguageFollowup와 같은 stored ZIP·정상 CRC 빌더다.
-  private static func makeZIP(_ entries: [(String, Data)]) -> Data {
+  /// HWPX 앵커·XML 보안 회귀가 함께 사용하는 stored ZIP·정상 CRC 빌더다.
+  static func makeZIP(_ entries: [(String, Data)]) -> Data {
     func number(_ value: Int, _ count: Int = 4) -> Data {
       Data((0..<count).map { UInt8(truncatingIfNeeded: value >> ($0 * 8)) })
     }

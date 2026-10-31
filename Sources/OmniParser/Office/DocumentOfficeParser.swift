@@ -48,12 +48,11 @@ nonisolated enum DocumentOfficeParser {
     }
     let result = DocumentParseResult(
       format: format, blocks: context.blocks, warnings: context.warnings, images: context.images)
-    if [.doc, .xls, .ppt].contains(format) {
+    if format == .xls {
       return try await DocumentLegacyOfficeSupplement.extract(
         data: data, format: format, base: result, options: options,
         inspectedImages: context.imageAttempts)
     }
     return result
   }
-
 }

@@ -25,10 +25,12 @@ nonisolated enum DocumentFormatDetector {
       return String(data: data, encoding: encoding)
     }
     if let text = String(data: data, encoding: .utf8) { return text }
-    let asianCandidates = decodeAsianEncodings(data)
-    if let bestCandidate = asianCandidates.max(by: { scriptScore($0) < scriptScore($1) }),
-      scriptScore(bestCandidate) > 0 {
-      return bestCandidate
+    let asianCandidates = decodeAsianEncodings(data).map {
+      (text: $0, score: scriptScore($0))
+    }
+    if let bestCandidate = asianCandidates.max(by: { $0.score < $1.score }),
+      bestCandidate.score > 0 {
+      return bestCandidate.text
     }
     return String(bytes: data, encoding: .windowsCP1252)
       ?? String(bytes: data, encoding: .isoLatin1)

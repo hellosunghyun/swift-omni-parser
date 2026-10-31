@@ -14,6 +14,33 @@ final class APIContractTests: XCTestCase {
     }
   }
 
+  func testMarkupFinalizesBodyAndReferencedImageOCRTogether() async throws {
+    let image = try Data(contentsOf: TestFixtures.url("LegacyImage.png"))
+    let reference = "data:image/png;base64,\(image.base64EncodedString())"
+    let html = "<html><body><h1>Title</h1><p>Before</p>"
+      + "<img src='\(reference)'><p>After</p></body></html>"
+    let markdown = "# Title\nBefore\n![](\(reference))\nAfter"
+    let cases: [(DocumentFormat, String)] = [
+      (.html, html), (.markdown, markdown)
+    ]
+    for (format, source) in cases {
+      let name = format == .html ? "inline.html" : "inline.md"
+      let result = try await DocumentParser.parse(.data(Data(source.utf8), fileName: name),
+        options: .init(extractImages: true, performOCR: true))
+      XCTAssertEqual(result.format, format)
+      XCTAssertEqual(result.blocks.filter { $0.kind != .image && $0.kind != .imageOCR }
+        .map(\.text), ["Title", "Before", "After"])
+      XCTAssertEqual(result.images.count, 1)
+      XCTAssertEqual(result.blocks.filter { $0.kind == .image }.count, 1)
+      XCTAssertTrue(result.fullText.hasPrefix("Title\nBefore\nAfter\n"))
+      XCTAssertTrue(result.fullText.contains("IMAGE OCR MARKER"))
+      XCTAssertEqual(result.blocks.map(\.readingOrder), Array(result.blocks.indices))
+      XCTAssertEqual(result.warnings.map(\.code), [.uncertainReadingOrder])
+      XCTAssertEqual(result.warnings.first?.location?.part, format.rawValue)
+      TestFixtures.assertTextConsistency(result)
+    }
+  }
+
   func testBackendErrorsUseSamePublicCategoryInSingleAndBatch() async throws {
     let input = try TestFixtures.malformedWorkbook()
     let progress = TestProgress()

@@ -1,6 +1,6 @@
 # RTF 지원 범위
 
-RTF는 본문 문자열 외에 표·셀 위치·내장 래스터 그림과 선택적 OCR을 반환한다. 본문과 표는 UIKit의 `NSAttributedString` RTF importer가 제공한 속성을 읽고, importer가 버리는 `pict` 데이터만 별도로 분리한다. 새 외부 라이브러리나 런타임 바이너리는 추가하지 않는다.
+RTF는 본문 문자열 외에 표·셀 위치·내장 그림·OLE 문서와 선택적 OCR을 반환한다. 본문과 표는 UIKit의 `NSAttributedString` RTF importer가 제공한 속성을 읽고, `pict`·`object`·헤더·푸터 범위를 별도로 보완한다. WMF·EMF는 고정한 `wmf-emf-renderer` 소스 자산과 Apple 프레임워크로 온디바이스 변환하며, 네이티브 바이너리를 추가하지 않는다.
 
 ## 호출
 

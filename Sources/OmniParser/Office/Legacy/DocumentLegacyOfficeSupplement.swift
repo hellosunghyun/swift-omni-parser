@@ -13,11 +13,9 @@ nonisolated enum DocumentLegacyOfficeSupplement {
     let streams = try DocumentCompoundFile.streams(data, options: options)
     var context = Context(blocks: base.blocks, images: base.images, warnings: base.warnings,
                           options: options, bytes: base.images.reduce(0) { $0 + $1.pngData.count })
-    if options.extractImages || options.performOCR {
-      let extracted = DocumentLegacyImageExtractor.extract(
-        streams, limit: max(0, options.maximumEmbeddedImages - inspectedImages))
-      for image in extracted { try await context.append(image) }
-    }
+    let extracted = DocumentLegacyImageExtractor.extract(
+      streams, limit: max(0, options.maximumEmbeddedImages - inspectedImages))
+    for image in extracted { try await context.append(image) }
     if let location = context.images.first?.location
       ?? context.blocks.first(where: { $0.kind == .imageOCR })?.location {
       context.warnings.append(DocumentWarning(
