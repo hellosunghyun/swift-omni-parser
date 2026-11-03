@@ -87,54 +87,87 @@ nonisolated enum DocumentPDFPageParser {
     }
   }
 
-  /// 그림 OCR이 페이지 전체와 정확히 같은 픽셀 영역을 읽은 경우에만 전체 페이지 OCR을 재사용한다.
+  // 그림 OCR이 전체 페이지와 같은 픽셀일 때만 페이지 OCR을 재사용한다.
+  // 이미지별 원래 순서와 경고를 유지하면서 결과를 합친다.
   @concurrent private static func performRecognition(
     _ prepared: DocumentPDFPreparedPage,
-    recognizeImage: @Sendable (CGImage, DocumentLocation, CGRect) async throws -> [DocumentBlock]
+    recognizeImage: @escaping @Sendable (CGImage, DocumentLocation, CGRect) async throws
+      -> [DocumentBlock]
   ) async throws -> DocumentPDFPreparedPage {
     var page = prepared
-    let native = page.result.blocks
-    var recognizedFullPage = false
+    var state = ImageOCRMergeState(native: page.result.blocks)
     // 한 페이지의 같은 래스터를 정확히 같은 bounds로 자르면 같은 픽셀 영역이다.
     // 성공한 비어 있지 않은 OCR 영역만 보관하며 그림·PNG 배치는 각각 유지한다.
-    var successfulRegions: [CGRect] = []
-    for job in page.imageJobs {
+    var index = 0
+    while index < page.imageJobs.count {
       try Task.checkCancellation()
-      if page.extractImages {
-        page.result.blocks.append(DocumentBlock(
-          kind: .image, text: "", readingOrder: 0, location: job.location))
+      let first = page.imageJobs[index]
+      if isSuccessfulRegion(first, regions: state.successfulRegions) {
+        appendImagePlaceholder(first, to: &page)
+        index += 1
+        continue
       }
-      if let bounds = job.location.bounds, !bounds.isNull, !bounds.isEmpty,
-        successfulRegions.contains(bounds) { continue }
-      do {
-        var timing = DocumentPDFTiming.start()
-        let recognized = try await recognizeImage(
-          job.raster.image, job.location, job.location.bounds ?? .zero)
-        DocumentPDFTiming.record(&timing, page: page.index + 1, stage: "image_ocr_vision")
-        if !recognized.isEmpty, let bounds = job.location.bounds,
-          !bounds.isNull, !bounds.isEmpty {
-          successfulRegions.append(bounds)
-        }
-        recognizedFullPage = recognizedFullPage || job.covers(page.raster)
-        for block in recognized where !duplicate(block, in: native)
-          && !repeatedImageOCR(block, in: page.result.blocks) {
-          page.result.blocks.append(block)
-        }
-        DocumentPDFTiming.record(&timing, page: page.index + 1, stage: "image_ocr_merge")
-      } catch is CancellationError {
-        throw CancellationError()
-      } catch {
-        page.result.warnings.append(DocumentWarning(
-          code: .imageOCRFailed, message: "PDF image OCR failed; raster region is preserved.",
-          location: job.location))
+      let chunk = try await DocumentPDFImageOCRChunk.recognize(
+        jobs: page.imageJobs, start: index, pageIndex: page.index,
+        successfulRegions: state.successfulRegions, recognizeImage: recognizeImage)
+      for (job, outcome) in chunk {
+        appendImagePlaceholder(job, to: &page)
+        try mergeImageOCR(job, outcome: outcome, page: &page, state: &state)
       }
+      index += chunk.count
     }
-    if let raster = page.raster, !recognizedFullPage {
+    if let raster = page.raster, !state.recognizedFullPage {
       try await appendPageOCR(raster.image, index: page.index, result: &page.result)
     }
     page.raster = nil
     page.imageJobs = []
     return page
+  }
+
+  private struct ImageOCRMergeState {
+    let native: [DocumentBlock]
+    var successfulRegions: [CGRect] = []
+    var recognizedFullPage = false
+  }
+
+  private static func isSuccessfulRegion(
+    _ job: DocumentPDFImageJob, regions: [CGRect]
+  ) -> Bool {
+    guard let bounds = job.location.bounds, !bounds.isNull, !bounds.isEmpty else { return false }
+    return regions.contains(bounds)
+  }
+
+  private static func appendImagePlaceholder(
+    _ job: DocumentPDFImageJob, to page: inout DocumentPDFPreparedPage
+  ) {
+    guard page.extractImages else { return }
+    page.result.blocks.append(DocumentBlock(
+      kind: .image, text: "", readingOrder: 0, location: job.location))
+  }
+
+  private static func mergeImageOCR(
+    _ job: DocumentPDFImageJob, outcome: Result<[DocumentBlock], Error>,
+    page: inout DocumentPDFPreparedPage, state: inout ImageOCRMergeState
+  ) throws {
+    switch outcome {
+    case .success(let recognized):
+      var timing = DocumentPDFTiming.start()
+      if !recognized.isEmpty, let bounds = job.location.bounds,
+        !bounds.isNull, !bounds.isEmpty {
+        state.successfulRegions.append(bounds)
+      }
+      state.recognizedFullPage = state.recognizedFullPage || job.covers(page.raster)
+      for block in recognized where !duplicate(block, in: state.native)
+        && !repeatedImageOCR(block, in: page.result.blocks) {
+        page.result.blocks.append(block)
+      }
+      DocumentPDFTiming.record(&timing, page: page.index + 1, stage: "image_ocr_merge")
+    case .failure(let error):
+      if error is CancellationError { throw CancellationError() }
+      page.result.warnings.append(DocumentWarning(
+        code: .imageOCRFailed, message: "PDF image OCR failed; raster region is preserved.",
+        location: job.location))
+    }
   }
 
   private static func tables(

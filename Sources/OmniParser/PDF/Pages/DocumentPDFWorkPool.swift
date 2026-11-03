@@ -37,6 +37,17 @@ actor DocumentPDFWorkPool {
     }
   }
 
+  /// 기존 페이지 작업이 점유한 풀의 남는 슬롯만 즉시 사용한다. FIFO 대기자를 추월하지 않는다.
+  func tryAcquire(estimatedBytes: Int) -> UUID? {
+    let requested = bounded(estimatedBytes)
+    guard !active.isEmpty, waiting.isEmpty, active.count < min(maximumPages, 3),
+      requested <= max(0, targetBytes - bytes) else { return nil }
+    let id = UUID()
+    active[id] = requested
+    bytes += requested
+    return id
+  }
+
   /// 페이지 준비 후 알게 된 실제 추정량으로 예약을 갱신한다. OS가 강제하는 메모리 상한은 아니다.
   func resize(_ id: UUID, actualBytes: Int) {
     guard let previous = active[id] else { return }
