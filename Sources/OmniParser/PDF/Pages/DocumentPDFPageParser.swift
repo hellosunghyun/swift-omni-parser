@@ -7,7 +7,7 @@ import PDFKit
 /// PDFKit 객체는 준비 단계에 남기고 OCR 작업에는 불변 래스터와 위치만 전달한다.
 nonisolated enum DocumentPDFPageParser {
   /// 본문·표·그림 위치를 읽고 래스터를 만든다. 표 영역의 본문은 셀 텍스트와 겹치지 않게 제외한다.
-  static func prepare(
+  static func prepare( // swiftlint:disable:this function_body_length
     _ page: PDFPage, index: Int, options: DocumentParserOptions,
     limits: (images: Int, bytes: Int)
   ) throws -> DocumentPDFPreparedPage {
@@ -17,14 +17,18 @@ nonisolated enum DocumentPDFPageParser {
       space.size.width > 0, space.size.height > 0
     else { throw DocumentParsingError.malformedDocument }
     let scanner = DocumentPDFScanner(options: options)
+    var timing = DocumentPDFTiming.start()
     scanner.scan(reference)
+    DocumentPDFTiming.record(&timing, page: index + 1, stage: "scanner")
     try Task.checkCancellation()
     let tables = try tables(page, index: index, scanner: scanner, space: space)
+    DocumentPDFTiming.record(&timing, page: index + 1, stage: "tables")
     let tableBounds = tables.blocks.filter { $0.kind == .table }.compactMap(\.location.bounds)
     let native = nativeLines(page, index: index, space: space).filter { block in
       guard let bounds = block.location.bounds else { return true }
       return !tableBounds.contains { $0.contains(CGPoint(x: bounds.midX, y: bounds.midY)) }
     }
+    DocumentPDFTiming.record(&timing, page: index + 1, stage: "native_text")
     var result = DocumentPDFImageExtractor.Result(
       blocks: native + tables.blocks, warnings: tables.warnings)
     if scanner.limited || scanner.malformed {
@@ -38,6 +42,7 @@ nonisolated enum DocumentPDFPageParser {
       return DocumentPDFPreparedPage(index: index, result: result)
     }
     let raster = space.render(page, maximumPixels: options.maximumImagePixels)
+    DocumentPDFTiming.record(&timing, page: index + 1, stage: "render")
     guard let raster else {
       result.warnings.append(
         DocumentWarning(
@@ -48,6 +53,7 @@ nonisolated enum DocumentPDFPageParser {
     let extracted = try DocumentPDFImageExtractor.prepare(
       scanner: scanner, raster: raster, space: space, pageIndex: index,
       limits: limits)
+    DocumentPDFTiming.record(&timing, page: index + 1, stage: "image_prepare")
     result.images = extracted.result.images
     result.inspectedImages = extracted.result.inspectedImages
     result.warnings.append(contentsOf: extracted.result.warnings)
@@ -101,8 +107,10 @@ nonisolated enum DocumentPDFPageParser {
       if let bounds = job.location.bounds, !bounds.isNull, !bounds.isEmpty,
         successfulRegions.contains(bounds) { continue }
       do {
+        var timing = DocumentPDFTiming.start()
         let recognized = try await recognizeImage(
           job.raster.image, job.location, job.location.bounds ?? .zero)
+        DocumentPDFTiming.record(&timing, page: page.index + 1, stage: "image_ocr_vision")
         if !recognized.isEmpty, let bounds = job.location.bounds,
           !bounds.isNull, !bounds.isEmpty {
           successfulRegions.append(bounds)
@@ -112,6 +120,7 @@ nonisolated enum DocumentPDFPageParser {
           && !repeatedImageOCR(block, in: page.result.blocks) {
           page.result.blocks.append(block)
         }
+        DocumentPDFTiming.record(&timing, page: page.index + 1, stage: "image_ocr_merge")
       } catch is CancellationError {
         throw CancellationError()
       } catch {
@@ -161,9 +170,12 @@ nonisolated enum DocumentPDFPageParser {
     _ image: CGImage, index: Int, result: inout DocumentPDFImageExtractor.Result
   ) async throws {
     do {
+      var timing = DocumentPDFTiming.start()
       let recognized = try await DocumentOCR.recognize(
         image: image, orientation: .up, location: DocumentLocation(page: index + 1))
+      DocumentPDFTiming.record(&timing, page: index + 1, stage: "page_ocr_vision")
       result.blocks.append(contentsOf: recognized.filter { !duplicate($0, in: result.blocks) })
+      DocumentPDFTiming.record(&timing, page: index + 1, stage: "page_ocr_merge")
     } catch is CancellationError {
       throw CancellationError()
     } catch {

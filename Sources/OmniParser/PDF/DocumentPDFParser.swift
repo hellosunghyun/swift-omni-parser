@@ -9,15 +9,18 @@ nonisolated enum DocumentPDFParser {
     options: DocumentParserOptions,
     progress: DocumentParser.ProgressHandler?
   ) async throws -> DocumentParseResult {
+    var timing = DocumentPDFTiming.start()
     guard let document = PDFDocument(data: data) else {
       throw DocumentParsingError.malformedDocument
     }
+    DocumentPDFTiming.record(&timing, page: 0, stage: "document_open")
     guard !document.isLocked else { throw DocumentParsingError.encryptedDocument }
     guard document.pageCount > 0 else { throw DocumentParsingError.malformedDocument }
     let count = min(document.pageCount, max(1, options.maximumDocumentPages))
     var pipeline = DocumentPDFPipeline(document: document, options: options)
     let pages = try await pipeline.run(count: count, progress: progress)
     try Task.checkCancellation()
+    timing = DocumentPDFTiming.start()
     var blocks = pages.flatMap { $0.result.blocks }
     let images = pages.flatMap { $0.result.images }
     var warnings = pages.flatMap { $0.result.warnings }
@@ -27,6 +30,7 @@ nonisolated enum DocumentPDFParser {
         location: DocumentLocation(page: count + 1)))
     }
     blocks.sortInGeometricReadingOrder()
+    DocumentPDFTiming.record(&timing, page: 0, stage: "merge")
     return DocumentParseResult(
       format: .pdf, blocks: blocks, warnings: warnings, images: images)
   }

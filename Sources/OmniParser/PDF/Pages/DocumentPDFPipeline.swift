@@ -75,9 +75,11 @@ nonisolated struct DocumentPDFPipeline {
   /// 이미지 개수·PNG 바이트를 원본 페이지 순서대로 차감한다. 페이지 실패는 위치 경고로 복구한다.
   private mutating func prepare(index: Int) throws -> DocumentPDFPreparedPage {
     do {
+      var timing = DocumentPDFTiming.start()
       guard let page = document.page(at: index) else {
         throw DocumentParsingError.malformedDocument
       }
+      DocumentPDFTiming.record(&timing, page: index + 1, stage: "page_read")
       let prepared = try autoreleasepool {
         try DocumentPDFPageParser.prepare(
           page, index: index, options: options,
